@@ -46,17 +46,17 @@ function Tesseract({ size, scale }: { size: number; scale: number }) {
     return () => cancelAnimationFrame(raf)
   }, [size])
   return (
-    <svg ref={ref} width={size} height={size} style={{ transform: `scale(${scale})`, transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)', overflow: 'visible', filter: 'drop-shadow(0 0 14px oklch(0.75 0.17 290 / .55))' }} aria-label="Phantom-Con Artist tesseract">
-      <defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#c7b5ff" /><stop offset="1" stopColor="#6fe3c1" /></linearGradient></defs>
-      {EDGES.map((_, k) => <line key={k} stroke="url(#tg)" strokeWidth={1.6} strokeLinecap="round" />)}
-      {V.map((_, k) => <circle key={k} fill="#ffffff" />)}
+    <svg ref={ref} width={size} height={size} style={{ transform: `scale(${scale})`, transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)', overflow: 'visible', filter: 'none' }} aria-label="Phantom-Con Artist tesseract">
+      <defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#6d5ae6" /><stop offset="1" stopColor="#1fa37a" /></linearGradient></defs>
+      {EDGES.map((_, k) => <line key={k} stroke="url(#tg)" strokeWidth={1.4} strokeLinecap="round" />)}
+      {V.map((_, k) => <circle key={k} fill="#1d2230" />)}
     </svg>
   )
 }
 
 const REMOTION = 'M12 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24Zm-2.4 6.6 7.2 4.6a1 1 0 0 1 0 1.6l-7.2 4.6a1 1 0 0 1-1.5-.8V7.4a1 1 0 0 1 1.5-.8Z'
 const TOOLS: { name: string; path: string; hex: string }[] = [
-  { name: 'Electron', path: siElectron.path, hex: '#9feaf9' }, { name: 'React', path: siReact.path, hex: '#61dafb' }, { name: 'Three.js', path: siThreedotjs.path, hex: '#ffffff' },
+  { name: 'Electron', path: siElectron.path, hex: '#47848f' }, { name: 'React', path: siReact.path, hex: '#61dafb' }, { name: 'Three.js', path: siThreedotjs.path, hex: '#1d2230' },
   { name: 'Remotion', path: REMOTION, hex: '#6aa8ff' }, { name: 'Blender', path: siBlender.path, hex: '#f5792a' }, { name: 'TypeScript', path: siTypescript.path, hex: '#3178c6' },
   { name: 'Vite', path: siVite.path, hex: '#bd34fe' }, { name: 'SQLite', path: siSqlite.path, hex: '#7fb3d5' }
 ]
@@ -88,37 +88,35 @@ export function Splash({ onDone }: { onDone: () => void }) {
   const scene = t < 3.6 ? 0 : t < 6 ? 1 : 2
   const fade = (a: number, b: number): number => Math.max(0, Math.min(1, (t - a) / (b - a)))
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'radial-gradient(120% 90% at 50% 40%, #1b1830, #0b0a12 70%)', color: 'white', display: 'grid', placeItems: 'center', opacity: leaving ? 0 : 1, transition: 'opacity .6s ease', fontFamily: 'var(--display)', overflow: 'hidden' } as React.CSSProperties}>
-      {/* starfield */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.5 }} aria-hidden>{Array.from({ length: 60 }, (_, i) => <circle key={i} cx={`${(i * 37.7) % 100}%`} cy={`${(i * 61.3) % 100}%`} r={(i % 3) * 0.5 + 0.4} fill="white" opacity={0.3 + ((i * 13) % 7) / 10 * Math.abs(Math.sin(t * 0.8 + i))} />)}</svg>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#f6f7f9', color: '#1d2230', display: 'grid', placeItems: 'center', opacity: leaving ? 0 : 1, transition: 'opacity .6s ease', fontFamily: 'var(--display)', overflow: 'hidden' } as React.CSSProperties}>
 
-      {scene === 0 && <div style={{ display: 'grid', justifyItems: 'center', gap: 34, opacity: 1 - fade(3.2, 3.6) }}>
+      {scene === 0 && <div style={{ display: 'grid', justifyItems: 'center', gap: 64, opacity: 1 - fade(3.2, 3.6) }}>
         <Tesseract size={240} scale={t < 0.15 ? 0.2 : 1} />
-        <div style={{ display: 'flex', gap: '0.06em', fontSize: 44, fontWeight: 700, letterSpacing: '0.18em' }}>
-          {STUDIO.split('').map((ch, i) => <span key={i} style={{ opacity: fade(0.8 + i * 0.05, 1.1 + i * 0.05), transform: `translateY(${(1 - fade(0.8 + i * 0.05, 1.3 + i * 0.05)) * 18}px)`, display: 'inline-block', color: ch === '-' ? '#9f86ff' : 'white', minWidth: ch === ' ' ? '0.4em' : undefined }}>{ch}</span>)}
+        <div style={{ display: 'flex', gap: '0.06em', fontSize: 34, fontWeight: 600, letterSpacing: '0.22em' }}>
+          {STUDIO.split('').map((ch, i) => <span key={i} style={{ opacity: fade(0.8 + i * 0.05, 1.1 + i * 0.05), transform: `translateY(${(1 - fade(0.8 + i * 0.05, 1.3 + i * 0.05)) * 18}px)`, display: 'inline-block', color: ch === '-' ? '#6d5ae6' : '#1d2230', minWidth: ch === ' ' ? '0.4em' : undefined }}>{ch}</span>)}
         </div>
-        <div style={{ fontSize: 15, letterSpacing: '0.5em', color: '#a9a4c4', opacity: fade(2.2, 2.7), marginTop: -16 }}>PRESENTS</div>
+        <div style={{ fontSize: 15, letterSpacing: '0.5em', color: '#8a90a0', opacity: fade(2.2, 2.7), marginTop: -16 }}>PRESENTS</div>
       </div>}
 
       {scene === 1 && <div style={{ display: 'grid', justifyItems: 'center', gap: 30, opacity: fade(3.6, 4.0) * (1 - fade(5.6, 6.0)) }}>
-        <div style={{ fontSize: 14, letterSpacing: '0.5em', color: '#a9a4c4' }}>MADE WITH</div>
+        <div style={{ fontSize: 13, letterSpacing: '0.5em', color: '#8a90a0' }}>MADE WITH</div>
         <div style={{ display: 'flex', gap: 34 }}>{TOOLS.map((x, i) => (
           <div key={x.name} style={{ display: 'grid', justifyItems: 'center', gap: 10, opacity: fade(3.8 + i * 0.12, 4.1 + i * 0.12), transform: `translateY(${(1 - fade(3.8 + i * 0.12, 4.3 + i * 0.12)) * 20}px)` }}>
-            <svg width={44} height={44} viewBox="0 0 24 24"><path d={x.path} fill={x.hex} /></svg><span style={{ fontSize: 12.5, color: '#cfcae6', fontFamily: 'var(--sans)' }}>{x.name}</span></div>))}</div>
+            <svg width={44} height={44} viewBox="0 0 24 24"><path d={x.path} fill={x.hex} /></svg><span style={{ fontSize: 12.5, color: '#5b6272', fontFamily: 'var(--sans)' }}>{x.name}</span></div>))}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14, opacity: fade(4.8, 5.2) }}>
           <svg width={34} height={34} viewBox="0 0 24 24"><path d={siClaude.path} fill="#d97757" /></svg>
-          <span style={{ fontSize: 24, fontWeight: 600 }}>Built with <span style={{ color: '#e8a084' }}>Claude Code</span></span>
+          <span style={{ fontSize: 22, fontWeight: 600 }}>Built with <span style={{ color: '#c4623f' }}>Claude Code</span></span>
         </div>
       </div>}
 
       {scene === 2 && <div style={{ display: 'grid', justifyItems: 'center', gap: 20, opacity: fade(6.0, 6.4) }}>
-        <div style={{ fontSize: 13, letterSpacing: '0.5em', color: '#a9a4c4' }}>PHANTOM-CON ARTIST</div>
-        <div style={{ fontSize: 76, fontWeight: 750, letterSpacing: '-0.045em', lineHeight: 0.95, textAlign: 'center' }}>AI Infrastructure<br /><span style={{ background: 'linear-gradient(90deg, #6fe3c1, #9f86ff)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Tycoon</span></div>
-        <div style={{ width: 320, height: 4, borderRadius: 99, background: '#ffffff18', overflow: 'hidden', marginTop: 16 }}><div style={{ height: '100%', width: `${Math.max(fade(6.0, 7.3), progress) * 100}%`, background: 'linear-gradient(90deg, #6fe3c1, #9f86ff)', transition: 'width .3s' }} /></div>
-        <div style={{ fontSize: 12.5, color: '#8f8aa8', fontFamily: 'var(--sans)' }}>{['Energising substations…', 'Spinning up chillers…', 'Bribing the utility…', 'Warming up tensor cores…'][Math.floor(t * 2) % 4]}</div>
+        <div style={{ fontSize: 12, letterSpacing: '0.5em', color: '#8a90a0' }}>PHANTOM-CON ARTIST</div>
+        <div style={{ fontSize: 76, fontWeight: 750, letterSpacing: '-0.045em', lineHeight: 0.95, textAlign: 'center' }}>AI Infrastructure<br /><span style={{ background: 'linear-gradient(90deg, #1fa37a, #6d5ae6)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Tycoon</span></div>
+        <div style={{ width: 320, height: 4, borderRadius: 99, background: '#e3e7ee', overflow: 'hidden', marginTop: 16 }}><div style={{ height: '100%', width: `${Math.max(fade(6.0, 7.3), progress) * 100}%`, background: 'linear-gradient(90deg, #1fa37a, #6d5ae6)', transition: 'width .3s' }} /></div>
+        <div style={{ fontSize: 12.5, color: '#8a90a0', fontFamily: 'var(--sans)' }}>{['Energising substations…', 'Spinning up chillers…', 'Bribing the utility…', 'Warming up tensor cores…'][Math.floor(t * 2) % 4]}</div>
       </div>}
 
-      <div style={{ position: 'absolute', bottom: 22, fontSize: 12, color: '#6e6a86', fontFamily: 'var(--sans)' }}>Press any key to skip</div>
+      <div style={{ position: 'absolute', bottom: 22, fontSize: 12, color: '#a3a9b6', fontFamily: 'var(--sans)' }}>Press any key to skip</div>
     </div>
   )
 }
