@@ -48,6 +48,7 @@ export const TECHS: TechSpec[] = [
   T('mod-code', 'Modalities', 1, 'Code models', 6, 60, 'unlock:mod-code', 'Coding models: smaller market, 1.6× the price per token.'),
   T('mod-image', 'Modalities', 2, 'Diffusion image models', 14, 90, 'unlock:mod-image', 'Image generation. Mind the hands.', ['finetune']),
   T('mod-speech', 'Modalities', 2, 'Speech & voice', 12, 90, 'unlock:mod-speech', 'Text-to-speech and speech-to-text. Your nan will never know.', ['finetune']),
+  T('mod-music', 'Modalities', 3, 'Music generation', 28, 120, 'unlock:mod-music', 'Songs on demand. Lawyers on demand, too.', ['mod-speech']),
   T('mod-video', 'Modalities', 3, 'Video generation', 40, 150, 'unlock:mod-video', 'Seconds of video for the price of a car. Viral by default.', ['mod-image']),
   T('mod-omni', 'Modalities', 4, 'Omni models', 80, 200, 'unlock:mod-omni', 'One model to see, hear, speak and code.', ['mod-video', 'mod-speech', 'mod-code']),
   T('moe', 'Models', 2, 'Mixture-of-Experts', 15, 150, 'unlock:moe', 'Active params ≪ total params.'),

@@ -498,3 +498,10 @@ kbd { font: 600 10.5px var(--sans); padding: 2px 6px; border-radius: 5px; backgr
 .outlook-curves { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
 .curve { display: grid; gap: 4px; font-size: 12.5px; } .curve svg { width: 100%; height: 64px; display: block; overflow: visible; }
 .curve .axis { display: flex; justify-content: space-between; color: var(--tx-3); font-size: 11px; }
+
+/* who you race in the selected modality */
+.rivals-strip { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; }
+.rival-chip { display: inline-flex; gap: 8px; align-items: baseline; padding: 6px 12px; border-radius: 99px; background: var(--surface-2); }
+.rival-chip i { font-style: normal; color: var(--tx-3); } .rival-chip em { font-style: normal; font-weight: 650; font-variant-numeric: tabular-nums; }
+.rival-chip.you { background: var(--accent-soft); }
+.studio-dot { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: var(--surface-2); font-weight: 700; font-size: 13px; }

@@ -194,3 +194,22 @@ describe('fix & clarify round', () => {
     expect(trainingOutlook((s, d) => elo(500 * s, 0.01 * d)).lever).toBe('data')
   })
 })
+
+import { MODALITIES, modalityRivals, type Modality } from './foundry'
+import { modelShare } from './market'
+describe('per-modality rivals', () => {
+  it('every modality has its own field, and text keeps the big labs', () => {
+    const w = createWorld(7)
+    expect(modalityRivals(w, 'text').map((c) => c.corp)).toEqual(w.competitors.map((c) => c.corp))
+    for (const k of Object.keys(MODALITIES) as Modality[]) expect(modalityRivals(w, k).length).toBeGreaterThan(2)
+    expect(modalityRivals(w, 'music')[0].name).toMatch(/Sunoh/)
+  })
+  it('an image model takes share from image studios, not from chatbots', () => {
+    const w = createWorld(7)
+    const base = { owner: 'player', paramsB: 1, activeParamsB: 1, tokensT: 1, loss: 2, releaseTick: 0, priceMtok: 1, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: true }
+    w.models.push({ ...base, id: 'm-img', name: 'Img', elo: 1500, modality: 'image' })
+    const textOnly = [...modelShare(w)].filter(([id]) => id.startsWith('c:') && !id.startsWith('c:image')).reduce((a, [, v]) => a + v, 0)
+    expect(textOnly).toBeCloseTo(1, 6)
+    expect(modelShare(w).get('m-img')).toBeGreaterThan(0.2)
+  })
+})

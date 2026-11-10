@@ -1,4 +1,5 @@
 import { canAfford } from './rules'
+import { bestRivalElo } from './foundry'
 /**
  * Consumer & business products built on your models (the "Store").
  *
@@ -93,11 +94,11 @@ const CUSTOMERS = ['Prompt & Circumstance', 'Hallucination Labs', 'Vibe Coders I
 /** One simulated day for every product. */
 export function dailyStore(w: World): void {
   const years = w.tick / HOURS_PER_YEAR
-  const bestRival = Math.max(1300, ...w.competitors.map((c) => c.elo))
   for (const m of w.models) m.reservedTokPerDay = 0
   for (const p of w.products) {
     const m = w.models.find((x) => x.id === p.modelId)
     if (!m) continue
+    const bestRival = bestRivalElo(w, m.modality ?? 'text') // a product is judged against its own field
     const c = CATEGORIES[p.category]
     const tam = c.tam0 * Math.pow(c.tamGrowth, years) * Math.min(0.85, c.penetration0 * Math.pow(1.6, Math.min(years, 6)))
     // appeal vs rivals: quality, free generosity, brand, hype, marketing, frustration

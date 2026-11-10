@@ -5,6 +5,7 @@ import { acquire, acquisitionPrice, richList } from '@sim/corporate'
 import { EVALS, RIVAL_MIX, evalScore } from '@sim/models'
 import { valuation } from '@sim/world'
 import { hasTech } from '@sim/util'
+import { MODALITIES, modalityRivals, type Modality } from '@sim/foundry'
 import { money } from '../format'
 import { useGame, useWorld } from '../store'
 import { Summary, Tabs } from '../ui'
@@ -40,14 +41,17 @@ const Rank = ({ i }: { i: number }) => <span style={{ display: 'inline-grid', pl
 
 function Models() {
   const w = useWorld()
+  const [mod, setMod] = useState<Modality>('text')
   const rows = [
-    ...w.competitors.map((c) => ({ name: c.name, corp: c.corp, who: corp(c.corp).name, elo: c.elo, price: c.priceMtok, share: 0, you: false })),
-    ...w.models.filter((m) => m.releasedByPlayer).map((m) => ({ name: m.name, corp: '', who: m.subsidiary ? `${w.company} (via ${corp(m.subsidiary).name})` : w.company, elo: m.elo, price: m.priceMtok, share: m.share, you: true }))
+    ...modalityRivals(w, mod).map((c) => ({ name: c.name, corp: mod === 'text' ? c.corp : '', who: mod === 'text' ? corp(c.corp).name : c.maker, elo: c.elo, price: c.priceMtok, share: 0, you: false })),
+    ...w.models.filter((m) => m.releasedByPlayer && (m.modality ?? 'text') === mod).map((m) => ({ name: m.name, corp: '', who: m.subsidiary ? `${w.company} (via ${corp(m.subsidiary).name})` : w.company, elo: m.elo, price: m.priceMtok, share: m.share, you: true }))
   ].sort((a, b) => b.elo - a.elo)
   const top = rows[0]?.elo ?? 1
-  return <div className="panel" style={{ padding: 8 }}><table><thead><tr><th style={{ width: 40 }} /><th>Model</th><th>Arena Elo</th><th className="r">$ / Mtok</th></tr></thead><tbody>
+  return <div className="panel" style={{ padding: 8 }}>
+    <div className="seg" style={{ margin: '6px 6px 10px', flexWrap: 'wrap' }}>{(Object.keys(MODALITIES) as Modality[]).map((k) => <button key={k} className={mod === k ? 'on' : ''} onClick={() => setMod(k)}>{MODALITIES[k].name}</button>)}</div>
+    <table><thead><tr><th style={{ width: 40 }} /><th>Model</th><th>Arena Elo</th><th className="r">$ / Mtok</th></tr></thead><tbody>
     {rows.map((r, i) => <tr key={r.name + i} style={r.you ? { background: 'var(--accent-soft)' } : undefined}><td><Rank i={i} /></td>
-      <td><span className="row" style={{ gap: 10 }}>{r.you ? <Me /> : <CorpLogo id={r.corp} />}<span><b style={{ fontWeight: 600 }}>{r.name}</b><div className="dim" style={{ fontSize: 12 }}>{r.who}</div></span></span></td>
+      <td><span className="row" style={{ gap: 10 }}>{r.you ? <Me /> : r.corp ? <CorpLogo id={r.corp} /> : <span className="studio-dot">{r.name[0]}</span>}<span><b style={{ fontWeight: 600 }}>{r.name}</b><div className="dim" style={{ fontSize: 12 }}>{r.who}</div></span></span></td>
       <td style={{ width: '40%' }}><div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${Math.max(4, (r.elo - 1000) / (top - 1000) * 100)}%`, background: r.you ? 'var(--accent)' : 'var(--blue)' }} /></div><b style={{ width: 44, textAlign: 'right' }}>{Math.round(r.elo)}</b></div></td>
       <td className="r">${r.price.toFixed(2)}</td></tr>)}
   </tbody></table></div>

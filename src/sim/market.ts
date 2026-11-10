@@ -1,3 +1,4 @@
+import { modalityRivals, type Modality } from './foundry'
 import { mult } from './rules'
 import { CUSTOMERS, RIVAL_RELEASES, corp } from './data/lore'
 import { GPUS_PER_SERVER, gpuCatalog, isCpu, serverPriceUsd, type GpuSpec } from './data/hardware'
@@ -112,21 +113,23 @@ export function initCompetitors(): Competitor[] {
 }
 
 export function modelShare(w: World): Map<string, number> {
-  // softmax over utility: quality vs price, among all competitors and player models
-  const entries: { id: string; u: number }[] = []
-  const years = w.tick / HOURS_PER_YEAR
-  for (const c of w.competitors) entries.push({ id: 'c:' + c.corp, u: (c.elo - 1500) / 110 - Math.log(Math.max(0.01, c.priceMtok)) })
-  for (const m of w.models) {
-    if (m.owner !== 'player' || !m.releasedByPlayer) continue
-    const hype = 1 + (w.advisor === 'pr' ? 0.06 : 0)
-    entries.push({ id: m.id, u: (m.elo - 1500) / 110 - Math.log(Math.max(0.01, m.priceMtok)) + Math.log(hype) + Math.log(1 + (m.hype ?? 0)) + webQuality(w) * 0.15 + apiPlatformBonus(w, m.id) + (w.reputation - 50) / 120 })
-  }
-  void years
-  const mx = Math.max(...entries.map((e) => e.u))
-  const exps = entries.map((e) => Math.exp(e.u - mx))
-  const sum = exps.reduce((a, b) => a + b, 0)
+  // softmax over utility (quality vs price), one race per modality: an image model competes with image studios, not chatbots
   const out = new Map<string, number>()
-  entries.forEach((e, i) => out.set(e.id, exps[i] / sum))
+  const u = (elo: number, price: number): number => (elo - 1500) / 110 - Math.log(Math.max(0.01, price))
+  const mine = w.models.filter((m) => m.owner === 'player' && m.releasedByPlayer)
+  const groups = new Set<Modality>(['text', ...mine.map((m) => m.modality ?? 'text')])
+  for (const mod of groups) {
+    const entries: { id: string; u: number }[] = modalityRivals(w, mod).map((c) => ({ id: 'c:' + c.corp, u: u(c.elo, c.priceMtok) }))
+    for (const m of mine) {
+      if ((m.modality ?? 'text') !== mod) continue
+      const hype = 1 + (w.advisor === 'pr' ? 0.06 : 0)
+      entries.push({ id: m.id, u: u(m.elo, m.priceMtok) + Math.log(hype) + Math.log(1 + (m.hype ?? 0)) + webQuality(w) * 0.15 + apiPlatformBonus(w, m.id) + (w.reputation - 50) / 120 })
+    }
+    const mx = Math.max(...entries.map((e) => e.u))
+    const exps = entries.map((e) => Math.exp(e.u - mx))
+    const sum = exps.reduce((a, b) => a + b, 0)
+    entries.forEach((e, i) => out.set(e.id, exps[i] / sum))
+  }
   return out
 }
 

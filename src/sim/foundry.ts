@@ -6,14 +6,13 @@
  *  - continue:  continued pre-training on top of a base; tokens add up
  * Each modality is its own business line with its own price and demand multipliers.
  */
-import { modelLoss } from './ai'
-import { eloFromLoss } from './ai'
+import { eloFromLoss, modelLoss, referencePrice } from './ai'
 import { TEMPLATES } from './models'
 import { archStats } from './models'
-import type { World } from './types'
+import { HOURS_PER_YEAR, type Competitor, type World } from './types'
 import { hasTech } from './util'
 
-export type Modality = 'text' | 'code' | 'image' | 'speech' | 'video' | 'omni'
+export type Modality = 'text' | 'code' | 'image' | 'speech' | 'music' | 'video' | 'omni'
 export type Method = 'scratch' | 'finetune' | 'distill' | 'continue'
 export interface ModalitySpec { name: string; tech?: string; price: number; demand: number; unit: string; blurb: string }
 export const MODALITIES: Record<Modality, ModalitySpec> = {
@@ -21,9 +20,36 @@ export const MODALITIES: Record<Modality, ModalitySpec> = {
   code:   { name: 'Coding',          tech: 'mod-code',   price: 1.6, demand: 0.45, unit: 'tokens',   blurb: 'Smaller crowd, pays more, judges harshly.' },
   image:  { name: 'Image generation',tech: 'mod-image',  price: 2.2, demand: 0.3,  unit: 'images',   blurb: 'Pictures of hands. Increasingly correct hands.' },
   speech: { name: 'Speech & voice',  tech: 'mod-speech', price: 1.4, demand: 0.35, unit: 'minutes',  blurb: 'Call centres, audiobooks, your nan.' },
+  music:  { name: 'Music',           tech: 'mod-music',  price: 2.6, demand: 0.22, unit: 'tracks',   blurb: 'Infinite lo-fi beats. The labels have noticed.' },
   video:  { name: 'Video',           tech: 'mod-video',  price: 4,   demand: 0.2,  unit: 'seconds',  blurb: 'Every frame costs a fortune. Every demo goes viral.' },
   omni:   { name: 'Omni (everything)', tech: 'mod-omni', price: 1.8, demand: 0.9,  unit: 'tokens',   blurb: 'One model to see, hear, speak and code.' }
 }
+/*
+ * Every modality is its own race. Text keeps the big labs (w.competitors); the others are fought against specialists.
+ * A specialist's strength is a pure function of time and of how far the text frontier has moved, so it needs no save
+ * state: `lag` is how far the field trails the best text lab, and each studio sits a little further back than the last.
+ */
+export interface Specialist extends Competitor { maker: string }
+const SPECIALISTS: Record<Exclude<Modality, 'text'>, { lag: number; studios: [string, string][] }> = {
+  code:   { lag: 25,  studios: [['Curser', 'Anysphere-ish'], ['Copirate', 'GitHug'], ['Devout', 'Cognishun'], ['Replicant Agent', 'Replitt']] },
+  image:  { lag: 60,  studios: [['Halfjourney', 'Halfjourney Inc'], ['Unstable Diffusion', 'Instability AI'], ['DALL-EH', 'OpenAye'], ['Flucks', 'Black Forest Gateau']] },
+  speech: { lag: 80,  studios: [['TwelveLabs Voice', 'ElevenLads'], ['Whisperer', 'OpenAye'], ['Deepgrump', 'Deepgrump']] },
+  music:  { lag: 110, studios: [['Sunoh', 'Sunoh'], ['Oudio', 'Uncharted-ish Labs'], ['Lyre-ia', 'Qooqle'], ['Stable Audiot', 'Instability AI']] },
+  video:  { lag: 95,  studios: [['Runaway Gen', 'Runaway'], ['Sorta', 'OpenAye'], ['Veoh No', 'Qooqle'], ['Pikachoo', 'Pika-ish']] },
+  omni:   { lag: -15, studios: [['GPTea-Omni', 'OpenAye'], ['Geminy Ultra', 'Qooqle'], ['Clawed Everything', 'Ratthropic']] }
+}
+export function modalityRivals(w: World, modality: Modality): Specialist[] {
+  if (modality === 'text') return w.competitors.map((c) => ({ ...c, maker: '' }))
+  const years = w.tick / HOURS_PER_YEAR
+  const frontier = Math.max(1300, ...w.competitors.map((c) => c.elo))
+  const spec = SPECIALISTS[modality]
+  return spec.studios.map(([name, maker], i) => {
+    const elo = Math.round(frontier - spec.lag - i * 28 + 16 * Math.sin(years * (1.7 + i * 0.4) + i * 2))
+    return { corp: `${modality}-${i}`, name: `${name} ${Math.max(1, Math.floor(years * 1.5 + 1 - i * 0.3))}`, maker, elo, priceMtok: referencePrice(years, elo) }
+  })
+}
+export const bestRivalElo = (w: World, modality: Modality): number => Math.max(1200, ...modalityRivals(w, modality).map((c) => c.elo))
+
 export const METHOD_TECH: Partial<Record<Method, string>> = { finetune: 'finetune', distill: 'distill' }
 export const FINETUNE_MAX_T = 0.2
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { FINETUNE_MAX_T, MODALITIES, baseOptions, foundryElo, methodOk, modalityOk, type Method, type Modality } from '@sim/foundry'
-import { AudioLines, Clapperboard, Code2, Image as ImageIcon, MessageSquare, Sparkles } from 'lucide-react'
+import { FINETUNE_MAX_T, MODALITIES, baseOptions, foundryElo, methodOk, modalityOk, type Method, type Modality, bestRivalElo, modalityRivals } from '@sim/foundry'
+import { AudioLines, Music, Clapperboard, Code2, Image as ImageIcon, MessageSquare, Sparkles } from 'lucide-react'
 import * as A from '@sim/actions'
 import { GPUS_PER_SERVER } from '@sim/data/hardware'
 import { eloFromLoss, goodput, modelLoss, referencePrice, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
@@ -39,7 +39,7 @@ const METHOD_BLURB: Record<Method, string> = {
   scratch: 'Random init. Full price, full freedom.', finetune: 'Start from a base. Cheap, fast, small capped gain.',
   distill: 'A smaller student copies a stronger teacher: most of the gap, never past it.', continue: 'Keep pre-training a base on new tokens. Tokens add up.'
 }
-const MOD_ICON: Record<Modality, React.ReactNode> = { text: <MessageSquare size={18} />, code: <Code2 size={18} />, image: <ImageIcon size={18} />, speech: <AudioLines size={18} />, video: <Clapperboard size={18} />, omni: <Sparkles size={18} /> }
+const MOD_ICON: Record<Modality, React.ReactNode> = { text: <MessageSquare size={18} />, code: <Code2 size={18} />, image: <ImageIcon size={18} />, speech: <AudioLines size={18} />, music: <Music size={18} />, video: <Clapperboard size={18} />, omni: <Sparkles size={18} /> }
 
 function Design({ onStart, onData }: { onStart: () => void; onData: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
@@ -90,6 +90,10 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
             <span className="mi">{MOD_ICON[k]}</span><b>{md.name}</b><span>{ok ? md.blurb : 'Locked · research in R&D → Modalities'}</span>
             <em>price ×{md.price} · demand ×{md.demand}</em></button>
         })}</div>
+        <div className="rivals-strip"><span className="dim">In {MODALITIES[modality].name.toLowerCase()} you race</span>
+          {modalityRivals(w, modality).sort((a, b) => b.elo - a.elo).slice(0, 4).map((c) => <span key={c.corp} className="rival-chip"><b>{c.name}</b>{c.maker ? <i>{c.maker}</i> : null}<em>{Math.round(c.elo)}</em></span>)}
+          {(() => { const best = Math.max(0, ...w.models.filter((x) => x.releasedByPlayer && (x.modality ?? 'text') === modality).map((x) => x.elo)); return <span className="rival-chip you"><b>Your best</b><em>{best ? Math.round(best) : 'none yet'}</em></span> })()}
+        </div>
         <div className="row wrap" style={{ gap: 14, alignItems: 'center' }}>
           <div className="seg">{(['scratch', 'finetune', 'distill', 'continue'] as Method[]).map((k) => <button key={k} className={method === k ? 'on' : ''} disabled={!methodOk(w, k)} title={methodOk(w, k) ? METHOD_BLURB[k] : 'Needs research'} onClick={() => setMethod(k)}>{METHOD_LABEL[k]}</button>)}</div>
           {method !== 'scratch' && <select value={base?.id ?? ''} onChange={(e) => setBaseId(e.target.value)} style={{ maxWidth: 360 }}>{bases.map((b) => <option key={b.id} value={b.id}>{b.kind === 'own' ? '★ ' : ''}{b.name} · {params(b.paramsB)} · Elo {Math.round(b.elo)}</option>)}</select>}
@@ -139,7 +143,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
               <input type="range" min={0} max={d.tokensT * 4} step={d.tokensT / 100} value={mix[d.id] ?? 0} onChange={(ev) => setMix({ ...mix, [d.id]: +ev.target.value })} /></Field>))}</div>}
         <div className="dim" style={{ fontSize: 12.5 }}>{m.tokensT.toFixed(2)}T tokens · quality ×{(m.quality || 0).toFixed(2)} · {((m.tokensT * 1000) / Math.max(st.activeB, 1e-9)).toFixed(0)} tokens/param (Chinchilla ≈ 20){m.error ? ` · ${m.error}` : ''}</div>
       </div>
-      <OutlookCard elo={elo} rival={Math.max(1300, ...w.competitors.map((c) => c.elo))} hours={rate > 0 ? F / rate / 3600 : Infinity} cost={cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0} servers={n} ready={m.tokensT > 0 && !!gid}
+      <OutlookCard elo={elo} rival={bestRivalElo(w, modality)} hours={rate > 0 ? F / rate / 3600 : Infinity} cost={cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0} servers={n} ready={m.tokensT > 0 && !!gid}
         outlook={trainingOutlook((sm, dm) => foundryElo(method, eloFromLoss(method === 'continue' && base ? modelLoss(base.paramsB, base.activeParamsB, m.tokensT * dm + base.tokensT, base.moe, m.quality || 1) : modelLoss(st.totalB * sm, st.activeB * sm, Math.max(m.tokensT * dm, 0.001), arch.experts > 1, m.quality || 1) + archLossDelta(arch)) + techSum(w, 'elo'), base, m.tokensT * dm, m.quality || 1, modality))} />
       <div className="panel row wrap" style={{ gap: 14, alignItems: 'end' }}>
         <Field label="Model name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
