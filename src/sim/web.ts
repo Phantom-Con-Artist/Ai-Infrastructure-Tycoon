@@ -1,4 +1,5 @@
 import type { World } from './types'
+import { canAfford } from './rules'
 import { pushNews, spend } from './util'
 
 export type SiteTemplate = 'minimal' | 'bold' | 'corporate' | 'brutalist'
@@ -30,7 +31,7 @@ export function buyDomain(w: World, name: string): { ok: true; value: number } |
   const price = domainPrice(n)
   if (!Number.isFinite(price)) return { ok: false, error: `Unsupported domain. Try .${TLDS.join(', .')}` }
   if (w.web.domains.includes(n)) return { ok: false, error: 'You already own it' }
-  if (w.cash < price) return { ok: false, error: 'Not enough cash' }
+  if (!canAfford(w, price)) return { ok: false, error: 'Not enough cash' }
   spend(w, price, 'opex')
   w.web.domains.push(n)
   if (!w.web.primary) w.web.primary = n
@@ -40,7 +41,7 @@ export function buyDomain(w: World, name: string): { ok: true; value: number } |
 export function publishSite(w: World, s: { template: SiteTemplate; headline: string; tagline: string; sections: string[] }): { ok: true; value: number } | { ok: false; error: string } {
   if (!w.web.primary) return { ok: false, error: 'Buy a domain first' }
   const cost = TEMPLATES_WEB[s.template].cost
-  if (w.cash < cost) return { ok: false, error: 'Not enough cash for the agency' }
+  if (!canAfford(w, cost)) return { ok: false, error: 'Not enough cash for the agency' }
   spend(w, cost, 'opex')
   w.web.site = { ...s, publishedTick: w.tick }
   pushNews(w, 'good', `${w.web.primary} is live`, `${TEMPLATES_WEB[s.template].name} redesign shipped. Designers on Chirper are already arguing about the kerning.`)

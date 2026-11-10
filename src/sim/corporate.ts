@@ -1,4 +1,5 @@
 import { CORPS, corp } from './data/lore'
+import { canAfford } from './rules'
 import { gpuCatalog } from './data/hardware'
 import { gauss, pick } from './rng'
 import { HOURS_PER_YEAR, type World } from './types'
@@ -65,7 +66,7 @@ export function acquire(w: World, id: string): Result {
   const r = w.rivals.find((x) => x.id === id)
   if (!r || r.owned) return { ok: false, error: 'Not available' }
   const price = acquisitionPrice(w, id)
-  if (w.cash < price) return { ok: false, error: `Need ${(price / 1e9).toFixed(1)}B in cash (borrow or IPO first)` }
+  if (!canAfford(w, price)) return { ok: false, error: `Need ${(price / 1e9).toFixed(1)}B in cash (borrow or IPO first)` }
   const myVal = valuation(w)
   const blockP = Math.min(0.85, Math.max(0, (r.valuation - 200e9) / 2e12) + (myVal > 1e12 ? 0.25 : 0))
   // deterministic coin from rng state
@@ -191,7 +192,7 @@ export function ipo(w: World): { ok: true; value: number } | { ok: false; error:
 export const keynoteCost = (w: World): number => Math.max(2e6, valuation(w) * 0.0004)
 export function holdKeynote(w: World, kind: 'model' | 'chip', id: string): { ok: true; value: number } | { ok: false; error: string } {
   const cost = keynoteCost(w)
-  if (w.cash < cost) return { ok: false, error: 'Not enough cash for the stage, lasers and fog machine' }
+  if (!canAfford(w, cost)) return { ok: false, error: 'Not enough cash for the stage, lasers and fog machine' }
   const fatigue = 1 / (1 + (w.keynotes ?? 0) * 0.05)
   if (kind === 'model') {
     const m = w.models.find((x) => x.id === id); if (!m || !m.releasedByPlayer) return { ok: false, error: 'Launch the model first' }

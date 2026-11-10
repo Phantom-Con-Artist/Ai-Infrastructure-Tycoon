@@ -4,6 +4,8 @@ import type { GpuSpec } from './data/hardware'
 import type { LithoKind } from './data/silicon'
 import type { ChipSpec } from './silicon'
 import type { ArchSpec, Domain } from './models'
+import type { Rules } from './rules'
+import type { Branch } from './data/tech'
 
 export const HOURS_PER_YEAR = 8766
 export const START_YEAR = 2023
@@ -63,7 +65,16 @@ export interface Contract {
   deadlineTick: number; payUsd: number; expiresTick: number; minGpuMemGB: number; accepted: boolean; runId?: string; done?: boolean
 }
 export interface Loan { id: string; principal: number; rate: number }
-export interface NewsItem { tick: number; kind: 'info' | 'good' | 'bad' | 'event'; title: string; body: string }
+export type NewsCategory = 'mine' | 'market' | 'rivals' | 'incident' | 'world'
+export interface NewsItem { tick: number; kind: 'info' | 'good' | 'bad' | 'event'; title: string; body: string; category: NewsCategory; importance: 0 | 1 | 2 }
+export interface Edition {
+  day: number; lead: NewsItem; stories: NewsItem[]; slowNews: boolean
+  market: { gpuSpot: number; playerVal: number; playerValChange: number; rivals: { name: string; val: number }[] }
+}
+export type System = 'facilities' | 'sales' | 'people' | 'finance' | 'research'
+export const SYSTEMS: System[] = ['facilities', 'sales', 'people', 'finance', 'research']
+export interface Autopilot { on: boolean; policy: Record<string, number>; handsOffUntil: number }
+export interface InboxItem { id: string; system: System; tick: number; title: string; lines: string[]; action: { fn: string; args: unknown[] } }
 export interface ActiveEvent { id: string; kind: string; title: string; endTick: number; siteId?: string; mag: number }
 export interface ResearchState { done: string[]; levels: Record<string, number>; current?: string; progressUsd: number; budgetPerDay: number }
 export interface Staff { engineers: number; researchers: number; ops: number; sales: number }
@@ -98,4 +109,5 @@ export interface World {
   web: import('./web').WebPresence
   products: import('./store').Product[]
   people: import('./people').Person[]; candidates: import('./people').Person[]; labs: import('./people').ResearchLab[]; chipStaff?: number
+  rules: Rules; editions: Edition[]; inbox: InboxItem[]; autopilot: Record<System, Autopilot>; managerLog: Record<System, string[]>; goalsDone: string[]; managerFocus?: Branch
 }

@@ -16,22 +16,28 @@ import { CLOUD, cloudRate } from './cloud'
 import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric, yearOf } from './util'
 import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
-export const WORLD_VERSION = 8
+import { makeRules, type Rules } from './rules'
+import { SYSTEMS } from './types'
+export const WORLD_VERSION = 9
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
 
-export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }): World {
+export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }, rules: Partial<Rules> = {}): World {
+  const r = makeRules(rules)
   const w: World = {
     version: WORLD_VERSION, tick: 0, rng: seed | 0, nextId: 1,
     company, ceo, advisor, logo,
-    cash: 40_000_000, loans: [], reputation: 50, esg: 50, gameOver: false, negCashDays: 0,
+    cash: r.startCash, loans: [], reputation: 50, esg: 50, gameOver: false, negCashDays: 0,
     sites: [], rentals: [], deployments: [], runs: [], models: [], contracts: [],
     market: { boom: 1, supplyTight: 0.5, tokensPerDay: 1.5e12, priceDrift: 1, gpuPressure: {} },
     competitors: initCompetitors(),
     research: { done: [], levels: {}, progressUsd: 0, budgetPerDay: 0 },
     staff: { engineers: 3, researchers: 1, ops: 2, sales: 1 },
-    events: [], news: [{ tick: 0, kind: 'info', title: `${company} is founded`, body: `${ADVISORS.find((a) => a.id === advisor)?.name ?? 'Your advisor'} slides a term sheet across the table. $40M seed. No pressure.` }],
+    events: [], news: [{ tick: 0, kind: 'info', category: 'mine', importance: 1, title: `${company} is founded`, body: `${ADVISORS.find((a) => a.id === advisor)?.name ?? 'Your advisor'} slides a term sheet across the table. ${r.startCash >= 1e9 ? 'A sandbox-sized cheque.' : '$40M seed.'} No pressure.` }],
     ledger: [], today: emptyDay(0), quarterProfit: 0, totalTco2: 0, totalWaterL: 0, achievements: [],
-    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}, rivals: initRivals(), founderStake: 0.6, web: { domains: [] }, products: [], people: [], candidates: [], labs: []
+    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}, rivals: initRivals(), founderStake: 0.6, web: { domains: [] }, products: [], people: [], candidates: [], labs: [],
+    rules: r, editions: [], inbox: [], goalsDone: [],
+    autopilot: Object.fromEntries(SYSTEMS.map((k) => [k, { on: false, policy: {}, handsOffUntil: 0 }])) as World['autopilot'],
+    managerLog: Object.fromEntries(SYSTEMS.map((k) => [k, []])) as unknown as World['managerLog']
   }
   w.people = foundingTeam(w)
   for (let i = 0; i < 8; i++) w.candidates.push(makeCandidate(w))

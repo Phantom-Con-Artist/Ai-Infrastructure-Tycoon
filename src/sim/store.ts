@@ -1,3 +1,4 @@
+import { canAfford } from './rules'
 /**
  * Consumer & business products built on your models (the "Store").
  *
@@ -50,7 +51,7 @@ export function createProduct(w: World, o: { name: string; category: Category; m
   if (!m || !m.releasedByPlayer) return { ok: false, error: 'Pick a launched model to power it' }
   if (w.products.some((p) => p.category === o.category && o.category === 'api' && p.modelId === o.modelId)) return { ok: false, error: 'That model already has an API platform' }
   const cost = o.category === 'enterprise' ? 5e6 : 1e6
-  if (w.cash < cost) return { ok: false, error: `Launch budget ${cost / 1e6}M` }
+  if (!canAfford(w, cost)) return { ok: false, error: `Launch budget ${cost / 1e6}M` }
   spend(w, cost, 'opex')
   const p: Product = {
     id: newId(w, 'p'), name: o.name, category: o.category, modelId: o.modelId, launched: w.tick,

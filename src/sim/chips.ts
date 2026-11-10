@@ -1,4 +1,5 @@
 import { HBM, LITHO, PACKAGES, node, type LithoKind } from './data/silicon'
+import { canAfford } from './rules'
 import { gpuCatalog } from './data/hardware'
 import { evaluateChip, exposuresPerWafer, type ChipSpec } from './silicon'
 import { HOURS_PER_YEAR, type ChipDesign, type World } from './types'
@@ -37,7 +38,7 @@ export function startDesign(w: World, s: ChipSpec): Result<ChipDesign> {
   const err = validateDesign(w, s); if (err) return fail(err)
   const e = evaluateChip(s, yearOf(w.tick))
   const upfront = e.nreUsd * 0.3
-  if (w.cash < upfront) return fail(`Need ${(upfront / 1e6).toFixed(0)}M upfront (30% of NRE)`)
+  if (!canAfford(w, upfront)) return fail(`Need ${(upfront / 1e6).toFixed(0)}M upfront (30% of NRE)`)
   spend(w, upfront, 'opex')
   const months = e.designMonths / (1 + Math.sqrt(w.staff.engineers) * 0.04 + Math.sqrt(w.chipStaff ?? 0) * 0.18)
   const d: ChipDesign = {
@@ -98,7 +99,7 @@ export function buildServersFromChips(w: World, designId: string, siteId: string
   const n = Math.min(servers, Math.floor(have / per))
   if (n < 1) return fail(`Need at least ${per} chips in stock`)
   const cost = n * (hasTech(w, 'cpu-design') && w.silicon.designs.some((x) => x.spec.kind === 'cpu' && x.status === 'ready') ? 14_000 : 26_000)
-  if (w.cash < cost) return fail('Not enough cash for chassis and CPUs')
+  if (!canAfford(w, cost)) return fail('Not enough cash for chassis and CPUs')
   spend(w, cost)
   w.silicon.chipStock[d.id] = have - n * per
   const site = findSite(w, siteId)
@@ -110,10 +111,10 @@ export function buildFab(w: World): Result {
   if (!hasTech(w, 'fab')) return fail('Research “Build your own fab” first')
   const cost = 3_000_000_000
   if (w.silicon.fab) {
-    if (w.cash < cost) return fail('A new cleanroom module costs $3.0B')
+    if (!canAfford(w, cost)) return fail('A new cleanroom module costs $3.0B')
     spend(w, cost); w.silicon.fab.modules++; return ok(undefined)
   }
-  if (w.cash < cost) return fail('A fab module costs $3.0B')
+  if (!canAfford(w, cost)) return fail('A fab module costs $3.0B')
   spend(w, cost)
   w.silicon.fab = { modules: 1, readyTick: w.tick + 540 * 24, tools: { duv: 0, euv: 0, highna: 0, hyperna: 0 }, toolsPending: [] }
   pushNews(w, 'good', 'Fab construction begins', 'Eighteen months of concrete, ultrapure water and vibration isolation. The neighbours are asking about the cranes.')
@@ -125,7 +126,7 @@ export function buyLitho(w: World, kind: LithoKind): Result {
   if (kind !== 'duv' && !hasTech(w, L.tech)) return fail(`Research ${L.name} qualification first`)
   const installed = Object.values(fab.tools).reduce((a, b) => a + b, 0) + fab.toolsPending.length
   if (installed >= fab.modules * 20) return fail('Cleanroom full: 20 scanners per module')
-  if (w.cash < L.usd) return fail(`${L.name} costs $${(L.usd / 1e6).toFixed(0)}M`)
+  if (!canAfford(w, L.usd)) return fail(`${L.name} costs $${(L.usd / 1e6).toFixed(0)}M`)
   spend(w, L.usd)
   fab.toolsPending.push({ kind, readyTick: w.tick + (kind === 'duv' ? 120 : 270) * 24 })
   return ok(undefined)

@@ -1,6 +1,6 @@
 import { COOLING, FABRICS, type CoolingType, type FabricType, type GpuSpec, gpuById } from './data/hardware'
 import { TECHS } from './data/tech'
-import { HOURS_PER_YEAR, START_YEAR, type Hall, type Site, type World } from './types'
+import { HOURS_PER_YEAR, START_YEAR, type Hall, type NewsCategory, type Site, type World } from './types'
 
 export const newId = (w: World, p: string): string => `${p}${(w.nextId++).toString(36)}`
 export const yearOf = (tick: number): number => START_YEAR + tick / HOURS_PER_YEAR
@@ -59,8 +59,10 @@ export const worstFabric = (s: Site, gpuId: string): FabricType => {
   for (const h of s.halls) if (hallServers(h, gpuId) > 0) worst = Math.min(worst, order.indexOf(h.fabric))
   return order[worst]
 }
-export function pushNews(w: World, kind: 'info' | 'good' | 'bad' | 'event', title: string, body: string): void {
-  w.news.unshift({ tick: w.tick, kind, title, body })
+export function pushNews(w: World, kind: 'info' | 'good' | 'bad' | 'event', title: string, body: string, category?: NewsCategory, importance?: 0 | 1 | 2): void {
+  const cat: NewsCategory = category ?? (kind === 'bad' ? 'incident' : kind === 'event' ? 'world' : 'mine')
+  const imp = importance ?? (kind === 'bad' || kind === 'event' ? 1 : 0)
+  w.news.unshift({ tick: w.tick, kind, title, body, category: cat, importance: imp })
   if (w.news.length > 80) w.news.length = 80
 }
 export function spend(w: World, usd: number, bucket: 'capex' | 'opex' = 'capex'): void {

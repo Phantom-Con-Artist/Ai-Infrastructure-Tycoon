@@ -1,4 +1,5 @@
 import type { Branch } from './data/tech'
+import { canAfford } from './rules'
 import { CORPS } from './data/lore'
 import { pick, range, rnd } from './rng'
 import type { World } from './types'
@@ -60,7 +61,7 @@ type R<T = undefined> = { ok: true; value: T } | { ok: false; error: string }
 export function hirePerson(w: World, id: string): R {
   const c = w.candidates.find((x) => x.id === id); if (!c) return { ok: false, error: 'Candidate gone' }
   const bonus = c.salary * 0.25
-  if (w.cash < bonus) return { ok: false, error: 'Signing bonus is 25% of salary' }
+  if (!canAfford(w, bonus)) return { ok: false, error: 'Signing bonus is 25% of salary' }
   spend(w, bonus, 'opex')
   w.candidates = w.candidates.filter((x) => x !== c)
   w.people.push({ ...c, hiredTick: w.tick, morale: 0.9 })
@@ -85,7 +86,7 @@ export function giveRaise(w: World, id: string): R {
 }
 export function createLab(w: World, name: string, focus: Branch): R {
   const cost = 20e6 * (1 + w.labs.length)
-  if (w.cash < cost) return { ok: false, error: `A new lab costs ${(cost / 1e6).toFixed(0)}M` }
+  if (!canAfford(w, cost)) return { ok: false, error: `A new lab costs ${(cost / 1e6).toFixed(0)}M` }
   if (!w.people.some((p) => p.role === 'researchers')) return { ok: false, error: 'Hire a researcher first' }
   spend(w, cost)
   w.labs.push({ id: newId(w, 'lab'), name, focus })

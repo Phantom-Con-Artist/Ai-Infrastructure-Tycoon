@@ -1,4 +1,5 @@
 import { ADVISORS, AI_NAME_PARTS } from './data/lore'
+import { canAfford } from './rules'
 import { COOLING, FABRICS, GENERATORS, GPUS_PER_SERVER, REGIONS, TECHS, gpuCatalog, region, serverPeakKw, residual, type CoolingType, type FabricType, type GenKind } from './data/hardware'
 import { eloFromLoss, referencePrice, serveMemoryGB, trainFlops, trainMemoryGB } from './ai'
 import { creditLimit, debt, finishRun, statKey } from './world'
@@ -30,7 +31,7 @@ const lockHall = (w: World, hallId: string): { site: Site; hall: Hall } | null =
 export function buildSite(w: World, regionId: string, name?: string): Result<Site> {
   const r = REGIONS.find((x) => x.id === regionId)
   if (!r) return fail('Unknown region')
-  if (w.cash < r.siteCostUsd) return fail('Not enough cash for land & permits')
+  if (!canAfford(w, r.siteCostUsd)) return fail('Not enough cash for land & permits')
   spend(w, r.siteCostUsd)
   const site: Site = {
     id: newId(w, 's'), name: name ?? `${r.name.split(',')[0]} Campus ${w.sites.filter((s) => s.regionId === regionId).length + 1}`, regionId,
@@ -58,7 +59,7 @@ export function buildHall(w: World, siteId: string, spec: HallSpec): Result<Hall
   const z = HALL_SIZES[spec.size]
   if (!z) return fail('Unknown hall size')
   const cost = hallCost(spec)
-  if (w.cash < cost) return fail(`Need ${(cost / 1e6).toFixed(1)}M`)
+  if (!canAfford(w, cost)) return fail(`Need ${(cost / 1e6).toFixed(1)}M`)
   spend(w, cost)
   const build = Math.round((60 + z.w * z.d * 0.08) * (1 - (hasTech(w, 'prefab') ? 0.4 : 0)))
   const h: Hall = {
@@ -78,7 +79,7 @@ export function placeEquipment(w: World, hallId: string, kind: EquipKind, x: num
   if (kind === 'cdu' && !liquidOk(f.hall)) return fail('CDUs need a liquid-cooled hall (retrofit to DLC or immersion)')
   const err = canPlace(f.hall, kind, x, y, rot); if (err) return fail(err)
   if (kind === 'pdu' && siteProvisionedKw(f.site) + spec.kw > siteSupplyCapKw(f.site)) return fail('Site utility + generation cannot feed another PDU. Buy more utility capacity.')
-  if (w.cash < spec.cost) return fail(`Need ${(spec.cost / 1e6).toFixed(2)}M`)
+  if (!canAfford(w, spec.cost)) return fail(`Need ${(spec.cost / 1e6).toFixed(2)}M`)
   spend(w, spec.cost)
   const e: Equip = { id: newId(w, 'e'), kind, x, y, rot, load: 0 }
   f.hall.equipment.push(e)
@@ -88,7 +89,7 @@ export function placeEquipment(w: World, hallId: string, kind: EquipKind, x: num
 export function placeRack(w: World, hallId: string, x: number, y: number, rot: Rot = 0, batch = false): Result<Rack> {
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
   const err = canPlace(f.hall, 'rack', x, y, rot); if (err) return fail(err)
-  if (w.cash < RACK_COST) return fail('Not enough cash')
+  if (!canAfford(w, RACK_COST)) return fail('Not enough cash')
   spend(w, RACK_COST)
   const r: Rack = { id: newId(w, 'k'), x, y, rot, gpuId: '', servers: 0, failed: 0, powered: false, cooled: false, throttle: 1, kw: 0 }
   f.hall.racks.push(r)
@@ -137,7 +138,7 @@ export function autoLayout(w: World, hallId: string, maxRacks = 1e9): Result<{ r
     for (let x = 0; x < h.w && racks < maxRacks; x++) {
       if (x % 10 === 0) continue
       if (canPlace(h, 'rack', x, y, 0) !== null) continue
-      if (w.cash < RACK_COST) { relayout(h, liquidOk(h)); return ok({ racks, equipment: eq }) }
+      if (!canAfford(w, RACK_COST)) { relayout(h, liquidOk(h)); return ok({ racks, equipment: eq }) }
       if (placeRack(w, h.id, x, y, y % 3 === 0 ? 0 : 2, true).ok) racks++
     }
   }
@@ -148,7 +149,7 @@ export function retrofitCooling(w: World, hallId: string, to: CoolingType): Resu
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
   if (!coolingUnlocked(w, to)) return fail('Not researched')
   const cost = f.hall.coolKw * COOLING[to].usdPerKw * 1.4
-  if (w.cash < cost) return fail('Not enough cash')
+  if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost); f.hall.cooling = to
   return ok(undefined)
 }
@@ -157,7 +158,7 @@ export function upgradeFabric(w: World, hallId: string, to: FabricType): Result 
   if (!fabricUnlocked(w, to)) return fail('Not researched')
   const servers = hallServers(f.hall)
   const cost = (servers + f.hall.racks.length) * FABRICS[to].usdPerServer * 0.8
-  if (w.cash < cost) return fail('Not enough cash')
+  if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost); f.hall.fabric = to
   return ok(undefined)
 }
@@ -166,7 +167,7 @@ export function buyUtility(w: World, siteId: string, mw: number): Result {
   const pending = s.pendingUtility.reduce((a, p) => a + p.mw, 0)
   if (s.utilityMw + pending + mw > r.gridCapMw) return fail(`Regional grid can only offer ${r.gridCapMw} MW at this site`)
   const cost = mw * 1_300_000
-  if (w.cash < cost) return fail('Not enough cash')
+  if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost)
   s.pendingUtility.push({ mw, readyTick: w.tick + Math.round(r.permitDays * (0.5 + mw / 400) * (1 - techSum(w, 'permit'))) * 24 })
   return ok(undefined)
@@ -176,7 +177,7 @@ export function buildGenerator(w: World, siteId: string, kind: GenKind, mw: numb
   if (g.needsTech && !hasTech(w, g.needsTech)) return fail('Technology not researched')
   if (kind === 'geothermal' && !region(s.regionId).geothermal) return fail('No geothermal resource here')
   const cost = mw * g.usdPerMw + mwh * (g.usdPerMwhStored ?? 0)
-  if (w.cash < cost) return fail('Not enough cash')
+  if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost)
   s.gens.push({ id: newId(w, 'g'), kind, mw, mwh: kind === 'battery' ? (mwh || mw * 2) : 0, soc: 0, readyTick: w.tick + g.leadDays * 24 })
   return ok(undefined)
@@ -191,7 +192,7 @@ export function orderServers(w: World, siteId: string, gpuId: string, count: num
   const price = serverMarketPrice(w, g) * (1 - vendorDiscount(w, g.vendor))
   const discount = count >= 1000 ? 0.88 : count >= 250 ? 0.93 : count >= 50 ? 0.97 : 1
   const cost = Math.round(price * count * discount)
-  if (w.cash < cost) return fail(`Need $${(cost / 1e6).toFixed(2)}M`)
+  if (!canAfford(w, cost)) return fail(`Need $${(cost / 1e6).toFixed(2)}M`)
   spend(w, cost)
   s.orders.push({ id: newId(w, 'o'), gpuId, servers: count, arriveTick: w.tick + (leadDays(w) + Math.round(Math.log2(1 + count) * 3)) * 24 })
   return ok(undefined)
@@ -317,7 +318,7 @@ export function postTrain(w: World, modelId: string): Result {
   const m = w.models.find((x) => x.id === modelId); if (!m) return fail('No such model')
   if (m.posttrain >= 3) return fail('Already fully post-trained')
   const cost = 400_000 * Math.pow(3, m.posttrain) * Math.max(1, Math.sqrt(m.paramsB / 10))
-  if (w.cash < cost) return fail(`Needs $${(cost / 1e6).toFixed(2)}M (human labelers, red teamers, one lawyer)`)
+  if (!canAfford(w, cost)) return fail(`Needs $${(cost / 1e6).toFixed(2)}M (human labelers, red teamers, one lawyer)`)
   spend(w, cost, 'opex')
   m.posttrain++; m.elo += 45
   return ok(undefined)
@@ -349,7 +350,7 @@ export function deployModel(w: World, modelId: string, siteId: string, gpuId: st
 // ---------------------------------------------------------------- company
 export function hire(w: World, role: keyof World['staff'], n: number): Result {
   if (n > 0) {
-    const cost = n * 45_000; if (w.cash < cost) return fail('Not enough cash'); spend(w, cost, 'opex')
+    const cost = n * 45_000; if (!canAfford(w, cost)) return fail('Not enough cash'); spend(w, cost, 'opex')
     for (let i = 0; i < n; i++) { const p = makeCandidate(w); w.people.push({ ...p, role, skill: 4, trait: 'none', salary: Math.round(ROLES[role].base * 0.7), hiredTick: w.tick }) }
   } else {
     for (let i = 0; i < -n; i++) { const p = [...w.people].filter((x) => x.role === role).sort((a, b) => a.skill - b.skill)[0]; if (!p) return fail('No one left to fire'); w.people = w.people.filter((x) => x !== p) }
@@ -375,7 +376,7 @@ export function borrow(w: World, amount: number): Result {
 }
 export function repay(w: World, loanId: string): Result {
   const l = w.loans.find((x) => x.id === loanId); if (!l) return fail('No such loan')
-  if (w.cash < l.principal) return fail('Not enough cash')
+  if (!canAfford(w, l.principal)) return fail('Not enough cash')
   w.cash -= l.principal; w.loans = w.loans.filter((x) => x !== l); return ok(undefined)
 }
 export function setAdvisor(w: World, id: string): Result {
@@ -391,7 +392,7 @@ export function buyDataset(w: World, id: string): Result {
   if (d.needsTech && !hasTech(w, d.needsTech)) return fail('Locked behind research')
   if (d.year > yearOf(w.tick) + 0.5) return fail('Not available yet')
   if ((w.datasets[id] ?? 0) > 0) return fail('Already owned')
-  if (w.cash < d.usd) return fail('Not enough cash')
+  if (!canAfford(w, d.usd)) return fail('Not enough cash')
   spend(w, d.usd, 'opex')
   w.datasets[id] = d.tokensT
   pushNews(w, d.legalRisk > 0.5 ? 'bad' : 'info', `Acquired ${d.name}`, d.legalRisk > 0.5 ? 'Legal is "reviewing". Legal is crying.' : `${d.tokensT}T tokens of ${d.domain}. ${d.source}.`)
