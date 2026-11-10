@@ -1,10 +1,10 @@
-import { Database, Cpu, FlaskConical, Hammer, Truck, Zap, BrainCircuit } from 'lucide-react'
+import { AppWindow, Database, Cpu, FlaskConical, Hammer, Truck, Zap, BrainCircuit } from 'lucide-react'
 import { jobs, type JobKind } from '@sim/progress'
 import { dateOf } from './format'
 import { useWorld } from './store'
 
 const ICON: Record<JobKind, React.ReactNode> = {
-  delivery: <Truck size={15} />, build: <Hammer size={15} />, power: <Zap size={15} />, training: <BrainCircuit size={15} />, chip: <Cpu size={15} />, research: <FlaskConical size={15} />, data: <Database size={15} />
+  delivery: <Truck size={15} />, build: <Hammer size={15} />, power: <Zap size={15} />, training: <BrainCircuit size={15} />, chip: <Cpu size={15} />, research: <FlaskConical size={15} />, data: <Database size={15} />, product: <AppWindow size={15} />
 }
 
 /** Time left in the unit a person would say out loud. */

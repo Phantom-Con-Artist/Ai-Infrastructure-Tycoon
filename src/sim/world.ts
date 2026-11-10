@@ -185,7 +185,7 @@ export function finishRun(w: World, runId: string): void {
     if (baseRef && baseModel?.modality) (baseRef as { modality: string }).modality = baseModel.modality
     elo = foundryElo(method, elo, baseRef, run.tokensT, run.dataQuality, modality)
     if (w.research.done.includes('distill') && run.paramsB <= 70) elo += 60
-    elo += techSum(w, 'elo')
+    elo += techSum(w, 'elo') + techSum(w, 'elo-' + modality)
     w.models.push({
       id: newId(w, 'm'), name: run.name, owner: 'player', paramsB: run.paramsB, activeParamsB: run.activeParamsB, tokensT: run.tokensT,
       loss, elo, releaseTick: w.tick, priceMtok: 0, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: false,

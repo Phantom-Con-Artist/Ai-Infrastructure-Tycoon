@@ -33,6 +33,12 @@ function rollOffer(w: World): void {
 export function eligibleModels(w: World, d: OrgDeal): { id: string; name: string; elo: number }[] {
   return w.models.filter((m) => m.releasedByPlayer && (m.modality ?? 'text') === d.modality && m.elo >= d.minElo).map((m) => ({ id: m.id, name: m.name, elo: m.elo }))
 }
+/** Tokens a day this organisation will send, and how much the model has to spare after everything else it serves. */
+export const dealDemand = (d: OrgDeal): number => d.seats * d.tokPerSeatDay
+export function spareCapacity(w: World, modelId: string): number {
+  const m = w.models.find((x) => x.id === modelId)
+  return m ? Math.max(0, m.capacityTokPerDay - (m.reservedTokPerDay ?? 0)) : 0
+}
 export function acceptDeal(w: World, id: string, modelId: string): R {
   const d = orgDeals(w).find((x) => x.id === id && x.status === 'offer'); if (!d) return { ok: false, error: 'That offer is gone' }
   if (!eligibleModels(w, d).some((m) => m.id === modelId)) return { ok: false, error: `They need a ${MODALITIES[d.modality].name.toLowerCase()} model of at least ${d.minElo} Elo` }
@@ -42,7 +48,7 @@ export function acceptDeal(w: World, id: string, modelId: string): R {
 }
 /** Chance they take a price `pct` higher (0.1 = +10%). Shown to the player before they ask. */
 export function counterOdds(w: World, d: OrgDeal, pct: number): number {
-  return Math.max(0.03, Math.min(0.97, 0.85 - pct * 2.4 + (mineFor(w, d.modality) - d.minElo) / 260 + (w.reputation - 50) / 200 + techSum(w, 'dealWin')))
+  return Math.max(0.03, Math.min(0.97, 0.85 - pct * 2.4 + Math.max(0, Math.min(0.25, (mineFor(w, d.modality) - d.minElo) / 400)) + (w.reputation - 50) / 200 + techSum(w, 'dealWin')))
 }
 export function counterDeal(w: World, id: string, pct: number): R<boolean> {
   const all = orgDeals(w); const d = all.find((x) => x.id === id && x.status === 'offer'); if (!d) return { ok: false, error: 'That offer is gone' }
@@ -75,7 +81,7 @@ export function dailyOrgs(w: World): void {
     const target = Math.max(0, Math.min(1, (breach ? d.servedFrac * 0.6 : 0.8) + (quality + (d.care === 'premium' ? 0.15 : 0)) * d.servedFrac))
     d.satisfaction += (target - d.satisfaction) * 0.04
     if (d.satisfaction < 0.25) {
-      w.orgDeals = w.orgDeals.filter((x) => x !== d); w.reputation = Math.max(0, w.reputation - 1.5)
+      w.orgDeals = w.orgDeals.filter((x) => x !== d); w.reputation = Math.max(0, w.reputation - 0.5)
       pushNews(w, 'bad', `${d.org} cancels`, `"${(d.servedFrac * 100).toFixed(0)}% of our requests were answered. We were promised ${(d.sla * 100).toFixed(0)}%." They are telling their friends.`, 'mine', 1)
     } else if (w.tick >= (d.endTick ?? Infinity)) {
       if (d.satisfaction > 0.7) {

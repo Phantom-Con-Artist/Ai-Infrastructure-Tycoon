@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { MODALITIES } from '@sim/foundry'
 import * as DF from '@sim/datafoundry'
 import * as OG from '@sim/orgs'
+import * as ST from '@sim/store'
 import { LAWS, drivers, type Society } from '@sim/society'
 import type { Domain } from '@sim/models'
 import * as PV from '@sim/preview'
@@ -88,6 +89,7 @@ export function OrgDeals() {
               <div className="dim" style={{ fontSize: 12.5 }}>Needs {d.minElo}+ Elo · {(d.sla * 100).toFixed(0)}% of requests answered · offer ends {dateOf(d.expiresTick)}</div>
               {models.length === 0 ? <div className="neg" style={{ fontSize: 12.5 }}>None of your {MODALITIES[d.modality].name.toLowerCase()} models is good enough yet.</div> : <>
                 <select value={mid} onChange={(e) => setPick({ ...pickModel, [d.id]: e.target.value })}>{models.map((m) => <option key={m.id} value={m.id}>{m.name} · {Math.round(m.elo)} Elo</option>)}</select>
+                {OG.spareCapacity(w, mid) < OG.dealDemand(d) && <div className="neg" style={{ fontSize: 12.5 }}>They will send {num(OG.dealDemand(d))} tokens a day; this model has {num(OG.spareCapacity(w, mid))} to spare. Deploy it on more servers first or they will leave unhappy.</div>}
                 <div className="row wrap" style={{ gap: 6 }}>
                   <button className="btn sm pri" onClick={() => act((x) => OG.acceptDeal(x, d.id, mid), `${d.org} signed`)}>Sign</button>
                   {[0.1, 0.25].map((p) => <button key={p} className="btn sm" title="If they refuse, the offer is withdrawn" onClick={() => act((x) => OG.counterDeal(x, d.id, p), 'Counter-offer sent')}>Ask +{p * 100}% · {(OG.counterOdds(w, d, p) * 100).toFixed(0)}% chance</button>)}
@@ -121,6 +123,43 @@ export function SocietyPanel() {
         <span>{s.priceWar ? 'Price war: your low prices are forcing everyone to cut theirs.' : 'Prices are stable.'}</span>
         {d.licensed > 0 && <span>Your licensed datasets are making rival models a little better every day.</span>}
       </div>
+    </div>
+  )
+}
+
+/** Product operations: what the team builds next, how users are looked after, and pricing experiments. */
+export function ProductOps({ id }: { id: string }) {
+  const w = useWorld(); const act = useGame((s) => s.act)
+  const p = w.products.find((x) => x.id === id); if (!p || p.category === 'api') return null
+  const building = p.building ? ST.FEATURES.find((f) => f.id === p.building!.id) : undefined
+  const support = p.support ?? 0
+  const paid = p.plans.filter((x) => x.price > 0)
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      <h2 style={{ margin: 0 }}>Product team</h2>
+      <div className="panel col" style={{ gap: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}><b>Features</b><span className="dim" style={{ fontSize: 12.5 }}>{building ? `Building ${building.name.toLowerCase()} · ready ${dateOf(p.building!.readyTick)}` : 'The team is free. One feature at a time.'}</span></div>
+        {p.building && <Bar v={w.tick - p.building.startTick} max={p.building.readyTick - p.building.startTick} warnAt={2} badAt={2} />}
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+          {ST.featuresFor(p).map((f) => { const have = p.features?.includes(f.id), now = p.building?.id === f.id; return (
+            <div key={f.id} className="col" style={{ gap: 4, padding: 12, borderRadius: 14, background: have ? 'var(--accent-soft)' : 'var(--surface-2)' }}>
+              <div className="row" style={{ justifyContent: 'space-between' }}><b style={{ fontSize: 13 }}>{f.name}</b>{have ? <span className="tag g">live</span> : now ? <span className="tag b">building</span> : null}</div>
+              <span className="dim" style={{ fontSize: 12 }}>{f.blurb}</span>
+              <span style={{ fontSize: 12 }}>{f.churn > 0 ? `churn −${Math.round(f.churn * 100)}%` : ''}{f.usage > 0 ? ` · token use +${Math.round(f.usage * 100)}%` : ''}</span>
+              {!have && !now && <button className="btn sm" disabled={!!p.building} onClick={() => void useGame.getState().confirmAct(`Build ${f.name.toLowerCase()} for ${p.name}?`, PV.previewSpend(w, f.costUsd), 'Build', (x) => ST.buildFeature(x, id, f.id), { okMsg: 'The team is on it', system: 'sales' })}>Build · {money(f.costUsd)} · {f.days} days</button>}
+            </div>) })}
+        </div>
+      </div>
+      <div className="panel row wrap" style={{ gap: 16, justifyContent: 'space-between' }}>
+        <div><b>Customer support</b><div className="dim" style={{ fontSize: 12.5 }}>{ST.SUPPORT[support].blurb}{ST.SUPPORT[support].usdPerUserDay ? ` Costs $${ST.SUPPORT[support].usdPerUserDay} per ${support === 2 ? 'paying user' : 'user'} a day.` : ' Free.'}</div></div>
+        <div className="seg">{ST.SUPPORT.map((s, i) => <button key={s.name} className={support === i ? 'on' : ''} onClick={() => act((x) => ST.setSupport(x, id, i as 0 | 1 | 2), `Support: ${s.name}`, { undoable: true, system: 'sales' })}>{s.name}</button>)}</div>
+      </div>
+      {paid.length > 0 && <div className="panel col" style={{ gap: 10 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}><b>Pricing experiment</b><span className="dim" style={{ fontSize: 12.5 }}>Show a different price to a slice of users for two weeks and learn which way to move it.</span></div>
+        {p.test ? <><Bar v={w.tick - p.test.startTick} max={p.test.endTick - p.test.startTick} warnAt={2} badAt={2} /><span className="dim" style={{ fontSize: 12.5 }}>Testing {p.plans.find((x) => x.id === p.test!.planId)?.name} · results {dateOf(p.test.endTick)}</span></> :
+          <div className="row wrap" style={{ gap: 8 }}>{paid.map((pl) => <button key={pl.id} className="btn sm" onClick={() => void useGame.getState().confirmAct(`Test the price of ${pl.name}?`, PV.previewSpend(w, ST.PRICE_TEST_USD), 'Run test', (x) => ST.startPriceTest(x, id, pl.id), { okMsg: 'Experiment running', system: 'sales' })}>Test {pl.name} (${pl.price}) · {money(ST.PRICE_TEST_USD)}</button>)}</div>}
+        {p.insight && <div className="outlook-verdict">Last finding: {p.insight.text}</div>}
+      </div>}
     </div>
   )
 }

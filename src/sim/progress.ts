@@ -5,9 +5,10 @@
 import { TECHS, techCost } from './data/tech'
 import type { World } from './types'
 import { projectRate } from './datafoundry'
+import { FEATURES } from './store'
 import { gpu } from './util'
 
-export type JobKind = 'delivery' | 'build' | 'power' | 'training' | 'chip' | 'research' | 'data'
+export type JobKind = 'delivery' | 'build' | 'power' | 'training' | 'chip' | 'research' | 'data' | 'product'
 export interface Job { id: string; kind: JobKind; label: string; where: string; frac: number; hoursLeft: number; endTick?: number }
 
 const span = (w: World, start: number | undefined, end: number, guessDays: number): { frac: number; hoursLeft: number; endTick: number } => {
@@ -30,6 +31,10 @@ export function jobs(w: World): Job[] {
   const fab = w.silicon.fab
   if (fab && w.tick < fab.readyTick) out.push({ id: 'fab', kind: 'chip', label: 'Fab under construction', where: 'Silicon', ...span(w, fab.readyTick - 540 * 24, fab.readyTick, 540) })
   for (const p of w.data?.projects ?? []) { const rate = projectRate(w, p); out.push({ id: p.id, kind: 'data', label: `Gathering ${p.name}`, where: 'Data Foundry', frac: Math.min(1, p.doneT / p.targetT), hoursLeft: rate > 0 ? ((p.targetT - p.doneT) / rate) * 24 : Infinity }) }
+  for (const p of w.products) {
+    if (p.building) out.push({ id: p.id + 'b', kind: 'product', label: `Building ${FEATURES.find((f) => f.id === p.building!.id)?.name ?? 'a feature'}`, where: p.name, ...span(w, p.building.startTick, p.building.readyTick, 30) })
+    if (p.test) out.push({ id: p.id + 't', kind: 'product', label: 'Price experiment', where: p.name, ...span(w, p.test.startTick, p.test.endTick, 14) })
+  }
   const cur = w.research.current ? TECHS.find((t) => t.id === w.research.current) : undefined
   if (cur) {
     const cost = techCost(cur, w.research.levels[cur.id] ?? 0), left = Math.max(0, cost - w.research.progressUsd)

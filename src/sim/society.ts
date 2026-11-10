@@ -43,7 +43,7 @@ export const slopFactor = (w: World, datasetId: string, domain: string): number 
 export function dailySociety(w: World): void {
   const s = society(w), d = drivers(w)
   // slop: the whole industry adds a little every day; your own output and synthetic data add more
-  s.slop = clamp(s.slop + 0.00009 + Math.min(0.0004, d.tokensPerDay / 4e16) + d.synthetic * 0.00006, 0, 0.95)
+  s.slop = clamp(s.slop + 0.00009 + Math.min(0.00025, d.tokensPerDay / 4e16) + d.synthetic * 0.00006, 0, 0.95)
   // safety debt: capability beyond what your safety research covers
   s.safetyDebt = Math.max(0, (d.bestElo - 1500) / 100) * Math.max(0, 1 - techSum(w, 'safety'))
   // trust drifts towards what your behaviour deserves
@@ -51,7 +51,7 @@ export function dailySociety(w: World): void {
   s.trust += (target - s.trust) * 0.02
   w.reputation = clamp(w.reputation + (s.trust - w.reputation) * 0.006, 0, 100)
   // regulation: big and distrusted companies attract it; trusted ones bleed it off
-  s.regulation = clamp(s.regulation + (d.share * 0.12 + Math.max(0, 55 - s.trust) * 0.004 + s.slop * 0.02 - 0.012) * Math.max(0.2, 1 - techSum(w, 'lobby')), 0, 100)
+  s.regulation = clamp(s.regulation + (Math.max(0, d.share - 0.2) * 0.1 + Math.max(0, 55 - s.trust) * 0.003 + s.slop * 0.015 - 0.012) * Math.max(0.2, 1 - techSum(w, 'lobby')), 0, 100)
   for (const [id, law] of Object.entries(LAWS)) if (!s.laws.includes(id) && s.regulation >= law.at) {
     s.laws.push(id); pushNews(w, 'event', `${law.name} passes`, `${law.blurb} Lawmakers cite "one company in particular".`, 'world', 2)
   }

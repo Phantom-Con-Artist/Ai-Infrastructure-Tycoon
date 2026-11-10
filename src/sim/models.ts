@@ -52,6 +52,15 @@ export const TEMPLATES: Template[] = [
   { id: 'galaxy', name: 'Galaxy Brain ∞', corp: '', blurb: 'A mixture of a million experts. Requires a Dyson swarm.', arch: A(1000, 131072, 1024, 128, 0.125, 512, 10000, 1_000_000, 32, 8, 'mla'), tokensT: 100000, absurd: true }
 ]
 
+/** Blank starting sizes for the player's own designs: no rival's name on them, just a sensible shape to edit. */
+export const OWN_SIZES: { id: string; name: string; blurb: string; arch: ArchSpec }[] = [
+  { id: 'own-xs', name: 'Pocket', blurb: 'Trains in hours on a few servers. A first experiment.', arch: A(12, 768, 12, 12, 4, 50, 4, 1, 1, 0, 'mha') },
+  { id: 'own-s', name: 'Small', blurb: 'Cheap to train and to serve. Good for a first product.', arch: A(18, 2048, 16, 4, 4, 64, 8) },
+  { id: 'own-m', name: 'Medium', blurb: 'The workhorse size. Needs a real cluster.', arch: A(32, 4096, 32, 8, 3.5, 128, 16) },
+  { id: 'own-l', name: 'Large', blurb: 'Competitive with the big labs. Needs lots of data.', arch: A(80, 8192, 64, 8, 3.5, 128, 32) },
+  { id: 'own-xl', name: 'Frontier', blurb: 'Thousands of GPUs for months. Go for the top spot.', arch: A(126, 16384, 128, 8, 3.25, 128, 128) }
+]
+
 export type Domain = 'web' | 'code' | 'math' | 'books' | 'science' | 'multilingual' | 'dialogue' | 'synthetic'
 export interface DatasetSpec { id: string; name: string; domain: Domain; tokensT: number; quality: number; usd: number; legalRisk: number; source: string; needsTech?: string; year: number }
 export const DATASETS: DatasetSpec[] = [

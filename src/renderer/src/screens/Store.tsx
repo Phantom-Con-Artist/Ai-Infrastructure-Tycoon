@@ -1,3 +1,4 @@
+import { ProductOps } from './Systems'
 import { useState } from 'react'
 import { KeyRound, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import * as S from '@sim/store'
@@ -113,6 +114,7 @@ function Dashboard({ id }: { id: string }) {
         <div className="panel"><h3 style={{ marginBottom: 8 }}>Tokens per day</h3><LineChart series={[{ name: 'Demand', color: 'var(--amber)', data: h.map((d) => d.tokens) }, { name: 'Served', color: 'var(--blue)', data: h.map((d) => d.served) }]} /></div>
         <div className="panel"><h3 style={{ marginBottom: 8 }}>Churn per day</h3><LineChart series={[{ name: 'Churned users', color: 'var(--red)', data: h.map((d) => d.churned) }]} /></div>
       </div>
+      <ProductOps id={id} />
       <div className="row" style={{ justifyContent: 'space-between' }}><h2 style={{ margin: 0 }}>Plans</h2><button className="btn sm" onClick={() => act((x) => S.addPlan(x, id))}><Plus size={13} /> Add plan</button></div>
       <div className="grid" style={{ gridTemplateColumns: `repeat(${Math.min(4, p.plans.length)}, 1fr)`, gap: 12 }}>
         {p.plans.map((pl) => (

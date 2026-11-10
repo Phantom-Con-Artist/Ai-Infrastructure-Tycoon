@@ -6,7 +6,7 @@ import { GPUS_PER_SERVER } from '@sim/data/hardware'
 import { eloFromLoss, goodput, modelLoss, referencePrice, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
 import { DataFoundry } from './Systems'
 import { trainingOutlook, type Outlook } from '@sim/progress'
-import { datasetById, datasetCatalog, daysToNextDataset, EVALS, RIVAL_MIX, TEMPLATES, archLossDelta, archStats, evalScore, type ArchSpec } from '@sim/models'
+import { OWN_SIZES, datasetById, datasetCatalog, daysToNextDataset, EVALS, RIVAL_MIX, TEMPLATES, archLossDelta, archStats, evalScore, type ArchSpec } from '@sim/models'
 import { NetFlow, type NetNode } from '../art/NetFlow'
 import { CLOUD, cloudCapacity, cloudGpus, cloudRate } from '@sim/cloud'
 import { CorpLogo } from '../art/Logos'
@@ -45,8 +45,8 @@ const MOD_ICON: Record<Modality, React.ReactNode> = { text: <MessageSquare size=
 
 function Design({ onStart, onData }: { onStart: () => void; onData: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
-  const [tpl, setTpl] = useState('llamma8')
-  const [arch, setArch] = useState<ArchSpec>(() => ({ ...TEMPLATES.find((t) => t.id === 'llamma8')!.arch }))
+  const [tpl, setTpl] = useState('own-s')
+  const [arch, setArch] = useState<ArchSpec>(() => ({ ...OWN_SIZES.find((t) => t.id === 'own-s')!.arch }))
   const [sel, setSel] = useState<NetNode | null>('block')
   const [name, setName] = useState(() => A.randomModelName(w) + '-1')
   const [modality, setModality] = useState<Modality>('text')
@@ -70,7 +70,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
   const m = A.mixSummary(w, mix)
   const loss = modelLoss(st.totalB, st.activeB, Math.max(m.tokensT, 0.001), arch.experts > 1, m.quality || 1) + archLossDelta(arch)
   const scratchElo = eloFromLoss(method === 'continue' && base ? modelLoss(base.paramsB, base.activeParamsB, m.tokensT + base.tokensT, base.moe, m.quality || 1) : loss) + techSum(w, 'elo')
-  const elo = foundryElo(method, scratchElo, base, m.tokensT, m.quality || 1, modality)
+  const elo = foundryElo(method, scratchElo, base, m.tokensT, m.quality || 1, modality) + techSum(w, 'elo-' + modality)
   const usesBase = !!base && method !== 'distill'
   const F = trainFlops(usesBase ? base!.activeParamsB : st.activeB, m.tokensT)
   const g = gid ? gpu(w, gid) : null
@@ -85,7 +85,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
   return (
     <div className="col" style={{ gap: 16 }}>
       <div className="panel col foundry" style={{ gap: 14 }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}><h3>Model foundry</h3><span className="dim" style={{ fontSize: 12.5 }}>Each modality is its own business line: own price, own demand.</span></div>
+        <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={1} />What are you making?</h3><span className="dim" style={{ fontSize: 12.5 }}>Each modality is its own business line: own price, own demand.</span></div>
         <div className="modality-grid">{(Object.keys(MODALITIES) as Modality[]).map((k, i) => {
           const md = MODALITIES[k], ok = modalityOk(w, k)
           return <button key={k} className={'modality' + (modality === k ? ' on' : '') + (ok ? '' : ' locked')} style={{ animationDelay: `${i * 40}ms` }} onClick={() => ok ? setModality(k) : useGame.getState().go('research')}>
@@ -98,17 +98,29 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
         </div>
         <div className="row wrap" style={{ gap: 14, alignItems: 'center' }}>
           <div className="seg">{(['scratch', 'finetune', 'distill', 'continue'] as Method[]).map((k) => <button key={k} className={method === k ? 'on' : ''} disabled={!methodOk(w, k)} title={methodOk(w, k) ? METHOD_BLURB[k] : 'Needs research'} onClick={() => setMethod(k)}>{METHOD_LABEL[k]}</button>)}</div>
-          {method !== 'scratch' && <select value={base?.id ?? ''} onChange={(e) => setBaseId(e.target.value)} style={{ maxWidth: 360 }}>{bases.map((b) => <option key={b.id} value={b.id}>{b.kind === 'own' ? '★ ' : ''}{b.name} · {params(b.paramsB)} · Elo {Math.round(b.elo)}</option>)}</select>}
+          {method !== 'scratch' && <select value={base?.id ?? ''} onChange={(e) => setBaseId(e.target.value)} style={{ maxWidth: 360 }}>{(['own', 'open'] as const).map((k) => bases.some((b) => b.kind === k) && <optgroup key={k} label={k === 'own' ? 'Your models' : 'Open weights published by rivals'}>{bases.filter((b) => b.kind === k).map((b) => <option key={b.id} value={b.id}>{b.name} · {params(b.paramsB)} · Elo {Math.round(b.elo)}</option>)}</optgroup>)}</select>}
           <span className="dim" style={{ fontSize: 12.5 }}>{METHOD_BLURB[method]}{method === 'finetune' ? ` Max ${FINETUNE_MAX_T * 1000}B tokens.` : ''}{base && base.modality !== modality ? ' Cross-modal: −60 Elo while it adapts.' : ''}</span>
         </div>
         {usesBase && <div className="dim" style={{ fontSize: 12.5 }}>Architecture comes from <b>{base!.name}</b> ({params(base!.paramsB)}). The editor below is ignored for this run.</div>}
       </div>
-      <div className="row" style={{ gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-        {TEMPLATES.map((t) => { const s2 = archStats(t.arch); return (
-          <button key={t.id} className={'adv' + (tpl === t.id ? ' on' : '')} style={{ gridTemplateColumns: '30px 1fr', minWidth: 200 }} onClick={() => { setTpl(t.id); setArch({ ...t.arch }); setName(t.name.replace(/[^A-Za-z0-9]+/g, '-') + '-remix') }}>
-            <span>{t.corp ? <CorpLogo id={t.corp} size={28} /> : <span style={{ fontSize: 20 }}>🌌</span>}</span>
-            <span><b>{t.name}</b><br /><span>{params(s2.totalB)}{t.arch.experts > 1 ? ` · ${params(s2.activeB)} active` : ''}</span></span>
-          </button>) })}
+      <div className="panel col" style={{ gap: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={2} />Shape the model</h3><span className="dim" style={{ fontSize: 12.5 }}>Pick a starting size, then fine-tune it in the diagram below. Bigger is smarter, slower and hungrier for data.</span></div>
+        <div className="own-label"><span className="yours-dot" style={{ background: w.logo.color }} />Your own design, from scratch</div>
+        <div className="row" style={{ gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {OWN_SIZES.map((t) => { const s2 = archStats(t.arch); return (
+            <button key={t.id} className={'adv' + (tpl === t.id ? ' on' : '')} style={{ gridTemplateColumns: '1fr', minWidth: 190 }} title={t.blurb} onClick={() => { setTpl(t.id); setArch({ ...t.arch }); setName(A.randomModelName(w) + '-1') }}>
+              <span><b>{t.name}</b> · {params(s2.totalB)}<br /><span>{t.blurb}</span></span>
+            </button>) })}
+        </div>
+        <div className="own-label dim">Or copy a recipe a rival has published (you still train it yourself, and it becomes yours)</div>
+        <div className="row" style={{ gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {TEMPLATES.map((t) => { const s2 = archStats(t.arch); return (
+            <button key={t.id} className={'adv' + (tpl === t.id ? ' on' : '')} style={{ gridTemplateColumns: '30px 1fr', minWidth: 200 }} title={t.blurb} onClick={() => { setTpl(t.id); setArch({ ...t.arch }); setName(t.name.replace(/[^A-Za-z0-9]+/g, '-') + '-remix') }}>
+              <span>{t.corp ? <CorpLogo id={t.corp} size={28} /> : <span style={{ fontSize: 20 }}>🌌</span>}</span>
+              <span><b>{t.name}</b><br /><span>{params(s2.totalB)}{t.arch.experts > 1 ? ` · ${params(s2.activeB)} active` : ''}</span></span>
+            </button>) })}
+        </div>
+        {tpl === 'custom' && <div className="dim" style={{ fontSize: 12.5 }}>You have changed the shape: this is now your own custom design.</div>}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 16, alignItems: 'start' }}>
         <div className="panel" style={{ padding: 10 }}><NetFlow a={arch} selected={sel} onSelect={setSel} /></div>
@@ -138,7 +150,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
         </div>
       </div>
       <div className="panel col" style={{ gap: 12 }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}><h3>Training data mix</h3><button className="btn sm ghost" onClick={onData}>Dataset market</button></div>
+        <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={3} />Feed it data</h3><button className="btn sm ghost" onClick={onData}>Dataset market</button></div>
         {owned.length === 0 ? <p className="dim">You own no data. Grab the free web crawl in the dataset market — or something less legal.</p> :
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>{owned.map((d) => (
             <Field key={d.id} label={`${d.name} · ${(mix[d.id] ?? 0).toFixed(2)}T of ${d.tokensT}T${(mix[d.id] ?? 0) > d.tokensT ? ` · ${((mix[d.id] ?? 0) / d.tokensT).toFixed(1)} epochs` : ''}`}>
@@ -148,6 +160,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
       <OutlookCard elo={elo} rival={bestRivalElo(w, modality)} hours={rate > 0 ? F / rate / 3600 : Infinity} cost={cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0} servers={n} ready={m.tokensT > 0 && !!gid}
         outlook={trainingOutlook((sm, dm) => foundryElo(method, eloFromLoss(method === 'continue' && base ? modelLoss(base.paramsB, base.activeParamsB, m.tokensT * dm + base.tokensT, base.moe, m.quality || 1) : modelLoss(st.totalB * sm, st.activeB * sm, Math.max(m.tokensT * dm, 0.001), arch.experts > 1, m.quality || 1) + archLossDelta(arch)) + techSum(w, 'elo'), base, m.tokensT * dm, m.quality || 1, modality))} />
       <div className="panel row wrap" style={{ gap: 14, alignItems: 'end' }}>
+        <h3 style={{ alignSelf: 'center' }}><Step n={5} />Train</h3>
         <Field label="Model name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Compute"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></select></Field>
         <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
@@ -186,6 +199,7 @@ function DataMarket() {
   )
 }
 
+const Step = ({ n }: { n: number }): React.ReactNode => <span className="step-n">{n}</span>
 function Curve({ title, pts, unit }: { title: string; pts: { x: number; elo: number }[]; unit: string }) {
   const lo = Math.min(...pts.map((p) => p.elo)), hi = Math.max(...pts.map((p) => p.elo)), rg = hi - lo || 1
   const xy = pts.map((p, i) => [(i / (pts.length - 1)) * 200, 58 - ((p.elo - lo) / rg) * 52] as const)
@@ -202,7 +216,7 @@ function OutlookCard({ elo, rival, hours, cost, servers, outlook, ready }: { elo
   const gap = Math.round(elo - rival)
   return (
     <div className="panel outlook">
-      <div className="row" style={{ justifyContent: 'space-between' }}><h3>What you'll get</h3><span className="dim" style={{ fontSize: 12.5 }}>Three levers: model size and data decide quality, GPUs decide speed.</span></div>
+      <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={4} />What you'll get</h3><span className="dim" style={{ fontSize: 12.5 }}>Three levers: model size and data decide quality, GPUs decide speed.</span></div>
       {!ready ? <p className="dim">Add some training data and pick GPUs to see the forecast.</p> : <>
         <div className="outlook-nums">
           <div><span className="k">Expected quality</span><span className="v">{Math.round(elo)} Elo</span><span className={gap >= 0 ? 'pos' : 'dim'} style={{ fontSize: 12.5 }}>{gap >= 0 ? `${gap} ahead of the best rival` : `${-gap} behind the best rival`}</span></div>
@@ -266,9 +280,10 @@ function Runs() {
 
 function Models() {
   const w = useWorld(); const act = useGame((s) => s.act)
-  if (!w.models.length) return <p className="dim">Finish a training run to get your first model.</p>
+  if (!w.models.length) return <p className="dim">You have no models yet. Design one in the first tab and finish a training run; it will appear here. Rivals' models are listed under World → Ranks.</p>
   return (
     <div className="col" style={{ gap: 14 }}>
+      <div className="own-label"><span className="yours-dot" style={{ background: w.logo.color }} />Your models · {w.models.length}<span className="dim" style={{ fontWeight: 500 }}>Everything here belongs to {w.company}. Rivals' models are under World → Ranks.</span></div>
       {w.models.map((m) => <ModelCard key={m.id} id={m.id} />)}
       <p className="dim" style={{ fontSize: 12 }}>{act.length ? '' : ''}Demand is split by a quality-vs-price softmax across every model on the leaderboard. Capacity short? You lose the surplus and your reputation takes a hit.</p>
     </div>

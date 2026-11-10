@@ -505,3 +505,10 @@ kbd { font: 600 10.5px var(--sans); padding: 2px 6px; border-radius: 5px; backgr
 .rival-chip i { font-style: normal; color: var(--tx-3); } .rival-chip em { font-style: normal; font-weight: 650; font-variant-numeric: tabular-nums; }
 .rival-chip.you { background: var(--accent-soft); }
 .studio-dot { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: var(--surface-2); font-weight: 700; font-size: 13px; }
+
+/* numbered steps and ownership markers: what to do next, and what is yours */
+.step-n { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 99px; background: var(--ink); color: var(--surface); font-size: 12px; font-weight: 700; vertical-align: 2px; }
+.own-label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+.own-label.dim { font-weight: 500; }
+.yours-dot { width: 10px; height: 10px; border-radius: 99px; display: inline-block; }
+.tag.yours { background: var(--accent-soft); color: var(--accent); font-weight: 650; }

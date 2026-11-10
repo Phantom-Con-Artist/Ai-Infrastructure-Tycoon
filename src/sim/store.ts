@@ -34,6 +34,9 @@ export interface Product {
   id: string; name: string; category: Category; modelId: string; launched: number
   plans: Plan[]; freeUsers: number; marketingPerDay: number; history: DayPoint[]
   servedFrac: number; frustration: number
+  /** Product operations (optional for older saves): shipped features, what the team is building, support tier, a running price test and its last finding. */
+  features?: string[]; building?: { id: string; startTick: number; readyTick: number }; support?: 0 | 1 | 2
+  test?: { planId: string; startTick: number; endTick: number }; insight?: { planId: string; text: string; day: number }
   api?: { tiers: ApiTier[]; signupCredit: number; keys: ApiKey[]; devs: number }
 }
 export const DEFAULT_PLANS = (c: Category): Omit<Plan, 'id' | 'subs'>[] => c === 'enterprise'
@@ -47,6 +50,54 @@ export const DEFAULT_TIERS: ApiTier[] = [
   { name: 'Tier 3', minSpend: 100, rpm: 5_000, tpm: 4_000_000 }, { name: 'Tier 4', minSpend: 250, rpm: 10_000, tpm: 10_000_000 }, { name: 'Tier 5', minSpend: 1_000, rpm: 30_000, tpm: 150_000_000 }]
 
 type R<T = undefined> = { ok: true; value: T } | { ok: false; error: string }
+
+/** Things your product team can build. Each one changes how people behave, and most make them use more tokens. */
+export interface Feature { id: string; name: string; blurb: string; costUsd: number; days: number; appeal: number; churn: number; usage: number; only?: Category[] }
+export const FEATURES: Feature[] = [
+  { id: 'history', name: 'Search your history', blurb: 'People find last week\'s answer. They stay.', costUsd: 0.4e6, days: 20, appeal: 0.05, churn: 0.05, usage: 0.02 },
+  { id: 'mobile', name: 'Mobile app', blurb: 'In every pocket. More users, more often.', costUsd: 1.5e6, days: 45, appeal: 0.18, churn: 0.04, usage: 0.15 },
+  { id: 'memory', name: 'Memory', blurb: 'It remembers you. Leaving feels like moving house.', costUsd: 2e6, days: 50, appeal: 0.08, churn: 0.12, usage: 0.08 },
+  { id: 'voice', name: 'Voice mode', blurb: 'Talk instead of type. Long, token-hungry conversations.', costUsd: 3e6, days: 60, appeal: 0.15, churn: 0.05, usage: 0.35 },
+  { id: 'files', name: 'File uploads', blurb: 'Drop in a 300-page PDF. Your GPUs feel it.', costUsd: 1.2e6, days: 35, appeal: 0.1, churn: 0.03, usage: 0.4 },
+  { id: 'plugins', name: 'Plugins & tools', blurb: 'It books, buys and browses. A platform, not a chat box.', costUsd: 5e6, days: 80, appeal: 0.2, churn: 0.06, usage: 0.25 },
+  { id: 'teams', name: 'Shared workspaces', blurb: 'One person brings five colleagues.', costUsd: 2.5e6, days: 55, appeal: 0.12, churn: 0.08, usage: 0.05, only: ['chat', 'coding', 'enterprise', 'creative'] },
+  { id: 'ide', name: 'Editor integration', blurb: 'Lives where the code is written.', costUsd: 2e6, days: 45, appeal: 0.25, churn: 0.08, usage: 0.5, only: ['coding'] },
+  { id: 'gallery', name: 'Public gallery', blurb: 'Users show off. Free marketing, forever.', costUsd: 1e6, days: 30, appeal: 0.2, churn: 0.02, usage: 0.1, only: ['creative'] },
+  { id: 'persona', name: 'Custom personalities', blurb: 'They name it. They will not cancel something with a name.', costUsd: 1.5e6, days: 40, appeal: 0.15, churn: 0.15, usage: 0.2, only: ['companion', 'chat'] },
+  { id: 'admin', name: 'Admin console', blurb: 'IT can finally see who is using it.', costUsd: 3e6, days: 60, appeal: 0.2, churn: 0.1, usage: 0, only: ['enterprise'] }
+]
+export const SUPPORT = [
+  { name: 'Help centre', blurb: 'Articles and a contact form.', usdPerUserDay: 0 },
+  { name: 'Live chat', blurb: 'Humans answer within the hour. Calmer users.', usdPerUserDay: 0.004 },
+  { name: 'Concierge', blurb: 'A named person for every paying customer.', usdPerUserDay: 0.015 }
+] as const
+export const featuresFor = (p: Product): Feature[] => FEATURES.filter((f) => !f.only || f.only.includes(p.category))
+const shipped = (p: Product): Feature[] => FEATURES.filter((f) => p.features?.includes(f.id))
+export function buildFeature(w: World, productId: string, featureId: string): R {
+  const p = w.products.find((x) => x.id === productId); if (!p) return { ok: false, error: 'No product' }
+  const f = featuresFor(p).find((x) => x.id === featureId); if (!f) return { ok: false, error: 'That feature does not fit this product' }
+  if (p.features?.includes(f.id)) return { ok: false, error: 'Already shipped' }
+  if (p.building) return { ok: false, error: 'The team is busy building something else' }
+  if (!canAfford(w, f.costUsd)) return { ok: false, error: 'Not enough cash' }
+  spend(w, f.costUsd, 'opex')
+  const speed = 1 + Math.min(1, w.staff.engineers * 0.03) // more engineers ship sooner
+  p.building = { id: f.id, startTick: w.tick, readyTick: w.tick + Math.round(f.days / speed) * 24 }
+  return { ok: true, value: undefined }
+}
+export function setSupport(w: World, productId: string, level: 0 | 1 | 2): R {
+  const p = w.products.find((x) => x.id === productId); if (!p) return { ok: false, error: 'No product' }
+  p.support = level; return { ok: true, value: undefined }
+}
+export const PRICE_TEST_USD = 150_000
+export function startPriceTest(w: World, productId: string, planId: string): R {
+  const p = w.products.find((x) => x.id === productId); if (!p) return { ok: false, error: 'No product' }
+  const pl = p.plans.find((x) => x.id === planId); if (!pl || pl.price <= 0) return { ok: false, error: 'Pick a paid plan' }
+  if (p.test) return { ok: false, error: 'One experiment at a time' }
+  if (!canAfford(w, PRICE_TEST_USD)) return { ok: false, error: 'Not enough cash' }
+  spend(w, PRICE_TEST_USD, 'opex')
+  p.test = { planId, startTick: w.tick, endTick: w.tick + 14 * 24 }
+  return { ok: true, value: undefined }
+}
 export function createProduct(w: World, o: { name: string; category: Category; modelId: string }): R<Product> {
   const m = w.models.find((x) => x.id === o.modelId)
   if (!m || !m.releasedByPlayer) return { ok: false, error: 'Pick a launched model to power it' }
@@ -100,13 +151,20 @@ export function dailyStore(w: World): void {
     if (!m) continue
     const bestRival = bestRivalElo(w, m.modality ?? 'text') // a product is judged against its own field
     const c = CATEGORIES[p.category]
+    if (p.building && w.tick >= p.building.readyTick) {
+      const f = FEATURES.find((x) => x.id === p.building!.id)
+      p.features = [...(p.features ?? []), p.building.id]; p.building = undefined
+      if (f) pushNews(w, 'good', `${p.name} ships ${f.name.toLowerCase()}`, f.blurb, 'mine', 1)
+    }
+    const feats = shipped(p), support = p.support ?? 0
+    const fAppeal = feats.reduce((a, f) => a + f.appeal, 0), fChurn = feats.reduce((a, f) => a + f.churn, 0), fUsage = feats.reduce((a, f) => a + f.usage, 0)
     const tam = c.tam0 * Math.pow(c.tamGrowth, years) * Math.min(0.85, c.penetration0 * Math.pow(1.6, Math.min(years, 6)))
     // appeal vs rivals: quality, free generosity, brand, hype, marketing, frustration
     const free = p.plans.find((x) => x.price === 0)
     const generosity = free ? Math.log(free.tokPerDay / c.baseTokPerDay) * 0.35 : -0.6
     const ads = free?.ads ? -0.25 : 0
     const mkt = Math.log1p(p.marketingPerDay / 50_000) * 0.35
-    const u = (m.elo - bestRival) / 90 + generosity + ads + mkt + Math.log1p(m.hype ?? 0) + webQuality(w) * 0.3 + (w.reputation - 50) / 80 - p.frustration * 1.5
+    const u = (m.elo - bestRival) / 90 + generosity + ads + mkt + Math.log1p(m.hype ?? 0) + webQuality(w) * 0.3 + (w.reputation - 50) / 80 - p.frustration * 1.5 + fAppeal + support * 0.05
     const share = Math.exp(u) / (Math.exp(u) + c.rivalPull)
     const target = tam * share
     const total = p.freeUsers + p.plans.reduce((a, x) => a + x.subs, 0)
@@ -141,10 +199,25 @@ export function dailyStore(w: World): void {
     // conversion: logit choice between staying free and each paid plan (inertia calibrated to ~5% paying)
     const paid = p.plans.filter((x) => x.price > 0)
     const freeTok = free?.tokPerDay ?? c.baseTokPerDay * 0.5
-    const utilities = paid.map((pl) => 0.55 * Math.log(pl.tokPerDay / freeTok) + (pl.priority ? 0.3 : 0) - (pl.ads ? 0.2 : 0) - pl.price / (c.wtp * (c.seatBased ? 1 : 1.1)) * 1.1 + (m.elo - bestRival) / 200)
+    const ut = (pl: Plan, price = pl.price): number => 0.55 * Math.log(pl.tokPerDay / freeTok) + (pl.priority ? 0.3 : 0) - (pl.ads ? 0.2 : 0) - price / (c.wtp * (c.seatBased ? 1 : 1.1)) * 1.1 + (m.elo - bestRival) / 200 + fAppeal * 0.5
+    const utilities = paid.map((pl) => ut(pl))
     const inertia = c.seatBased ? 0.6 : 4.0 // calibrated so a competitive $20 plan lands near the ~5% paid share seen in practice
     const denom = Math.exp(inertia) + utilities.reduce((a, x) => a + Math.exp(x), 0)
     const pool = p.freeUsers + paid.reduce((a, x) => a + x.subs, 0)
+    if (p.test && w.tick >= p.test.endTick) {
+      const pl = paid.find((x) => x.id === p.test!.planId)
+      if (pl) {
+        // the experiment measures what the choice model would do at other prices, everything else held still
+        const rev = (price: number): number => { const es = paid.map((x) => Math.exp(ut(x, x === pl ? price : x.price))); return price * es[paid.indexOf(pl)] / (Math.exp(inertia) + es.reduce((a, x) => a + x, 0)) }
+        const base = rev(pl.price), up = rev(pl.price * 1.2), dn = rev(pl.price * 0.8)
+        const pct = (x: number): string => `${Math.round((x / base - 1) * 100)}%`
+        const text = up > base * 1.02 && up >= dn ? `Raise ${pl.name} to $${Math.round(pl.price * 1.2)}: fewer subscribers, about +${pct(up)} revenue.`
+          : dn > base * 1.02 ? `Cut ${pl.name} to $${Math.round(pl.price * 0.8)}: enough extra subscribers for about +${pct(dn)} revenue.` : `${pl.name} is priced about right at $${pl.price}.`
+        p.insight = { planId: pl.id, text, day: Math.floor(w.tick / 24) }
+        pushNews(w, 'info', `${p.name} price test is in`, text, 'mine', 1)
+      }
+      p.test = undefined
+    }
     paid.forEach((pl, i) => {
       const want = c.seatBased ? Math.max(pool * Math.exp(utilities[i]) / denom, 0) : pool * Math.exp(utilities[i]) / denom
       const move = (want - pl.subs) * 0.03
@@ -154,6 +227,7 @@ export function dailyStore(w: World): void {
     let demand = 0
     for (const pl of p.plans) demand += pl.subs * Math.min(pl.tokPerDay, c.baseTokPerDay * (pl.price > 0 ? 6 : 1.4)) * (c.seatBased ? Math.max(1, pl.seatsMin / 20) : 1)
     if (free) demand += p.freeUsers * Math.min(free.tokPerDay, c.baseTokPerDay * 1.4)
+    demand *= 1 + fUsage
     const avail = Math.max(0, m.capacityTokPerDay - (m.reservedTokPerDay ?? 0))
     const served = Math.min(demand, avail)
     m.reservedTokPerDay = (m.reservedTokPerDay ?? 0) + served
@@ -161,8 +235,9 @@ export function dailyStore(w: World): void {
     // frustration: rate-limited users (tight plan caps) and unserved traffic
     const capPain = p.plans.reduce((a, pl) => a + (pl.subs * Math.max(0, c.baseTokPerDay * (pl.price > 0 ? 6 : 1.4) / pl.tokPerDay - 1)), 0) / Math.max(1, total)
     p.frustration += ((1 - p.servedFrac) * 0.8 + Math.min(0.5, capPain * 0.15) - p.frustration) * 0.1
+    p.frustration *= 1 - support * 0.04 // support absorbs anger
     // churn
-    const churnDaily = (c.churnMonthly / 30) * (1 + p.frustration * 3) * (m.elo < bestRival - 100 ? 1.4 : 1) * Math.max(0.3, 1 - techSum(w, 'churn'))
+    const churnDaily = (c.churnMonthly / 30) * (1 + p.frustration * 3) * (m.elo < bestRival - 100 ? 1.4 : 1) * Math.max(0.3, 1 - techSum(w, 'churn')) * Math.max(0.4, 1 - fChurn - support * 0.08)
     for (const pl of paid) { const ch = pl.subs * churnDaily; pl.subs -= ch; churned += ch * 0.5; p.freeUsers += ch * 0.5 }
     const freeChurn = p.freeUsers * churnDaily * 1.5; p.freeUsers -= freeChurn; churned += freeChurn
     // outages: people leave fast when the product does not answer
@@ -172,7 +247,7 @@ export function dailyStore(w: World): void {
     let rev = 0
     for (const pl of paid) rev += pl.subs * pl.price / 30 * (c.seatBased ? 1 : 1)
     if (free?.ads) rev += p.freeUsers * 0.6 / 30
-    const fees = rev * 0.03 + paid.reduce((a, pl) => a + pl.subs, 0) * 0.1 / 30
+    const fees = rev * 0.03 + paid.reduce((a, pl) => a + pl.subs, 0) * 0.1 / 30 + (support === 2 ? paid.reduce((a, pl) => a + pl.subs, 0) : total) * SUPPORT[support].usdPerUserDay
     w.cash += rev - fees; w.today.revenue += rev; w.today.opex += fees; w.today.inferRev += rev
     const paidUsers = paid.reduce((a, pl) => a + pl.subs, 0)
     p.history.push({ day: Math.floor(w.tick / 24), users: p.freeUsers + paidUsers, paid: paidUsers, mrr: paid.reduce((a, pl) => a + pl.subs * pl.price, 0), tokens: demand, served, churned, revenue: rev })

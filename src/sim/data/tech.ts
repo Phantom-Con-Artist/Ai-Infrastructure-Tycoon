@@ -4,13 +4,13 @@
  *
  * Effects are strings: `unlock:<flag>` or `<stat>:<value>` (summed across researched techs).
  */
-export type Branch = 'Facilities' | 'Power' | 'Network' | 'Training' | 'Models' | 'Modalities' | 'Silicon' | 'Memory' | 'Fab' | 'Cloud' | 'Business' | 'Data' | 'Products' | 'Safety' | 'Moonshots'
+export type Branch = 'Facilities' | 'Power' | 'Network' | 'Training' | 'Models' | 'Modalities' | 'Silicon' | 'Memory' | 'Fab' | 'Cloud' | 'Business' | 'Data' | 'Products' | 'Safety' | 'Mastery' | 'Moonshots'
 export interface TechSpec {
   id: string; name: string; blurb: string; branch: Branch; tier: number
   costUsd: number; days: number; requires?: string[]; effect: string
   repeatable?: { growth: number; max?: number }
 }
-export const BRANCHES: Branch[] = ['Facilities', 'Power', 'Network', 'Training', 'Models', 'Modalities', 'Silicon', 'Memory', 'Fab', 'Cloud', 'Business', 'Data', 'Products', 'Safety', 'Moonshots']
+export const BRANCHES: Branch[] = ['Facilities', 'Power', 'Network', 'Training', 'Models', 'Modalities', 'Silicon', 'Memory', 'Fab', 'Cloud', 'Business', 'Data', 'Products', 'Safety', 'Mastery', 'Moonshots']
 
 const T = (id: string, branch: Branch, tier: number, name: string, costM: number, days: number, effect: string, blurb: string, requires?: string[], repeatable?: TechSpec['repeatable']): TechSpec =>
   ({ id, branch, tier, name, costUsd: costM * 1e6, days, effect, blurb, requires, repeatable })
@@ -133,11 +133,42 @@ export const TECHS: TechSpec[] = [
   T('safe-align', 'Safety', 5, 'Alignment research programme', 200, 300, 'safety:0.25', 'It wants what you want. Probably. Covers another 25%.', ['safe-sandbox']),
   T('safe-treaty', 'Safety', 6, 'International compute treaty', 600, 400, 'lobby:0.35', 'Everyone signs. Regulation builds 35% slower.', ['safe-gov', 'safe-audit']),
   T('safe-proof', 'Safety', 8, 'Provably safe systems', 8000, 900, 'safety:0.2', 'A proof. An actual proof. Safety debt fully covered.', ['safe-align']),
+  // ── Endless levels: no cap, the price just keeps climbing
+  T('elo-mk', 'Models', 5, 'Training recipe Mk', 60, 60, 'elo:5', '+5 Elo on every model you train, per level. For ever.', ['arch-mk'], { growth: 1.8 }),
+  T('infer-mk', 'Cloud', 4, 'Inference engine Mk', 25, 45, 'infer:0.05', '+5% tokens per GPU, per level. For ever.', ['serverless'], { growth: 1.6 }),
+  T('seats-mk', 'Products', 4, 'Enterprise sales playbook Mk', 20, 45, 'seats:0.04', 'Bigger organisations, per level. For ever.', ['prod-success'], { growth: 1.7 }),
+  T('trust-mk', 'Safety', 4, 'Public goodwill Mk', 15, 45, 'trust:0.01', '+1 trust per level.', ['safe-audit'], { growth: 1.7, max: 20 }),
+  T('label-mk', 'Data', 5, 'Annotator training Mk', 40, 60, 'labelQ:0.02', '+2% in-house data quality per level. For ever.', ['data-experts'], { growth: 1.8 }),
   // ── Moonshots (endgame, absurd)
   T('orbital', 'Moonshots', 7, 'Orbital data centers', 5000, 900, 'unlock:orbital', 'Solar is free in space. Cooling is… a problem.', ['fusion']),
   T('dyson', 'Moonshots', 9, 'Dyson swarm (pilot)', 50000, 1800, 'unlock:dyson', 'Harvest the sun. Conquer Earth by out-computing it.', ['orbital']),
+  T('self-halls', 'Moonshots', 8, 'Self-assembling halls', 9000, 600, 'build:0.3', 'The building builds the building. Construction 30% faster.', ['orbital']),
+  T('rsi', 'Moonshots', 9, 'Recursive self-improvement (supervised)', 30000, 900, 'elo:150', 'It rewrites its own training code. Someone is watching. Probably. +150 Elo.', ['agi']),
+  T('time-dilation', 'Moonshots', 9, 'Time-dilated inference', 40000, 900, 'infer:1', 'Park the servers near something heavy. Twice the tokens per GPU.', ['dyson']),
+  T('akashic', 'Moonshots', 9, 'Read the akashic records', 45000, 900, 'dataSpeed:3', 'All knowledge, already written down. Data projects four times as fast.', ['agi']),
+  T('alien-ads', 'Moonshots', 9, 'Advertise to other civilisations', 60000, 1200, 'demand:0.5', 'The total addressable market was thinking too small. +50% demand.', ['dyson']),
+  T('uploads', 'Moonshots', 9, 'Users move into the product', 70000, 1200, 'churn:0.2', 'You cannot cancel where you live. Churn −20%.', ['rsi']),
+  T('sim-universe', 'Moonshots', 9, 'Simulate a universe to ask it', 120000, 1800, 'elo:300', 'The answer comes back after 13.8 billion simulated years. +300 Elo.', ['rsi', 'time-dilation']),
+  T('beyond-mk', 'Moonshots', 9, 'Beyond Mk', 100000, 600, 'elo:25', 'Nobody can explain what this does. The number goes up. +25 Elo per level, for ever.', ['sim-universe'], { growth: 2 }),
   T('agi', 'Moonshots', 8, 'Artificial General Intelligence', 20000, 1200, 'unlock:agi', 'It works. It wants a raise.', ['agents', 'node-a14'])
 ]
+/*
+ * Mastery: a skill tree per modality. Each step makes every model you train in that modality better
+ * (`elo-<modality>` is added when a run finishes), and the last step never runs out.
+ */
+const MASTERY: [string, string | undefined, string, [string, string][]][] = [
+  ['text', undefined, 'Chat', [['Instruction tuning', 'It does what was asked, mostly.'], ['Long context', 'Reads the whole contract.'], ['Reasoning traces', 'Thinks before it speaks.'], ['Personality', 'People like talking to it.']]],
+  ['code', 'mod-code', 'Coding', [['Repo-scale context', 'Understands the whole codebase.'], ['Test-driven generation', 'Runs the tests before boasting.'], ['Agentic refactoring', 'Changes 400 files and they still compile.'], ['Formal verification', 'Proves it, then ships it.']]],
+  ['image', 'mod-image', 'Image', [['Anatomy', 'Five fingers. Every time.'], ['Typography', 'Text in images that is actual text.'], ['Style control', 'Any look, on demand.'], ['Photoreal lighting', 'Photographers are nervous.']]],
+  ['speech', 'mod-speech', 'Speech', [['Prosody', 'Sounds like it means it.'], ['Accents', 'Every accent, respectfully.'], ['Real-time turn-taking', 'Knows when you have finished talking.'], ['Emotion', 'Laughs at the right moment.']]],
+  ['music', 'mod-music', 'Music', [['Song structure', 'Verses, a chorus, a bridge.'], ['Vocals', 'Singers that never existed.'], ['Mixing & mastering', 'Radio-ready.'], ['Genre fusion', 'Bluegrass-techno, convincingly.']]],
+  ['video', 'mod-video', 'Video', [['Temporal consistency', 'The cup stays a cup.'], ['Physics', 'Water behaves like water.'], ['Camera control', 'Dolly, pan, crane.'], ['Feature length', 'Ninety minutes that hold together.']]],
+  ['omni', 'mod-omni', 'Omni', [['Shared representations', 'One idea, every sense.'], ['Live perception', 'Watches and listens as it talks.'], ['Tool use', 'Hands, in effect.'], ['Embodiment', 'Now it has a body. Good luck.']]]
+]
+for (const [mod, gate, label, steps] of MASTERY) {
+  steps.forEach(([name, blurb], i) => TECHS.push(T(`mas-${mod}-${i + 1}`, 'Mastery', i * 2 + 1, `${label}: ${name}`, 8 * Math.pow(4, i), 60 + i * 45, `elo-${mod}:${15 + i * 5}`, `${blurb} +${15 + i * 5} Elo on ${label.toLowerCase()} models.`, i === 0 ? (gate ? [gate] : undefined) : [`mas-${mod}-${i}`])))
+  TECHS.push(T(`mas-${mod}-mk`, 'Mastery', 8, `${label} craft Mk`, 900, 120, `elo-${mod}:6`, `+6 Elo on ${label.toLowerCase()} models per level. For ever.`, [`mas-${mod}-4`], { growth: 1.8 }))
+}
 export const tech = (id: string): TechSpec | undefined => TECHS.find((t) => t.id === id)
 /** Cost of the next level of a tech given how many levels are already owned. */
 export const techCost = (t: TechSpec, owned: number): number => t.costUsd * Math.pow(t.repeatable?.growth ?? 1, owned)
