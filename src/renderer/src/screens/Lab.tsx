@@ -4,6 +4,7 @@ import { AudioLines, Music, Clapperboard, Code2, Image as ImageIcon, MessageSqua
 import * as A from '@sim/actions'
 import { GPUS_PER_SERVER } from '@sim/data/hardware'
 import { eloFromLoss, goodput, modelLoss, referencePrice, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
+import { DataFoundry } from './Systems'
 import { trainingOutlook, type Outlook } from '@sim/progress'
 import { datasetById, datasetCatalog, daysToNextDataset, EVALS, RIVAL_MIX, TEMPLATES, archLossDelta, archStats, evalScore, type ArchSpec } from '@sim/models'
 import { NetFlow, type NetNode } from '../art/NetFlow'
@@ -16,7 +17,7 @@ import { Bar, Field, Num, Summary, Tabs, Term } from '../ui'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
 
-const TABS = ['design', 'data', 'runs', 'models', 'evals'] as const
+const TABS = ['design', 'data', 'foundry', 'runs', 'models', 'evals'] as const
 
 export function Lab() {
   const w = useWorld()
@@ -27,6 +28,7 @@ export function Lab() {
       <Summary items={Sum.labSummary(w)} />
       {tab === 'design' && <Design onStart={() => setTab('runs')} onData={() => setTab('data')} />}
       {tab === 'data' && <DataMarket />}
+      {tab === 'foundry' && <DataFoundry />}
       {tab === 'runs' && <Runs />}
       {tab === 'models' && <Models />}
       {tab === 'evals' && <Evals />}
@@ -52,7 +54,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
   const bases = baseOptions(w)
   const [baseId, setBaseId] = useState(bases[0]?.id ?? '')
   const base = method === 'scratch' ? undefined : bases.find((b) => b.id === baseId) ?? bases[0]
-  const owned = Object.keys(w.datasets).filter((id) => (w.datasets[id] ?? 0) > 0).map((id) => datasetById(id)).filter((d) => !!d)
+  const owned = Object.keys(w.datasets).filter((id) => (w.datasets[id] ?? 0) > 0).map((id) => datasetById(id, w.data?.own)).filter((d) => !!d)
   const [mix, setMix] = useState<Record<string, number>>(() => Object.fromEntries(owned.map((d) => [d.id, Math.min(d.tokensT, 2)])))
   const [siteId, setSite] = useState(w.sites.find((s) => s.halls.some((h) => h.racks.some((r) => r.servers > 0)))?.id ?? CLOUD)
   const cloud = siteId === CLOUD

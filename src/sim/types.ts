@@ -112,6 +112,8 @@ export interface World {
   achievements: string[]
   silicon: Silicon; customGpus: GpuSpec[]
   datasets: Record<string, number>
+  /** Optional so older saves load: Data Foundry, the society loop and organisation deals. */
+  data?: import('./datafoundry').DataState; society?: import('./society').Society; orgDeals?: import('./orgs').OrgDeal[]
   rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean; keynotes?: number; releasedNames?: string[]; rivalNext?: Record<string, number>
   web: import('./web').WebPresence
   products: import('./store').Product[]

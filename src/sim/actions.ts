@@ -1,3 +1,4 @@
+import { slopFactor } from './society'
 import { ADVISORS, AI_NAME_PARTS } from './data/lore'
 import { FINETUNE_MAX_T, MODALITIES, findBase, methodOk, modalityOk, type Method, type Modality } from './foundry'
 import { orderableNodes } from './nodes'
@@ -458,13 +459,13 @@ export function mixSummary(w: World, mix: Record<string, number>): { tokensT: nu
   const byDomain: Partial<Record<Domain, number>> = {}
   for (const [id, t] of Object.entries(mix)) {
     if (t <= 0) continue
-    const d = datasetById(id)
+    const d = datasetById(id, w.data?.own)
     const own = w.datasets[id] ?? 0
     if (!d || own <= 0) return { tokensT: 0, quality: 0, shares: {}, maxEpochs: 0, error: `You don't own ${d?.name ?? id}` }
     const epochs = t / own
     maxEpochs = Math.max(maxEpochs, epochs)
     const repeatPenalty = epochs <= 1 ? 1 : 1 / (1 + 0.12 * (epochs - 1) ** 1.3) // data repetition has diminishing returns
-    tok += t; q += t * d.quality * repeatPenalty
+    tok += t; q += t * d.quality * repeatPenalty * slopFactor(w, d.id, d.domain) * (1 + techSum(w, 'dq'))
     byDomain[d.domain] = (byDomain[d.domain] ?? 0) + t
   }
   const shares: Partial<Record<Domain, number>> = {}

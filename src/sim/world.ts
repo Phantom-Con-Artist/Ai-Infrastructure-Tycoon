@@ -1,3 +1,6 @@
+import { dailyOrgs } from './orgs'
+import { dailyData } from './datafoundry'
+import { dailySociety } from './society'
 import { ADVISORS } from './data/lore'
 import { MODALITIES, foundryElo } from './foundry'
 import { GPUS_PER_SERVER, gpuCatalog, region, residual } from './data/hardware'
@@ -307,6 +310,9 @@ function dailyTick(w: World): void {
   dailySilicon(w)
   dailyCorporate(w)
   dailyStore(w)
+  dailyOrgs(w)
+  dailyData(w)
+  dailySociety(w)
   dailyPeople(w)
   checkAchievements(w)
   checkGoals(w)

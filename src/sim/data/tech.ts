@@ -4,13 +4,13 @@
  *
  * Effects are strings: `unlock:<flag>` or `<stat>:<value>` (summed across researched techs).
  */
-export type Branch = 'Facilities' | 'Power' | 'Network' | 'Training' | 'Models' | 'Modalities' | 'Silicon' | 'Memory' | 'Fab' | 'Cloud' | 'Business' | 'Moonshots'
+export type Branch = 'Facilities' | 'Power' | 'Network' | 'Training' | 'Models' | 'Modalities' | 'Silicon' | 'Memory' | 'Fab' | 'Cloud' | 'Business' | 'Data' | 'Products' | 'Safety' | 'Moonshots'
 export interface TechSpec {
   id: string; name: string; blurb: string; branch: Branch; tier: number
   costUsd: number; days: number; requires?: string[]; effect: string
   repeatable?: { growth: number; max?: number }
 }
-export const BRANCHES: Branch[] = ['Facilities', 'Power', 'Network', 'Training', 'Models', 'Modalities', 'Silicon', 'Memory', 'Fab', 'Cloud', 'Business', 'Moonshots']
+export const BRANCHES: Branch[] = ['Facilities', 'Power', 'Network', 'Training', 'Models', 'Modalities', 'Silicon', 'Memory', 'Fab', 'Cloud', 'Business', 'Data', 'Products', 'Safety', 'Moonshots']
 
 const T = (id: string, branch: Branch, tier: number, name: string, costM: number, days: number, effect: string, blurb: string, requires?: string[], repeatable?: TechSpec['repeatable']): TechSpec =>
   ({ id, branch, tier, name, costUsd: costM * 1e6, days, effect, blurb, requires, repeatable })
@@ -96,6 +96,43 @@ export const TECHS: TechSpec[] = [
   T('ipo', 'Business', 3, 'IPO readiness', 30, 180, 'unlock:ipo', 'Go public. Raise billions. Quarterly calls forever.', ['lobbying']),
   T('m-and-a', 'Business', 4, 'M&A desk', 50, 180, 'unlock:acquire', 'Buy your rivals.', ['ipo']),
   T('brand-mk', 'Business', 2, 'Brand campaign Mk', 4, 45, 'demand:0.03', '+3% demand per level. Billboards on the moon eventually.', ['lobbying'], { growth: 1.55, max: 40 }),
+  // ── Data: the Data Foundry (sim/datafoundry.ts) and the slop problem (sim/society.ts)
+  T('data-pipeline', 'Data', 1, 'Crawl & dedupe pipeline', 2, 30, 'dataSpeed:0.25', 'Your own crawlers. Data projects gather 25% faster.'),
+  T('data-label', 'Data', 1, 'Annotation workforce', 4, 45, 'unlock:data-label', 'Hire experts to write and grade examples. Unlocks human-labelled datasets.'),
+  T('data-telemetry', 'Data', 2, 'Conversation logging', 5, 40, 'unlock:data-telemetry', 'Learn from what your users type. They will have opinions about this.', ['data-pipeline']),
+  T('data-rubrics', 'Data', 2, 'Grading rubrics', 6, 60, 'labelQ:0.08', 'Annotators agree with each other. In-house data quality +8%.', ['data-label']),
+  T('slop-filter', 'Data', 3, 'AI-text detectors', 15, 90, 'slopFilter:0.35', 'Filter machine-written text out of crawls. Slop hurts crawled data 35% less.', ['data-pipeline']),
+  T('data-broker', 'Data', 3, 'Data licensing desk', 12, 75, 'dataPrice:0.25', 'A sales team for your datasets. Licence income +25%.', ['data-rubrics']),
+  T('data-curriculum', 'Data', 4, 'Curriculum ordering', 30, 120, 'dq:0.05', 'Easy examples first. Every dataset trains 5% better.', ['data-rubrics']),
+  T('data-provenance', 'Data', 4, 'Provenance ledger', 35, 120, 'slopFilter:0.3', 'Signed human-made content. Slop hurts 30% less again.', ['slop-filter']),
+  T('data-experts', 'Data', 5, 'Nobel-laureate annotators', 120, 180, 'labelQ:0.12', 'They mostly correct each other. Quality +12%.', ['data-curriculum']),
+  T('data-world', 'Data', 6, 'World-scale sensor feeds', 400, 300, 'dataSpeed:1', 'Cameras, microphones, satellites. Data projects twice as fast.', ['data-provenance']),
+  T('data-brain', 'Data', 8, 'Consensual thought logging', 6000, 700, 'labelQ:0.25', 'Volunteers wear the hat. The data is extraordinary. The consent form is 400 pages.', ['data-world', 'data-experts']),
+  T('data-speed-mk', 'Data', 2, 'Pipeline throughput Mk', 3, 30, 'dataSpeed:0.08', '+8% data gathering per level.', ['data-pipeline'], { growth: 1.6, max: 30 }),
+  T('data-quality-mk', 'Data', 3, 'Dataset polish Mk', 8, 45, 'dq:0.015', '+1.5% training quality from every dataset, per level.', ['data-rubrics'], { growth: 1.75, max: 25 }),
+  // ── Products: consumer apps and organisation deals (sim/store.ts, sim/orgs.ts)
+  T('prod-onboarding', 'Products', 1, 'Onboarding that works', 2, 30, 'churn:0.06', 'People understand the product in the first minute. Churn −6%.'),
+  T('prod-sso', 'Products', 1, 'SSO & audit logs', 4, 45, 'dealWin:0.08', 'The checkbox every procurement team needs. Counter-offers land 8 points more often.'),
+  T('prod-memory', 'Products', 2, 'Long-term memory', 10, 60, 'churn:0.08', 'It remembers your dog\'s name. Churn −8%.', ['prod-onboarding']),
+  T('prod-success', 'Products', 2, 'Customer success team', 9, 60, 'seats:0.15', 'Bigger organisations come knocking.', ['prod-sso']),
+  T('prod-mobile', 'Products', 3, 'Native apps', 18, 90, 'demand:0.05', 'On every phone. +5% demand.', ['prod-onboarding']),
+  T('prod-compliance', 'Products', 3, 'Compliance certifications', 25, 120, 'dealWin:0.1', 'SOC-ish 2, ISO-ish 27001, HIPAA-ish. Banks and hospitals say yes.', ['prod-sso']),
+  T('prod-voice', 'Products', 4, 'Voice mode', 40, 120, 'churn:0.08', 'People talk to it in the car. Churn −8%.', ['prod-memory']),
+  T('prod-agents', 'Products', 5, 'Agents that do the task', 150, 200, 'demand:0.1', 'It books the flight. +10% demand, and more for safety to worry about.', ['prod-voice', 'prod-mobile']),
+  T('prod-gov', 'Products', 5, 'Government cloud', 120, 240, 'seats:0.3', 'Ministries buy seats by the hundred thousand.', ['prod-compliance', 'prod-success']),
+  T('prod-os', 'Products', 7, 'The AI operating system', 2500, 500, 'demand:0.2', 'There is no app. There is only the assistant.', ['prod-agents']),
+  T('prod-retention-mk', 'Products', 2, 'Retention experiments Mk', 3, 30, 'churn:0.015', 'A/B tests forever. Churn −1.5% per level.', ['prod-onboarding'], { growth: 1.6, max: 20 }),
+  // ── Safety: what stands between capability and an incident (sim/society.ts)
+  T('safe-evals', 'Safety', 1, 'Red-team evaluations', 3, 40, 'safety:0.15', 'Find the failure before a customer does. Covers 15% of safety debt.'),
+  T('safe-policy', 'Safety', 1, 'Published usage policy', 1, 20, 'trust:0.03', 'You wrote down what you will not do. Public trust +3.'),
+  T('safe-interp', 'Safety', 2, 'Interpretability lab', 15, 90, 'safety:0.2', 'Look inside the model. Covers another 20%.', ['safe-evals']),
+  T('safe-transparency', 'Safety', 2, 'Transparency reports', 6, 45, 'trust:0.05', 'Quarterly, honest, slightly embarrassing. Trust +5.', ['safe-policy']),
+  T('safe-sandbox', 'Safety', 3, 'Agent sandboxing', 30, 120, 'safety:0.2', 'Agents act in a box first. Covers another 20%.', ['safe-interp']),
+  T('safe-gov', 'Safety', 3, 'Government affairs', 20, 90, 'lobby:0.3', 'You are in the room when rules are written. Regulation builds 30% slower.', ['safe-transparency']),
+  T('safe-audit', 'Safety', 4, 'Independent audits', 45, 120, 'trust:0.08', 'Outsiders check your homework. Trust +8.', ['safe-transparency']),
+  T('safe-align', 'Safety', 5, 'Alignment research programme', 200, 300, 'safety:0.25', 'It wants what you want. Probably. Covers another 25%.', ['safe-sandbox']),
+  T('safe-treaty', 'Safety', 6, 'International compute treaty', 600, 400, 'lobby:0.35', 'Everyone signs. Regulation builds 35% slower.', ['safe-gov', 'safe-audit']),
+  T('safe-proof', 'Safety', 8, 'Provably safe systems', 8000, 900, 'safety:0.2', 'A proof. An actual proof. Safety debt fully covered.', ['safe-align']),
   // ── Moonshots (endgame, absurd)
   T('orbital', 'Moonshots', 7, 'Orbital data centers', 5000, 900, 'unlock:orbital', 'Solar is free in space. Cooling is… a problem.', ['fusion']),
   T('dyson', 'Moonshots', 9, 'Dyson swarm (pilot)', 50000, 1800, 'unlock:dyson', 'Harvest the sun. Conquer Earth by out-computing it.', ['orbital']),

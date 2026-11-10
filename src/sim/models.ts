@@ -100,8 +100,8 @@ export function datasetCatalog(year: number): DatasetSpec[] {
   const n = Math.max(0, Math.floor((year + 0.5 - GEN_START) * 4) + 1)
   return [...DATASETS, ...Array.from({ length: n }, (_, i) => genDataset(i))]
 }
-export const datasetById = (id: string): DatasetSpec | undefined =>
-  id.startsWith('gen-') ? (Number.isInteger(+id.slice(4)) && +id.slice(4) >= 0 ? genDataset(+id.slice(4)) : undefined) : DATASETS.find((d) => d.id === id)
+export const datasetById = (id: string, own?: DatasetSpec[]): DatasetSpec | undefined =>
+  id.startsWith('own-') ? own?.find((d) => d.id === id) : id.startsWith('gen-') ? (Number.isInteger(+id.slice(4)) && +id.slice(4) >= 0 ? genDataset(+id.slice(4)) : undefined) : DATASETS.find((d) => d.id === id)
 /** Days until the next edition lands. */
 export const daysToNextDataset = (year: number): number => { const q = (year + 0.5 - GEN_START) * 4; return Math.max(1, Math.ceil((Math.floor(q) + 1 - q) * 365.25 / 4)) }
 

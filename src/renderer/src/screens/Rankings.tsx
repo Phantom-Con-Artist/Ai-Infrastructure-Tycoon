@@ -14,9 +14,10 @@ import { Portrait } from '../art/People'
 import { Globe } from '../art/Globe'
 import { CorpWordmark } from '../art/Brand'
 import * as PV from '@sim/preview'
+import { SocietyPanel } from './Systems'
 import * as Sum from '../summaries'
 
-const TABS = ['models', 'labs', 'evals', 'companies', 'people', 'rich list'] as const
+const TABS = ['models', 'labs', 'evals', 'companies', 'people', 'rich list', 'society'] as const
 
 export function Rankings() {
   const [tab, setTab] = useState<(typeof TABS)[number]>('models')
@@ -32,6 +33,7 @@ export function Rankings() {
       {tab === 'companies' && <Companies />}
       {tab === 'people' && <People />}
       {tab === 'rich list' && <Rich />}
+      {tab === 'society' && <SocietyPanel />}
     </>
   )
 }

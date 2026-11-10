@@ -4,9 +4,10 @@
  */
 import { TECHS, techCost } from './data/tech'
 import type { World } from './types'
+import { projectRate } from './datafoundry'
 import { gpu } from './util'
 
-export type JobKind = 'delivery' | 'build' | 'power' | 'training' | 'chip' | 'research'
+export type JobKind = 'delivery' | 'build' | 'power' | 'training' | 'chip' | 'research' | 'data'
 export interface Job { id: string; kind: JobKind; label: string; where: string; frac: number; hoursLeft: number; endTick?: number }
 
 const span = (w: World, start: number | undefined, end: number, guessDays: number): { frac: number; hoursLeft: number; endTick: number } => {
@@ -28,6 +29,7 @@ export function jobs(w: World): Job[] {
   for (const d of w.silicon.designs) if (d.status === 'designing') out.push({ id: d.id, kind: 'chip', label: `Tape-out ${d.spec.name}`, where: 'Silicon', ...span(w, d.startTick, d.readyTick, 365) })
   const fab = w.silicon.fab
   if (fab && w.tick < fab.readyTick) out.push({ id: 'fab', kind: 'chip', label: 'Fab under construction', where: 'Silicon', ...span(w, fab.readyTick - 540 * 24, fab.readyTick, 540) })
+  for (const p of w.data?.projects ?? []) { const rate = projectRate(w, p); out.push({ id: p.id, kind: 'data', label: `Gathering ${p.name}`, where: 'Data Foundry', frac: Math.min(1, p.doneT / p.targetT), hoursLeft: rate > 0 ? ((p.targetT - p.doneT) / rate) * 24 : Infinity }) }
   const cur = w.research.current ? TECHS.find((t) => t.id === w.research.current) : undefined
   if (cur) {
     const cost = techCost(cur, w.research.levels[cur.id] ?? 0), left = Math.max(0, cost - w.research.progressUsd)

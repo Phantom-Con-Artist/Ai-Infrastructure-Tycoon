@@ -12,6 +12,7 @@ import { Advanced, Bar, Field, Head, Num, Spark, Summary } from '../ui'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
 import { ManagerCard } from '../ManagerCard'
+import { OrgDeals } from './Systems'
 
 export function Contracts() {
   const w = useWorld(); const act = useGame((s) => s.act)
@@ -22,6 +23,7 @@ export function Contracts() {
     <>
       <Head title="Contract Training" sub="Other companies pay you to train their models on your iron. Deliver before the deadline or eat penalties. Offers scale with the size of your biggest cluster." />
       <Summary items={Sum.contractsSummary(w)} />
+      <OrgDeals />
       {mine.length > 0 && <><h2>In progress</h2><div className="col" style={{ marginBottom: 28 }}>{mine.map((c) => { const r = w.runs.find((x) => x.id === c.runId); return <div key={c.id} className="panel row" style={{ justifyContent: 'space-between' }}><div><b>{c.modelName}</b> for {c.customer}<div className="dim" style={{ fontSize: 12 }}>due {dateOf(c.deadlineTick)} · pays {money(c.payUsd)}</div></div><div style={{ width: 220 }}><Bar v={r ? r.flopsDone / r.flopsTotal : 0} max={1} warnAt={2} badAt={2} /><div className="mono dim" style={{ fontSize: 11 }}>{r ? dur(r.etaH) : ''} left · {w.tick > c.deadlineTick ? 'LATE' : 'on track'}</div></div></div> })}</div></>}
       <h2>Offers</h2>
       <div className="col">

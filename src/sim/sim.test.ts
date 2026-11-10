@@ -213,3 +213,51 @@ describe('per-modality rivals', () => {
     expect(modelShare(w).get('m-img')).toBeGreaterThan(0.2)
   })
 })
+
+import * as DF from './datafoundry'
+import * as OG from './orgs'
+import { dailySociety, society, slopFactor } from './society'
+describe('data foundry, organisations and the society loop', () => {
+  const model = { owner: 'player', paramsB: 1, activeParamsB: 1, tokensT: 1, loss: 2, releaseTick: 0, priceMtok: 1, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 1e15, releasedByPlayer: true }
+  it('a data project spends its budget, finishes into a dataset you can train on, license and sell', () => {
+    const w = createWorld(7); w.cash = 1e9
+    expect(DF.startProject(w, { name: 'Mine', domain: 'code', source: 'scrape', targetT: 1, budgetPerDay: 200_000 }).ok).toBe(true)
+    expect(DF.startProject(w, { name: 'X', domain: 'code', source: 'label', targetT: 1, budgetPerDay: 1 }).ok).toBe(false) // locked behind research
+    const cash0 = w.cash
+    DF.dailyData(w); DF.dailyData(w); DF.dailyData(w)
+    const d = w.data!.own[0]
+    expect(d.tokensT).toBeCloseTo(1, 2)
+    expect(cash0 - w.cash).toBeCloseTo(400_000, -3)
+    expect(A.mixSummary(w, { [d.id]: 0.5 }).tokensT).toBe(0.5)
+    DF.setLicensed(w, d.id, true); const c1 = w.cash; DF.dailyData(w); expect(w.cash).toBeGreaterThan(c1)
+    expect(DF.sellDataset(w, d.id).ok).toBe(true)
+    expect(w.datasets[d.id]).toBeUndefined()
+  })
+  it('an organisation pays while served, and cancels when starved', () => {
+    const w = createWorld(7)
+    w.models.push({ ...model, id: 'm1', name: 'M', elo: 1600 })
+    for (let i = 0; i < 30 && !(w.orgDeals ?? []).length; i++) { w.tick += 24; OG.dailyOrgs(w) }
+    const d = w.orgDeals![0]; d.minElo = 1000
+    expect(OG.acceptDeal(w, d.id, 'm1').ok).toBe(true)
+    const c0 = w.cash; w.tick += 24; OG.dailyOrgs(w)
+    expect(w.cash).toBeGreaterThan(c0)
+    const m = w.models.find((x) => x.id === 'm1')!; m.capacityTokPerDay = 0
+    for (let i = 0; i < 120; i++) { w.tick += 24; m.reservedTokPerDay = 0; OG.dailyOrgs(w) }
+    expect(w.orgDeals!.some((x) => x.id === d.id)).toBe(false)
+  })
+  it('behaviour moves society: risky data lowers trust, slop degrades crawls, leading makes rivals chase', () => {
+    const w = createWorld(7); const s = society(w)
+    const t0 = s.trust; w.datasets.books3 = 0.3
+    for (let i = 0; i < 60; i++) dailySociety(w)
+    expect(s.trust).toBeLessThan(t0)
+    s.slop = 0.5
+    expect(slopFactor(w, 'gen-0', 'web')).toBeLessThan(0.8)
+    expect(slopFactor(w, 'own-x', 'web')).toBe(1)
+    w.models.push({ ...model, id: 'm1', name: 'M', elo: 5000 })
+    const e0 = w.competitors[0].elo; dailySociety(w)
+    expect(w.competitors[0].elo).toBeGreaterThan(e0)
+    expect(s.chasing).toBe(true)
+    s.regulation = 99; dailySociety(w)
+    expect(s.laws).toContain('antitrust')
+  })
+})

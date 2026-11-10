@@ -12,7 +12,7 @@ import { bestRivalElo } from './foundry'
  */
 import { pick, rnd } from './rng'
 import { HOURS_PER_YEAR, type World } from './types'
-import { newId, pushNews, spend } from './util'
+import { newId, pushNews, spend, techSum } from './util'
 import { webQuality } from './web'
 
 export type Category = 'chat' | 'coding' | 'creative' | 'companion' | 'enterprise' | 'api'
@@ -162,7 +162,7 @@ export function dailyStore(w: World): void {
     const capPain = p.plans.reduce((a, pl) => a + (pl.subs * Math.max(0, c.baseTokPerDay * (pl.price > 0 ? 6 : 1.4) / pl.tokPerDay - 1)), 0) / Math.max(1, total)
     p.frustration += ((1 - p.servedFrac) * 0.8 + Math.min(0.5, capPain * 0.15) - p.frustration) * 0.1
     // churn
-    const churnDaily = (c.churnMonthly / 30) * (1 + p.frustration * 3) * (m.elo < bestRival - 100 ? 1.4 : 1)
+    const churnDaily = (c.churnMonthly / 30) * (1 + p.frustration * 3) * (m.elo < bestRival - 100 ? 1.4 : 1) * Math.max(0.3, 1 - techSum(w, 'churn'))
     for (const pl of paid) { const ch = pl.subs * churnDaily; pl.subs -= ch; churned += ch * 0.5; p.freeUsers += ch * 0.5 }
     const freeChurn = p.freeUsers * churnDaily * 1.5; p.freeUsers -= freeChurn; churned += freeChurn
     // outages: people leave fast when the product does not answer
