@@ -27,7 +27,7 @@ const LAND: V3[] = (() => {
   return out
 })()
 
-function slerpArc(a: V3, b: V3, n: number, height = 0.32): V3[] {
+function slerpArc(a: V3, b: V3, n: number, height = 0.2): V3[] {
   const d = Math.acos(Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))
   const pts: V3[] = []
   for (let i = 0; i <= n; i++) {
@@ -41,19 +41,21 @@ function slerpArc(a: V3, b: V3, n: number, height = 0.32): V3[] {
 
 interface Node { id: string; v: V3; label: string; mine: boolean; mw: number; color: string; hub?: boolean }
 
-export function Globe({ w, onPick, height = 360 }: { w: World; onPick?: (regionId: string) => void; height?: number }) {
+/** `w` drives the real network; without it (title screen) `demo` campuses are shown instead. `bare` hides the chrome. */
+export function Globe({ w, onPick, height = 360, demo, bare }: { w?: World; onPick?: (regionId: string) => void; height?: number | string; demo?: [string, number][]; bare?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const view = useRef({ lon: -40, lat: 22, vlon: 0, drag: false, px: 0, py: 0, moved: 0, hover: '' })
   const [hover, setHover] = useState<Node | null>(null)
   const mwBy: Record<string, number> = {}
-  for (const s of w.sites) mwBy[s.regionId] = (mwBy[s.regionId] ?? 0) + s.utilityMw
+  const siteList = w ? w.sites.map((s) => [s.regionId, s.utilityMw] as [string, number]) : demo ?? []
+  for (const [id, mw] of siteList) mwBy[id] = (mwBy[id] ?? 0) + mw
   const nodes: Node[] = [
     ...REGIONS.map((r) => ({ id: r.id, v: toV(...r.ll), label: r.name, mine: !!mwBy[r.id], mw: mwBy[r.id] ?? 0, color: '' })),
     ...RIVAL_HUBS.map((h, i) => ({ id: 'hub' + i, v: toV(...h.ll), label: `${corp(h.corp).name} · ${h.name}`, mine: false, mw: 0, color: corp(h.corp).color, hub: true }))
   ]
   const mine = nodes.filter((n) => n.mine)
   // Backbone: chain your campuses in the order you built them, then close the loop.
-  const order = [...new Set(w.sites.map((s) => s.regionId))].map((id) => nodes.find((n) => n.id === id)!).filter(Boolean)
+  const order = [...new Set(siteList.map(([id]) => id))].map((id) => nodes.find((n) => n.id === id)!).filter(Boolean)
   const backbone: V3[][] = order.length > 1 ? order.map((n, i) => slerpArc(n.v, order[(i + 1) % order.length].v, 48)).slice(0, order.length === 2 ? 1 : order.length) : []
   // Rival mesh: each hub links to the next two of the same company, plus a transatlantic/transpacific spine.
   const rival: V3[][] = []
@@ -61,6 +63,8 @@ export function Globe({ w, onPick, height = 360 }: { w: World; onPick?: (regionI
     const sib = RIVAL_HUBS.map((x, j) => ({ x, j })).filter(({ x, j }) => x.corp === h.corp && j > i).slice(0, 1)
     for (const { j } of sib) rival.push(slerpArc(nodes[REGIONS.length + i].v, nodes[REGIONS.length + j].v, 40, 0.06))
   })
+  const bareRef = useRef(bare)
+  bareRef.current = bare
   const data = useRef({ nodes, backbone, rival, mine })
   data.current = { nodes, backbone, rival, mine }
 
@@ -77,6 +81,7 @@ export function Globe({ w, onPick, height = 360 }: { w: World; onPick?: (regionI
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, W, H)
       const R = Math.min(W * 0.42, H * 0.44), cx = W / 2, cy = H / 2 + 4
+      if (R <= 1) { raf = requestAnimationFrame(frame); return }
       const cl = Math.cos(-v.lon * RAD), sl = Math.sin(-v.lon * RAD), ct = Math.cos(v.lat * RAD), st = Math.sin(v.lat * RAD)
       const P = (p: V3): [number, number, number] => {
         const x = p[0] * cl + p[2] * sl, z0 = -p[0] * sl + p[2] * cl
@@ -127,7 +132,7 @@ export function Globe({ w, onPick, height = 360 }: { w: World; onPick?: (regionI
         } else {
           ctx.strokeStyle = 'oklch(0.95 0.02 240 / .8)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.stroke()
         }
-        if (n.mine || v.hover === n.id) {
+        if (!bareRef.current && (n.mine || v.hover === n.id)) {
           ctx.font = '600 12px Inter Variable, sans-serif'; ctx.fillStyle = 'oklch(0.97 0.01 240)'
           ctx.fillText(n.label.split(',')[0] + (n.mine ? ` · ${n.mw} MW` : ''), x + 9, y - 7)
         }
@@ -153,7 +158,7 @@ export function Globe({ w, onPick, height = 360 }: { w: World; onPick?: (regionI
   }
 
   return (
-    <div className="globe" style={{ height }}>
+    <div className={'globe' + (bare ? ' bare' : '')} style={{ height }}>
       <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block', cursor: hover && !hover.hub ? 'pointer' : 'grab', touchAction: 'none' }} aria-label="Globe of your datacenter network"
         onPointerDown={(e) => { const v = view.current; v.drag = true; v.px = e.clientX; v.py = e.clientY; v.moved = 0; (e.target as Element).setPointerCapture(e.pointerId) }}
         onPointerMove={(e) => {
@@ -163,8 +168,8 @@ export function Globe({ w, onPick, height = 360 }: { w: World; onPick?: (regionI
         }}
         onPointerUp={(e) => { const v = view.current; v.drag = false; if (v.moved < 4) { const n = pickAt(e); if (n && !n.hub) onPick?.(n.id) } }}
         onPointerLeave={() => { view.current.hover = ''; setHover(null) }} />
-      {hover && <div className="globe-tip">{hover.hub ? <><b>{hover.label.split(' · ')[1]}</b><span>{hover.label.split(' · ')[0]} campus</span></> : <><b>{hover.label}</b><span>{hover.mine ? `Your campus · ${hover.mw} MW` : 'Open for a new site — click'}</span></>}</div>}
-      <div className="globe-legend"><span><i className="me" />Your campuses</span><span><i className="bb" />Your backbone</span><span><i className="rv" />Rival campuses</span></div>
+      {hover && !bare && <div className="globe-tip">{hover.hub ? <><b>{hover.label.split(' · ')[1]}</b><span>{hover.label.split(' · ')[0]} campus</span></> : <><b>{hover.label}</b><span>{hover.mine ? `Your campus · ${hover.mw} MW` : 'Open for a new site — click'}</span></>}</div>}
+      {!bare && <div className="globe-legend"><span><i className="me" />Your campuses</span><span><i className="bb" />Your backbone</span><span><i className="rv" />Rival campuses</span></div>}
     </div>
   )
 }

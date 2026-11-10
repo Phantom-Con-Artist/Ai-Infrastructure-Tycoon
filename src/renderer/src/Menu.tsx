@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, FolderOpen, Play, Plus, Power, Settings as Cog, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, FolderOpen, Play, Plus, Power, Settings as Cog, Trash2 } from 'lucide-react'
 import { ADVISORS } from '@sim/data/lore'
 import { RULE_KEYS, makeRules, type RuleKey, type Rules } from '@sim/rules'
 import { dateOf, money } from './format'
 import { useGame } from './store'
 import { saves, type SaveMeta } from './saves'
 import { TitleBar } from './TitleBar'
-import { HeroCampus } from './art/Illustrations'
+import { REGIONS } from '@sim/data/hardware'
+import { CORPS } from '@sim/data/lore'
 import { Portrait } from './art/People'
 import { Glyph, LOGO_COLORS, LOGO_GLYPHS, WordMark, type LogoGlyph } from './art/Logos'
 
@@ -64,21 +65,36 @@ export function Menu() {
         <div className="stage">
           <div className="eyebrow">A management game about watts, silicon and hubris</div>
           <h1>Build the<br /><em>machine</em><br />that thinks.</h1>
-          <HeroCampus className="illo" />
-          <div className="dim" style={{ fontSize: 13, position: 'relative' }}>One tick is one hour. Every watt, every FLOP, every failed GPU is simulated. <span className="tag" style={{ marginLeft: 8 }}>v0.1.0 Beta</span> <span style={{ marginLeft: 6 }}>A community parody game by Phantom-Con Artist</span></div>
+          <p className="lede">Pour concrete, wire megawatts, rack GPUs, train frontier models, and outlast 35 rivals who want the same power line.</p>
+          <dl className="menu-stats">
+            <div><dt>Regions</dt><dd>{REGIONS.length}</dd></div>
+            <div><dt>Rivals</dt><dd>{CORPS.length}</dd></div>
+            <div><dt>Tick</dt><dd>1 h</dd></div>
+          </dl>
         </div>
         <div className="side">
-          {view === 'home' && <>
-            <MenuItem primary icon={<Play size={20} />} title="Continue" sub={latest ? `${latest.company} · ${dateOf(latest.tick)} · ${money(latest.cash)}` : 'No saved game yet'} disabled={!latest} onClick={() => latest && load(latest.slot)} />
-            <MenuItem icon={<Plus size={20} />} title="New company" sub="Found a company with $40M and an empty field" onClick={() => setView('new')} />
-            <MenuItem icon={<FolderOpen size={20} />} title="Load game" sub={`${list.length} save${list.length === 1 ? '' : 's'}`} disabled={!list.length} onClick={() => setView('load')} />
-            <MenuItem icon={<Cog size={20} />} title="Settings" sub="Autosave, speed, motion, scale" onClick={() => setView('settings')} />
-            <MenuItem icon={<Power size={20} />} title="Quit" sub="Back to reality" onClick={() => window.win?.close()} />
-          </>}
+          {view === 'home' && <div className="menu-panel">
+            {latest
+              ? <button className="continue-card" onClick={() => load(latest.slot)}>
+                  <span className="ic"><Play size={22} /></span>
+                  <span className="grow"><small>Continue</small><b>{latest.company}</b><span>{dateOf(latest.tick)} · {money(latest.cash)}{latest.sandbox ? ' · Sandbox' : ''}</span></span>
+                  <ArrowRight size={18} />
+                </button>
+              : <button className="continue-card" onClick={() => setView('new')}>
+                  <span className="ic"><Plus size={22} /></span>
+                  <span className="grow"><small>Start here</small><b>Found your company</b><span>$40M and an empty field</span></span>
+                  <ArrowRight size={18} />
+                </button>}
+            <MenuItem icon={<Plus size={18} />} title="New company" sub="Career or sandbox" onClick={() => setView('new')} />
+            <MenuItem icon={<FolderOpen size={18} />} title="Load game" sub={`${list.length} save${list.length === 1 ? '' : 's'}`} disabled={!list.length} onClick={() => setView('load')} />
+            <MenuItem icon={<Cog size={18} />} title="Settings" sub="Autosave, speed, motion" onClick={() => setView('settings')} />
+            <MenuItem icon={<Power size={18} />} title="Quit" sub="Back to reality" onClick={() => window.win?.close()} />
+          </div>}
           {view === 'new' && <NewCompany onBack={() => setView('home')} />}
           {view === 'load' && <LoadList list={list} onBack={() => setView('home')} onChange={refresh} />}
           {view === 'settings' && <SettingsSheet onBack={() => setView('home')} />}
         </div>
+        <footer className="menu-foot"><span className="tag">v0.1.0 Beta</span><span>One tick is one hour. Every watt, every FLOP, every failed GPU is simulated.</span><span className="grow" /><span>A community parody game by Phantom-Con Artist</span></footer>
       </div>
     </div>
   )
