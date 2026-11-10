@@ -29,14 +29,20 @@ Status: ✅ done · 🟡 partial · ⬜ todo
 
 - ✅ UX foundation: six hubs instead of thirteen tabs, HQ next steps + inbox, hireable managers with autopilot, hold-to-confirm for irreversible actions + 5 s undo, plain-English summaries and an Advanced fold on every screen, jargon tooltips, headline ticker + news drawer + The Daily Compute, Sandbox/Developer mode
 
+- ✅ Assets & world: Blender rack v2 (open cabinet, ToR switch, cable ladder), 8-GPU server with vendor-tinted sleds, blanking panels, LED twinkle; rack elevation in the inspector; dotted network globe (Natural Earth land mask) with backbone arcs; 15 regions; 35 parody companies with CEOs, brand marks, HQs and rival campuses; brand system (20 marks, app-icon tiles, word-marks, branded GPU/CPU art); Who's who tab
+- ✅ Hold-click to pick up and move placed racks, PDUs, coolers and UPS (free, undoable)
+- ✅ Node studio: design your own 8-GPU server SKU (cooling, power profile, host RAM, parts)
+- ✅ 3D chip studio: package built from the spec, exploded view, finishes, 12 absurd-but-real mods with visible props
+- ✅ Model Foundry: six modalities with their own price and demand, a Modalities R&D branch, and scratch / fine-tune / distil / continue from your models or open weights
+- ✅ Simpler dark title screen
+
 ## Next (agreed order)
-1. Assets & world — generated art, Blender models, better world map, many more fictional companies and people, brand-style parody marks for companies, GPUs, CPUs and clouds
-2. Model Foundry — train from scratch, fine-tune or transfer-learn, run models; a modality skill tree (text, code, image, speech, video, multimodal) as separate business lines
-3. Data Foundry — make, label and sell datasets per modality
+1. Per-modality competition — image, speech, code and video rivals of their own (Halfjourney, ElevenLaps, Cursed …)
+2. Data Foundry — make, label and sell datasets per modality
 4. Silicon from scratch — deeper chip design
 5. Story & media — press conferences, richer websites, trailers, secret events
 
 ## Ideas for later
-- Hold-click to pick up and move placed racks, PDUs and coolers
+- Images made with the agy image-generation tool (transparent PNGs)
 - Balance pass: a small first cluster hovers around break-even
 - Multi-site training (tech exists), orbital data centers / Dyson swarm gameplay, export trailers to MP4, sound design

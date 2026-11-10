@@ -52,8 +52,20 @@ The only lose condition is running out of money for 30 days.
 <td width="50%"><img src="docs/screenshots/ux-paper.png" alt="The Daily Compute, a broadsheet newspaper" /><br/><sub><b>The Daily Compute.</b> A morning paper every game day, built from what actually happened.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/hall-editor.png" alt="3D hall editor with racks, PDUs and cooling units" /><br/><sub><b>The hall editor.</b> Every rack needs a PDU and a cooler within reach. Overload them and things get warm.</sub></td>
-<td width="50%"><img src="docs/screenshots/chip-designer.png" alt="Chip designer with package floorplan and wafer map" /><br/><sub><b>Make your own chip.</b> Pick a node and a die size, then watch yield fall off a cliff.</sub></td>
+<td width="50%"><img src="docs/screenshots/hall-editor.png" alt="3D hall with open racks, 8-GPU servers, blanking panels and cable ladders" /><br/><sub><b>The hall editor.</b> Every server, sled and status light is visible. Hold-click anything to pick it up and move it.</sub></td>
+<td width="50%"><img src="docs/screenshots/chip-3d.png" alt="Exploded 3D chip with gold lid, RGB HBM stacks, an espresso cup and a rubber duck" /><br/><sub><b>Make your own chip, in 3D.</b> Explode the package, pick a finish, and bolt on a gold lid, an espresso boiler or a qubit. Every mod changes the numbers.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/model-foundry.png" alt="Model Foundry with modality cards and fine-tune options" /><br/><sub><b>Model Foundry.</b> Text, code, image, speech, video or omni. Train from scratch, fine-tune, distil, or keep pre-training any base.</sub></td>
+<td width="50%"><img src="docs/screenshots/node-studio.png" alt="Server node designer with live trade-off table" /><br/><sub><b>Design your own server.</b> Cooling, power profile, host RAM and parts grade, with a live comparison against the stock box.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/globe.png" alt="Network globe with dotted continents and glowing backbone arcs" /><br/><sub><b>Your network on the globe.</b> 15 regions, your backbone in light, rival campuses in the dark.</sub></td>
+<td width="50%"><img src="docs/screenshots/whos-who.png" alt="Grid of parody CEOs with company marks" /><br/><sub><b>Who's who.</b> 35 parody companies, each with a CEO, a brand mark, a headquarters and opinions.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/fleet-brands.png" alt="Fleet shop with vendor word-marks and branded GPU modules" /><br/><sub><b>Shop like it's a real launch.</b> Vendor word-marks, branded modules, and your own designs next to theirs.</sub></td>
+<td width="50%"><img src="docs/screenshots/chip-designer.png" alt="Chip designer with package floorplan and wafer map" /><br/><sub><b>Then do the maths.</b> Floorplan, wafer map, yield, NRE, time to silicon.</sub></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/model-designer.png" alt="Animated neural network flowchart" /><br/><sub><b>Design a model.</b> Click the diagram. Add experts. Regret the KV cache.</sub></td>
@@ -84,15 +96,15 @@ The only lose condition is running out of money for 30 days.
 
 | | |
 |---|---|
-| 🏗️ **Build** | Pick from 9 regions with real-ish power prices, climates and permit delays. Lay out halls tile by tile in 3D. |
+| 🏗️ **Build** | Pick from 15 regions with real-ish power prices, climates and permit delays. Lay out halls tile by tile in 3D, and hold-click anything to move it later. |
 | ⚡ **Power** | Utility feeds, solar, wind, gas, batteries, geothermal and eventually small reactors. Choose a dispatch strategy and sign PPAs. |
 | ❄️ **Cool** | Air, rear-door, direct-to-chip, immersion. Air can't handle a Blackwall-class rack, and physics will remind you. |
-| 🔩 **Silicon** | Design GPUs and CPUs from process node to HBM stack. Tape out, buy wafers or build your own fab with EUV scanners, then sell chips. |
-| 🧠 **Models** | Real transformer maths (GQA, MLA, mixture-of-experts), a dataset market with "legal risk", and benchmark scores that depend on your data mix. |
+| 🔩 **Silicon** | Design GPUs and CPUs from process node to HBM stack in a live 3D package, with finishes and 12 absurd-but-real mods. Tape out, buy wafers or build your own fab with EUV scanners, then sell chips. Or design your own 8-GPU server nodes around anyone's GPU. |
+| 🧠 **Models** | Real transformer maths (GQA, MLA, mixture-of-experts), a dataset market with "legal risk", and benchmark scores that depend on your data mix. Six modalities as separate business lines; train from scratch, fine-tune, distil or continue pre-training from your models or open weights. |
 | 🛍️ **Products** | Chat apps, coding agents, an API platform with keys and rate limits, and enterprise seats. You design the plans. |
 | ☁️ **Cloud** | Rent out GPU and CPU servers on-demand, reserved or spot, or rent compute yourself when you're short. |
 | 👥 **People** | Hire named weirdos with traits, keep them happy, and watch rivals poach your best ones. |
-| 🏆 **Rivals** | Leaderboards, acquisitions (if regulators let you), an IPO, a rich list, and 32 achievements. |
+| 🏆 **Rivals** | 35 parody companies with CEOs and brand marks, rival campuses on a network globe, leaderboards, acquisitions (if regulators let you), an IPO, a rich list, and 32 achievements. |
 | 🧭 **Guidance** | HQ suggests the next few things worth doing. Hire managers for facilities, sales, people, finance and research and let them run on autopilot; they ask before anything you can't undo. |
 | 🛡️ **Safety net** | Anything irreversible asks first (hold to confirm), big purchases show your cash afterwards, and small edits can be undone for five seconds. |
 | 📰 **News** | A headline ticker, a news drawer you can filter, and The Daily Compute every morning. |

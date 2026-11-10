@@ -30,12 +30,20 @@ hour by hour with real-world physics and economics, then exaggerated just enough
   transistor density → die area → compute units and clocks, then HBM generation and stack count, then packaging
   (monolithic, CoWoS chiplets, wafer-scale). Physics pushes back through yield (Poisson defect density), power
   density, reticle limits and tape-out NRE. Tape out, buy wafer allocation from Taiwan Semiconductor-ish Co.,
-  and use the chips yourself or sell them to rivals.
+  and use the chips yourself or sell them to rivals. The package is drawn live in 3D (exploded view, finishes), and
+  12 absurd mods (gold lid, espresso boiler, quantum-ish garnish, aquarium loop, ludicrous bin …) each move a real
+  number: FLOPS, power, unit cost, NRE, schedule, yield or market appeal.
+- **Node studio** — build your own 8-GPU server around any GPU on sale: air or cold-plate, eco/balanced/max power,
+  host RAM, parts grade. Designs are orderable SKUs; liquid nodes need a liquid hall.
 - **People** — hire named candidates into teams (Facilities, Chip Design, Research Lab, Cloud, Sales).
   Team skill drives MFU, repair time, research speed, chip design time and sales. Labs are research groups
   with a focus (Scaling, Efficiency, Safety, Hardware).
 - **Models** — train with real scaling laws (6·N·D FLOPs, Chinchilla loss), post-train, launch with
   a **keynote**, and fight for market share on the Elo leaderboard.
+- **Model Foundry** — text, code, image, speech, video and omni models are separate business lines with their own
+  price and demand, unlocked through the Modalities branch. Make them from scratch, by fine-tuning (cheap, capped
+  gain), by distilling a smaller student from a stronger teacher (closes 60% of the gap, never passes it), or by
+  continued pre-training. Bases are your own models or open-weights templates; switching modality costs Elo.
 
 ## Long loop (endless)
 
