@@ -48,6 +48,10 @@ The only lose condition is running out of money for 30 days.
 
 <table>
 <tr>
+<td width="50%"><img src="docs/screenshots/ux-hq.png" alt="HQ with the campus, today's next steps and a manager's request waiting for sign-off" /><br/><sub><b>HQ tells you what matters today.</b> Up to three next steps, requests from your managers, and your path so far.</sub></td>
+<td width="50%"><img src="docs/screenshots/ux-paper.png" alt="The Daily Compute, a broadsheet newspaper" /><br/><sub><b>The Daily Compute.</b> A morning paper every game day, built from what actually happened.</sub></td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/screenshots/hall-editor.png" alt="3D hall editor with racks, PDUs and cooling units" /><br/><sub><b>The hall editor.</b> Every rack needs a PDU and a cooler within reach. Overload them and things get warm.</sub></td>
 <td width="50%"><img src="docs/screenshots/chip-designer.png" alt="Chip designer with package floorplan and wafer map" /><br/><sub><b>Make your own chip.</b> Pick a node and a die size, then watch yield fall off a cliff.</sub></td>
 </tr>
@@ -89,6 +93,10 @@ The only lose condition is running out of money for 30 days.
 | ☁️ **Cloud** | Rent out GPU and CPU servers on-demand, reserved or spot, or rent compute yourself when you're short. |
 | 👥 **People** | Hire named weirdos with traits, keep them happy, and watch rivals poach your best ones. |
 | 🏆 **Rivals** | Leaderboards, acquisitions (if regulators let you), an IPO, a rich list, and 32 achievements. |
+| 🧭 **Guidance** | HQ suggests the next few things worth doing. Hire managers for facilities, sales, people, finance and research and let them run on autopilot; they ask before anything you can't undo. |
+| 🛡️ **Safety net** | Anything irreversible asks first (hold to confirm), big purchases show your cash afterwards, and small edits can be undone for five seconds. |
+| 📰 **News** | A headline ticker, a news drawer you can filter, and The Daily Compute every morning. |
+| 🧪 **Sandbox** | Your own rules: unlimited cash, no bankruptcy, six difficulty sliders and a developer panel. |
 | 🎬 **Hype** | Keynotes and one-click trailers made with Remotion, plus an in-game web with a site builder and a domain registrar. |
 
 ## Getting started
@@ -117,14 +125,15 @@ npm run dist       # package an installer (AppImage / NSIS / DMG)
 
 ## How to play (the 30-second version)
 
-1. **Sites** → buy land somewhere with cheap power and cold air.
+0. Not sure what to do? **HQ** always lists the next steps — click one to jump there.
+1. **Build → Sites** → buy land somewhere with cheap power and cold air.
 2. Break ground on a hall, then place **PDUs**, **coolers** and **racks** (drag to paint rows).
-3. **Fleet** → order servers, wait for the truck, install them from the loading dock.
+3. **Build → Fleet** → order servers, wait for the truck, install them from the loading dock.
 4. Rent them out, or sign a training contract in **Deals**.
 5. Press play. Watch the money. Watch the temperature. Panic appropriately.
 6. Later: research your way into chips, models, products, fabs and, eventually, the Sun.
 
-Controls: `Space` pauses, `1`–`4` set the speed, and `F11` toggles fullscreen. In the hall editor, `R` rotates, `X` removes and `Esc` goes back to inspect.
+Controls: `Space` pauses, `1`–`4` set the speed, and `F11` toggles fullscreen. In a Sandbox game, `` ` `` opens the developer panel. In the hall editor, `R` rotates, `X` removes and `Esc` goes back to inspect.
 
 ## Under the hood
 

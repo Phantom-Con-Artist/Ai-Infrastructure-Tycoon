@@ -27,5 +27,16 @@ Status: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Power management: dispatch strategies, demand response, PPAs, live power-flow Sankey, 48h chart; world map
 - ✅ Scale: 34× faster sim at 20k GPUs, perf regression test, huge-number formatting
 
+- ✅ UX foundation: six hubs instead of thirteen tabs, HQ next steps + inbox, hireable managers with autopilot, hold-to-confirm for irreversible actions + 5 s undo, plain-English summaries and an Advanced fold on every screen, jargon tooltips, headline ticker + news drawer + The Daily Compute, Sandbox/Developer mode
+
+## Next (agreed order)
+1. Assets & world — generated art, Blender models, better world map, many more fictional companies and people, brand-style parody marks for companies, GPUs, CPUs and clouds
+2. Model Foundry — train from scratch, fine-tune or transfer-learn, run models; a modality skill tree (text, code, image, speech, video, multimodal) as separate business lines
+3. Data Foundry — make, label and sell datasets per modality
+4. Silicon from scratch — deeper chip design
+5. Story & media — press conferences, richer websites, trailers, secret events
+
 ## Ideas for later
+- Hold-click to pick up and move placed racks, PDUs and coolers
+- Balance pass: a small first cluster hovers around break-even
 - Multi-site training (tech exists), orbital data centers / Dyson swarm gameplay, export trailers to MP4, sound design

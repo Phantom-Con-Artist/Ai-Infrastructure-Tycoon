@@ -44,10 +44,30 @@ hour by hour with real-world physics and economics, then exaggerated just enough
 - Goals are open: valuation milestones, the #1 model, a 1 GW campus, a wafer-scale monster chip.
   You lose by bankruptcy (30 days of negative cash).
 
+## Approachability layer
+
+Nothing is removed to make the game easier; complexity is folded away and can be handed off.
+
+- **Six hubs** — HQ, Build (Sites, Fleet, Silicon), Make (Lab, R&D), Sell (Store, Deals, Web), Company (Team, Books),
+  World (Ranks, Studio, Newspaper). Each remembers the last sub-tab you used.
+- **Simple first** — every screen opens with three or four plain-English numbers and its main actions; expert-only
+  panels sit in an "All controls" fold. Expert mode opens every fold by default. Jargon has a hover explanation.
+- **HQ next steps** — up to three suggestions worked out from the world (cash runway, racks without power, idle GPUs,
+  idle researchers, manager requests), each linking to the screen that fixes it, plus the guided path.
+- **Managers** — hire a facilities, sales, people, finance or research manager and switch their seat to Auto. They
+  use the same actions you do, worse when less skilled, keep a log, stay out of a system for a week after you touch
+  it, and never take an irreversible step without asking: those arrive in the HQ inbox.
+- **Confirmations** — severe actions (selling, firing, removing equipment racks depend on, loans, PPAs, IPO,
+  acquisitions, tape-outs, aborting runs, reserved rentals) show their consequences and need a 1.2 s hold. Purchases
+  over 25% of cash show your cash afterwards. Small edits get a five-second Undo.
+- **Sandbox** — start cash or unlimited cash, no bankruptcy, six difficulty multipliers (0.25×–4×) and a developer
+  panel (cash, time skip, any event, free servers, tech, reputation). No achievements; rich-list entry is unofficial.
+
 ## Presentation layer
 
-- **Weekly news** — every game week the Wire compiles a digest: your launches, rival moves, market
-  moves and a meme headline.
+- **News** — a headline ticker under the HUD, a filterable drawer, and The Daily Compute: a broadsheet printed every
+  game midnight from that day's news (slow-news editions when nothing happened), with markets and parody ads.
+  The weekly digest still runs inside it.
 - **Simulated web** — an in-game browser with your company site (built from your actual products),
   The Vergence (tech news), HackerNoose (comment threads reacting to you) and a stock ticker.
 - **Keynotes** — launching a chip or model can come with a public presentation, rendered live with
