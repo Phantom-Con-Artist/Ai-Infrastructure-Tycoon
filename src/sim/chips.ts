@@ -34,13 +34,15 @@ export function validateDesign(w: World, s: ChipSpec): string | null {
   return e.ok ? null : e.problems[0]
 }
 
+/** Design time after your engineers and silicon architects speed it up. */
+export const designMonths = (w: World, base: number): number => base / (1 + Math.sqrt(w.staff.engineers) * 0.04 + Math.sqrt(w.chipStaff ?? 0) * 0.18)
 export function startDesign(w: World, s: ChipSpec): Result<ChipDesign> {
   const err = validateDesign(w, s); if (err) return fail(err)
   const e = evaluateChip(s, yearOf(w.tick))
   const upfront = e.nreUsd * 0.3
   if (!canAfford(w, upfront)) return fail(`Need ${(upfront / 1e6).toFixed(0)}M upfront (30% of NRE)`)
   spend(w, upfront, 'opex')
-  const months = e.designMonths / (1 + Math.sqrt(w.staff.engineers) * 0.04 + Math.sqrt(w.chipStaff ?? 0) * 0.18)
+  const months = designMonths(w, e.designMonths)
   const d: ChipDesign = {
     id: newId(w, 'c'), spec: { ...s }, status: 'designing', startTick: w.tick, readyTick: w.tick + Math.round(months * 730),
     nrePaid: upfront, nreTotal: e.nreUsd, wafersPerMonth: 0, source: 'foundry', salePrice: Math.round(e.unitCost * 2.2), sold: 0, revenue: 0, made: 0

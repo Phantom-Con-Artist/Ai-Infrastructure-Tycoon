@@ -225,13 +225,15 @@ export function installServers(w: World, siteId: string, hallId: string, gpuId: 
   s.stock[gpuId] = stock - installed
   return ok(installed)
 }
+/** What selling n spare servers of this GPU pays back (60% of market, minus age). */
+export const sellRefund = (w: World, gpuId: string, n: number): number => { const g = gpu(w, gpuId); return n * serverMarketPrice(w, g) * 0.6 * residual(Math.max(0, yearOf(w.tick) - g.year) * 0.5) }
 export function sellServers(w: World, siteId: string, gpuId: string, count: number): Result<number> {
   const s = findSite(w, siteId); const g = gpu(w, gpuId)
   const have = s.stock[gpuId] ?? 0
   const n = Math.min(count, have)
   if (n < 1) return fail('Nothing in stock to sell')
   s.stock[gpuId] = have - n
-  const v = n * serverMarketPrice(w, g) * 0.6 * residual(Math.max(0, yearOf(w.tick) - g.year) * 0.5)
+  const v = sellRefund(w, gpuId, n)
   w.cash += v
   return ok(v)
 }

@@ -60,6 +60,11 @@ export function acquisitionPrice(w: World, id: string): number {
   return r.valuation * 1.35 // control premium
 }
 type Result = { ok: true; value: string } | { ok: false; error: string }
+/** Chance regulators block a bid for this rival (you then pay a 4% break fee). */
+export function antitrustRisk(w: World, id: string): number {
+  const r = w.rivals.find((x) => x.id === id)!
+  return Math.min(0.85, Math.max(0, (r.valuation - 200e9) / 2e12) + (valuation(w) > 1e12 ? 0.25 : 0))
+}
 /** Buy a rival outright. Mega-deals may be blocked by antitrust regulators (you lose the break fee). */
 export function acquire(w: World, id: string): Result {
   if (!hasTech(w, 'm-and-a')) return { ok: false, error: 'Research “M&A desk” first' }
@@ -67,8 +72,7 @@ export function acquire(w: World, id: string): Result {
   if (!r || r.owned) return { ok: false, error: 'Not available' }
   const price = acquisitionPrice(w, id)
   if (!canAfford(w, price)) return { ok: false, error: `Need ${(price / 1e9).toFixed(1)}B in cash (borrow or IPO first)` }
-  const myVal = valuation(w)
-  const blockP = Math.min(0.85, Math.max(0, (r.valuation - 200e9) / 2e12) + (myVal > 1e12 ? 0.25 : 0))
+  const blockP = antitrustRisk(w, id)
   // deterministic coin from rng state
   const roll = ((w.rng >>> 0) % 1000) / 1000
   w.rng = (w.rng * 1103515245 + 12345) | 0
