@@ -24,7 +24,7 @@ export function Lab() {
   const [tab, setTab] = useState<(typeof TABS)[number]>(w.runs.some((r) => r.status === 'running') ? 'runs' : 'design')
   return (
     <>
-      <div className="page-head"><div><div className="eyebrow">Research lab</div><h1>Design a mind</h1></div><Tabs tabs={TABS} value={tab} onChange={setTab} /></div>
+      <div className="page-head"><div><div className="eyebrow">Research lab</div><h1>Design a mind</h1></div><Tabs tabs={TABS} value={tab} onChange={setTab} labels={{ design: 'Design', data: 'Buy data', foundry: 'Make data', runs: 'Training runs', models: 'Your models', evals: 'Benchmarks' }} /></div>
       <Summary items={Sum.labSummary(w)} />
       {tab === 'design' && <Design onStart={() => setTab('runs')} onData={() => setTab('data')} />}
       {tab === 'data' && <DataMarket />}

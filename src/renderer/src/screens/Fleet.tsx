@@ -26,7 +26,7 @@ export function Fleet() {
   if (!w.sites.length) return <EmptyState art={<EmptyFleetArt />} eyebrow="Fleet · no sites" title="Servers need somewhere to live." body="Buy land and build a hall first. Then come back to order accelerators for AI and CPU servers for VM clouds."><button className="btn pri" onClick={() => go('sites')}>Open Sites</button></EmptyState>
   return (
     <>
-      <div className="page-head"><div><div className="eyebrow">GPU market is {w.market.boom > 1.2 ? 'hot' : w.market.boom < 0.85 ? 'cooling' : 'steady'} · new orders arrive in {leadDays(w)} days</div><h1>Fleet & Cloud</h1></div><Tabs tabs={['buy', 'cloud'] as const} value={tab} onChange={setTab} /></div>
+      <div className="page-head"><div><div className="eyebrow">GPU market is {w.market.boom > 1.2 ? 'hot' : w.market.boom < 0.85 ? 'cooling' : 'steady'} · new orders arrive in {leadDays(w)} days</div><h1>Fleet & Cloud</h1></div><Tabs tabs={['buy', 'cloud'] as const} value={tab} onChange={setTab} labels={{ buy: 'Buy servers', cloud: 'Rent out & cloud' }} /></div>
       <Summary items={Sum.fleetSummary(w)} />
       <InProgress title="On order" kinds={['delivery']} />
       {tab === 'cloud' && <div style={{ marginBottom: 14 }}><ManagerCard system="sales" /></div>}

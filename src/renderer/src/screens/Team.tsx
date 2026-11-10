@@ -15,7 +15,7 @@ export function Team() {
   const w = useWorld()
   return (
     <>
-      <div className="page-head"><div><div className="eyebrow">{w.people.length} people · payroll {money(payrollPerDay(w) * 365)}/yr</div><h1>Your people</h1></div><Tabs tabs={['team', 'hiring', 'labs'] as const} value={tab} onChange={setTab} /></div>
+      <div className="page-head"><div><div className="eyebrow">{w.people.length} people · payroll {money(payrollPerDay(w) * 365)}/yr</div><h1>Your people</h1></div><Tabs tabs={['team', 'hiring', 'labs'] as const} value={tab} onChange={setTab} labels={{ team: 'Your team', hiring: 'Hiring board', labs: 'Your labs' }} /></div>
       <Summary items={Sum.teamSummary(w)} />
       {tab === 'team' && <div style={{ marginBottom: 16 }}><ManagerCard system="people" /></div>}
       {tab === 'team' && <Org />}

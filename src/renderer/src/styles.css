@@ -76,7 +76,7 @@ button, input, select { font: inherit; color: inherit; }
 .speed button:hover { background: var(--surface-2); }
 .speed button.on { background: var(--ink); color: var(--surface); }
 
-.main { grid-area: main; overflow: auto; padding: 18px 28px 80px 8px; scroll-behavior: smooth; }
+.main { grid-area: main; overflow: auto; padding: 18px 28px 80px 8px; }
 .feed { grid-area: feed; overflow: auto; padding: 0 16px 20px 0; }
 .feed h4 { position: sticky; top: 0; background: var(--bg); padding: 14px 4px 10px; font: 650 13px var(--sans); color: var(--tx); z-index: 2; display: flex; justify-content: space-between; align-items: center; }
 .news { padding: 12px 14px; margin-bottom: 8px; background: var(--surface); border-radius: var(--r-m); box-shadow: var(--sh-1); display: grid; gap: 3px; border-left: 3px solid transparent; animation: rise .5s var(--ease) both; }
@@ -512,3 +512,13 @@ kbd { font: 600 10.5px var(--sans); padding: 2px 6px; border-radius: 5px; backgr
 .own-label.dim { font-weight: 500; }
 .yours-dot { width: 10px; height: 10px; border-radius: 99px; display: inline-block; }
 .tag.yours { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+
+/* per-screen guide: what this is, what is yours, what is not */
+.guide { display: grid; grid-template-columns: 1.3fr 1fr 1fr auto; gap: 18px; align-items: start; padding: 14px 16px; margin-bottom: 18px; border-radius: 16px; background: var(--surface); box-shadow: var(--sh-1); font-size: 12.5px; line-height: 1.45; }
+.guide-what { display: grid; gap: 4px; } .guide-what b { font-size: 13.5px; font-weight: 650; } .guide-what span, .guide-col span { color: var(--tx-2); }
+.guide-col { display: grid; gap: 4px; }
+.guide-k { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; color: var(--tx) !important; }
+.guide-k i { width: 9px; height: 9px; border-radius: 99px; display: inline-block; } .guide-k i.other { background: var(--tx-3); }
+.guide-open { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; padding: 5px 10px; border: 0; border-radius: 99px; background: transparent; color: var(--tx-3); font: 550 12px var(--sans); cursor: pointer; }
+.guide-open:hover { background: var(--surface-2); color: var(--tx); }
+@media (max-width: 1100px) { .guide { grid-template-columns: 1fr auto; } .guide-col { grid-column: 1; } }

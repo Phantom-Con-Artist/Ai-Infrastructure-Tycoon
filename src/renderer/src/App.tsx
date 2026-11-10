@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { Guide } from './Guide'
+import { useEffect, useRef, useState } from 'react'
+import { useSmoothScroll } from './smoothScroll'
 import { Users, ShoppingBag, Globe, Building2, FlaskConical, Home, LogOut, Save, Pause, Play, FastForward, ChevronsRight, Bell as BellIcon, Undo2 } from 'lucide-react'
 import { totalItMw, valuation } from '@sim/world'
 import { totalGpus } from '@sim/util'
@@ -88,6 +90,8 @@ function Game() {
   const w = useWorld()
   const { screen, go, goHub, speed, setSpeed, save, exit, settings } = useGame()
   const hub = hubOf(screen)
+  const mainRef = useRef<HTMLElement>(null), innerRef = useRef<HTMLDivElement>(null)
+  useSmoothScroll(mainRef, innerRef, screen)
   const profit = (() => { const l = w.ledger.slice(-14); return l.length ? l.reduce((a, d) => a + d.revenue - d.powerCost - d.staffCost - d.opex - d.interest, 0) / l.length : 0 })()
   const quit = (): void => { if (settings.confirmQuit) void save('auto'); exit() }
   return (
@@ -112,8 +116,9 @@ function Game() {
         <Bell />
       </header>
       <Ticker />
-      <main className="main">
+      <main className="main" ref={mainRef}><div ref={innerRef}>
         {HUBS[hub].screens.length > 1 && <div className="pills" role="tablist">{HUBS[hub].screens.map((sc) => <button key={sc} role="tab" aria-selected={screen === sc} className={screen === sc ? 'on' : ''} onClick={() => go(sc)}>{SCREEN_LABEL[sc]}</button>)}</div>}
+        <Guide screen={screen} />
         {w.gameOver && <div className="panel" style={{ background: 'var(--red-soft)', marginBottom: 20 }}><h3 className="neg">Bankrupt.</h3><p className="sub">Your lenders have taken the racks. Head back to the menu and try again.</p></div>}
         {screen === 'overview' && <Overview />}
         {screen === 'sites' && <Sites />}
@@ -129,7 +134,7 @@ function Game() {
         {screen === 'store' && <Store />}
         {screen === 'team' && <Team />}
         {screen === 'paper' && <PaperArchive />}
-      </main>
+      </div></main>
       <NewsDrawer />
       <Newspaper />
       <DevPanel />

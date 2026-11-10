@@ -15,8 +15,8 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export function Num({ value, onChange, min = 0, max, step = 1 }: { value: number; onChange: (n: number) => void; min?: number; max?: number; step?: number }) {
   return <input type="number" value={Number.isFinite(value) ? value : 0} min={min} max={max} step={step} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} />
 }
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: readonly T[]; value: T; onChange: (t: T) => void }) {
-  return <div className="tabs">{tabs.map((t) => <button key={t} className={t === value ? 'on' : ''} onClick={() => onChange(t)}>{t}</button>)}</div>
+export function Tabs<T extends string>({ tabs, value, onChange, labels }: { tabs: readonly T[]; value: T; onChange: (t: T) => void; labels?: Partial<Record<T, string>> }) {
+  return <div className="tabs">{tabs.map((t) => <button key={t} className={t === value ? 'on' : ''} onClick={() => onChange(t)}>{labels?.[t] ?? t}</button>)}</div>
 }
 export function useTab<T extends string>(first: T): [T, (t: T) => void] { return useState<T>(first) }
 export function Head({ title, sub, right }: { title: string; sub?: string; right?: ReactNode }) {
