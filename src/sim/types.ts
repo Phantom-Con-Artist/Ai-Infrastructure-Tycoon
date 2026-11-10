@@ -34,7 +34,8 @@ export interface Site {
   demandMw: number; supplyMw: number; gridMw: number; powerFactor: number; costPerHour: number; carbonKgPerHour: number
 }
 
-export interface Rental { id: string; siteId: string; gpuId: string; servers: number; priceMult: number }
+export type RentalKind = 'ondemand' | 'reserved' | 'spot'
+export interface Rental { id: string; siteId: string; gpuId: string; servers: number; priceMult: number; kind?: RentalKind; reservedUntil?: number }
 export interface Deployment { id: string; modelId: string; siteId: string; gpuId: string; servers: number }
 
 export type RunStatus = 'running' | 'paused' | 'done' | 'failed'
@@ -65,7 +66,7 @@ export interface ResearchState { done: string[]; levels: Record<string, number>;
 export interface Staff { engineers: number; researchers: number; ops: number; sales: number }
 export interface DayLedger { day: number; revenue: number; powerCost: number; staffCost: number; interest: number; opex: number; capex: number; cash: number; itMw: number; gpus: number; rentalRev: number; inferRev: number; contractRev: number }
 export interface MarketState {
-  boom: number; supplyTight: number; tokensPerDay: number; priceDrift: number
+  boom: number; supplyTight: number; tokensPerDay: number; priceDrift: number; vmPressure?: number
   gpuPressure: Record<string, number>
 }
 

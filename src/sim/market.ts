@@ -1,5 +1,5 @@
 import { CUSTOMERS, RIVAL_RELEASES, corp } from './data/lore'
-import { GPUS_PER_SERVER, gpuCatalog, serverPriceUsd, type GpuSpec } from './data/hardware'
+import { GPUS_PER_SERVER, gpuCatalog, isCpu, serverPriceUsd, type GpuSpec } from './data/hardware'
 import { referencePrice } from './ai'
 import { webQuality } from './web'
 import { apiPlatformBonus } from './store'
@@ -24,12 +24,18 @@ export function refRentPerGpuHour(w: World, g: GpuSpec): number {
   const cost = gpuMarketPrice(w, g) * 1.25
   return Math.max(0.2, (cost / (4 * HOURS_PER_YEAR * 0.7)) * 1.8)
 }
+export const RENTAL_KIND: Record<'ondemand' | 'reserved' | 'spot', { name: string; price: number; util: number | null; blurb: string }> = {
+  ondemand: { name: 'On-demand', price: 1, util: null, blurb: 'Full price, utilisation follows the market.' },
+  reserved: { name: '1-yr reserved', price: 0.62, util: 0.93, blurb: 'Customers commit for a year: steady, discounted.' },
+  spot: { name: 'Spot', price: 0.32, util: 0.97, blurb: 'Dirt cheap, always full, preemptible.' }
+}
 export function rentalPrice(w: World, g: GpuSpec): number {
+  if (isCpu(g)) return (g.vcpus ?? 0) * 0.034 * Math.pow(clamp(w.market.vmPressure ?? 1, 0.5, 2), 0.6) * (1 + techSum(w, 'rentPrice'))
   const p = w.market.gpuPressure[g.id] ?? 1
   return refRentPerGpuHour(w, g) * Math.pow(clamp(p, 0.3, 3), 0.8) * (1 + techSum(w, 'rentPrice'))
 }
 export function rentalUtilisation(w: World, g: GpuSpec, priceMult: number): number {
-  const p = w.market.gpuPressure[g.id] ?? 1
+  const p = isCpu(g) ? (w.market.vmPressure ?? 1) : (w.market.gpuPressure[g.id] ?? 1)
   const salesBoost = 1 + Math.min(0.08, Math.log10(1 + w.staff.sales) * 0.04)
   return clamp(0.8 * p * salesBoost * Math.pow(priceMult, -1.6) * (0.6 + 0.4 * w.reputation / 100) + techSum(w, 'rentUtil'), 0.03, 0.97)
 }
@@ -46,6 +52,7 @@ export function dailyMarket(w: World): void {
   m.boom += (1 - m.boom) * 0.01 + 0.01 * gauss(w)
   m.boom = clamp(m.boom, 0.35, 3)
   m.supplyTight += (0.3 - m.supplyTight) * 0.012
+  m.vmPressure = clamp((m.vmPressure ?? 1) + (1.05 - (m.vmPressure ?? 1)) * 0.02 + 0.01 * gauss(w), 0.6, 1.6)
   const cat = gpuCatalog(yearOf(w.tick)).sort((a, b) => b.year - a.year || b.tflops - a.tflops)
   const topYear = cat[0]?.year ?? 2023
   for (const g of cat) {

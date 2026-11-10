@@ -4,6 +4,7 @@ export interface GpuSpec {
   memGB: number; memTBs: number; tdpW: number
   priceUsd: number    // new price per GPU
   mtbfH: number       // mean time between failures, per GPU, nominal
+  vcpus?: number      // CPU servers only: vCPUs per unit (a server = 8 units)
 }
 
 const BASE: GpuSpec[] = [
@@ -17,11 +18,20 @@ const BASE: GpuSpec[] = [
   { id: 'amd-mi350',vendor: 'amdude',   name: 'MI3500 Instinctive',   year: 2025, tflops: 2300, memGB: 288, memTBs: 8.0, tdpW: 1000, priceUsd: 25000,  mtbfH: 45000 },
   { id: 'nv-r3000', vendor: 'nvidious', name: 'Rubbin R3000',         year: 2026, tflops: 5000, memGB: 288, memTBs: 13,  tdpW: 1800, priceUsd: 60000,  mtbfH: 40000 }
 ]
+/** General-purpose CPU servers for VM clouds (units = 1/8 of a dual-socket box). */
+const CPUS: GpuSpec[] = [
+  { id: 'cpu-genoa',  vendor: 'amdude',    name: 'Epyc-ish Genoa 96c',      year: 2022, tflops: 1, memGB: 96,  memTBs: 0.05, tdpW: 45, priceUsd: 2500, mtbfH: 300000, vcpus: 24 },
+  { id: 'cpu-sapph',  vendor: 'intellect', name: 'Xeon-ish Sapphire 60c',   year: 2023, tflops: 1, memGB: 64,  memTBs: 0.04, tdpW: 44, priceUsd: 2300, mtbfH: 300000, vcpus: 15 },
+  { id: 'cpu-turin',  vendor: 'amdude',    name: 'Epyc-ish Turin 192c',     year: 2024, tflops: 2, memGB: 128, memTBs: 0.07, tdpW: 62, priceUsd: 3800, mtbfH: 300000, vcpus: 48 },
+  { id: 'cpu-cobalt', vendor: 'nicosoft',  name: 'Cobalt-ish 128c Arm',     year: 2024, tflops: 1, memGB: 96,  memTBs: 0.06, tdpW: 30, priceUsd: 2600, mtbfH: 320000, vcpus: 32 },
+  { id: 'cpu-venice', vendor: 'amdude',    name: 'Epyc-ish Venice 256c',    year: 2026, tflops: 3, memGB: 192, memTBs: 0.1,  tdpW: 75, priceUsd: 5200, mtbfH: 300000, vcpus: 64 }
+]
+export const isCpu = (g: GpuSpec): boolean => (g.vcpus ?? 0) > 0
 const PHYSICISTS = ['Feynmann', 'Planckton', 'Curious-ie', 'Tesla-ish', 'Faradayne', 'Noetherium', 'Diracula', 'Heisenburger', 'Bohrderline', 'Maxwellness']
 
 /** Endless progression: a new Nvidious flagship every 2 years, AMDude a year behind and cheaper. */
 export function gpuCatalog(year: number): GpuSpec[] {
-  const out = BASE.filter((g) => g.year <= year)
+  const out = [...BASE, ...CPUS].filter((g) => g.year <= year)
   for (let gen = 1; 2026 + gen * 2 <= year && gen <= 40; gen++) {
     const y = 2026 + gen * 2
     const s = Math.pow(1.85, gen)

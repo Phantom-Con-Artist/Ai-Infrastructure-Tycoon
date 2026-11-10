@@ -8,7 +8,7 @@ import { leadDays, serverMarketPrice } from './market'
 import { vendorDiscount } from './corporate'
 import { CLOUD, cloudCapacity, cloudGpus } from './cloud'
 import { pick } from './rng'
-import { HOURS_PER_YEAR, type Equip, type Hall, type Rack, type Site, type World } from './types'
+import { HOURS_PER_YEAR, type Equip, type Hall, type Rack, type RentalKind, type Site, type World } from './types'
 import {
   committed, coolingUnlocked, fabricUnlocked, findSite, gpu, hallServers, hasTech, newId, pushNews, siteHealthy, spend, techSum, yearOf
 } from './util'
@@ -250,14 +250,15 @@ export function uninstallServers(w: World, siteId: string, hallId: string, gpuId
 }
 
 // ---------------------------------------------------------------- workloads
-export function setRental(w: World, siteId: string, gpuId: string, servers: number, priceMult = 1): Result {
+export function setRental(w: World, siteId: string, gpuId: string, servers: number, priceMult = 1, kind: RentalKind = 'ondemand'): Result {
   const have = siteHealthy(findSite(w, siteId), gpuId) + 0
   const existing = w.rentals.find((r) => r.siteId === siteId && r.gpuId === gpuId)
   const room = Math.max(0, hallTotal(w, siteId, gpuId) - committed(w, siteId, gpuId, existing?.id))
   void have
   if (servers > room) return fail(`Only ${room} servers free at that site`)
-  if (existing) { existing.servers = servers; existing.priceMult = priceMult; if (servers <= 0) w.rentals = w.rentals.filter((r) => r !== existing) }
-  else if (servers > 0) w.rentals.push({ id: newId(w, 'r'), siteId, gpuId, servers, priceMult })
+  if (existing && existing.kind === 'reserved' && kind !== 'reserved' && (existing.reservedUntil ?? 0) > w.tick) return fail('Reserved contracts run for a year — you cannot break them early')
+  if (existing) { existing.servers = servers; existing.priceMult = priceMult; if (existing.kind !== kind) { existing.kind = kind; existing.reservedUntil = kind === 'reserved' ? w.tick + 8766 : undefined } if (servers <= 0) w.rentals = w.rentals.filter((r) => r !== existing) }
+  else if (servers > 0) w.rentals.push({ id: newId(w, 'r'), siteId, gpuId, servers, priceMult, kind, reservedUntil: kind === 'reserved' ? w.tick + 8766 : undefined })
   return ok(undefined)
 }
 const hallTotal = (w: World, siteId: string, gpuId: string): number => findSite(w, siteId).halls.reduce((a, h) => a + hallServers(h, gpuId), 0)
@@ -268,6 +269,7 @@ export function validateTraining(w: World, spec: TrainSpec): string | null {
   const s = w.sites.find((x) => x.id === spec.siteId); if (!s && !cloud) return 'Pick a site'
   const g = cloud ? cloudGpus(w).find((x) => x.id === spec.gpuId) : (w.customGpus.find((x) => x.id === spec.gpuId) ?? gpuCatalog(yearOf(w.tick) + 50).find((x) => x.id === spec.gpuId)); if (!g) return 'Pick a GPU'
   if (spec.moe && !hasTech(w, 'moe')) return 'Mixture-of-Experts not researched'
+  if (g.vcpus) return 'CPU servers cannot train neural networks at any useful speed. Use GPUs.'
   if (spec.servers < 1) return 'Allocate servers'
   const free = cloud ? cloudCapacity(w, spec.gpuId) : hallTotal(w, spec.siteId, spec.gpuId) - committed(w, spec.siteId, spec.gpuId)
   if (spec.servers > free) return `Only ${free} free servers of that type at the site`
@@ -332,6 +334,7 @@ export function setModelPrice(w: World, modelId: string, p: number): Result {
 export function deployModel(w: World, modelId: string, siteId: string, gpuId: string, servers: number): Result {
   const m = w.models.find((x) => x.id === modelId); if (!m) return fail('No such model')
   const g = gpu(w, gpuId)
+  if (g.vcpus) return fail('Serve models on GPUs, not CPUs')
   if (serveMemoryGB(m.paramsB) > 0.8 * servers * GPUS_PER_SERVER * g.memGB) return fail(`Weights need ~${Math.ceil(serveMemoryGB(m.paramsB))} GB; allocate more servers`)
   const existing = w.deployments.find((d) => d.modelId === modelId && d.siteId === siteId && d.gpuId === gpuId)
   const room = siteId === CLOUD ? cloudCapacity(w, gpuId) + (existing?.servers ?? 0) : hallTotal(w, siteId, gpuId) - committed(w, siteId, gpuId, existing?.id)

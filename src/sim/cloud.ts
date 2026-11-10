@@ -8,7 +8,7 @@ export const CLOUD = 'cloud'
 /** $/GPU-hour you pay to rent: market rate plus the hyperscaler's margin. */
 export const cloudRate = (w: World, g: GpuSpec): number => rentalPrice(w, g) * 1.35
 /** Rentable GPU types: only third-party silicon from the last few years. */
-export const cloudGpus = (w: World): GpuSpec[] => gpuCatalog(yearOf(w.tick)).filter((g) => g.year >= yearOf(w.tick) - 4)
+export const cloudGpus = (w: World): GpuSpec[] => gpuCatalog(yearOf(w.tick)).filter((g) => g.year >= yearOf(w.tick) - 4 && !g.vcpus)
 /** Servers you can rent right now: grows with the market, shrinks in a supply crunch. */
 export function cloudCapacity(w: World, gpuId: string): number {
   const years = w.tick / 8766

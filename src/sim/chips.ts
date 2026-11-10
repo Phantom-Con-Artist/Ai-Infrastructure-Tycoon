@@ -54,6 +54,11 @@ function registerGpu(w: World, d: ChipDesign): void {
   const id = 'pl-' + d.id
   d.gpuId = id
   w.customGpus = w.customGpus.filter((g) => g.id !== id)
+  if (d.spec.kind === 'cpu') {
+    const cores = d.spec.cpuCores ?? 64
+    w.customGpus.push({ id, vendor: 'player', name: d.spec.name, year: Math.floor(yearOf(w.tick)), tflops: 1, memGB: 128, memTBs: 0.08, tdpW: Math.round(e.tdpW / 4), priceUsd: Math.round(e.unitCost / 4), mtbfH: 300000, vcpus: Math.round(cores * 2 * 2 / 8) })
+    return
+  }
   if (d.spec.kind !== 'gpu') return
   w.customGpus.push({ id, vendor: 'player', name: d.spec.name, year: Math.floor(yearOf(w.tick)), tflops: Math.round(e.tflops), memGB: Math.round(e.memGB), memTBs: +e.memTBs.toFixed(2), tdpW: e.tdpW, priceUsd: Math.round(e.unitCost), mtbfH: 45000 })
 }
@@ -87,14 +92,15 @@ export function setChipPrice(w: World, designId: string, price: number): Result 
 }
 /** Assemble 8-GPU servers from your own chips; they land on the site's loading dock. */
 export function buildServersFromChips(w: World, designId: string, siteId: string, servers: number): Result<number> {
-  const d = w.silicon.designs.find((x) => x.id === designId); if (!d || !d.gpuId) return fail('Not a GPU design')
+  const d = w.silicon.designs.find((x) => x.id === designId); if (!d || !d.gpuId) return fail('No first silicon yet')
   const have = w.silicon.chipStock[d.id] ?? 0
-  const n = Math.min(servers, Math.floor(have / 8))
-  if (n < 1) return fail('Need at least 8 chips in stock')
+  const per = d.spec.kind === 'cpu' ? 2 : 8 // dual-socket CPU box vs 8-GPU board
+  const n = Math.min(servers, Math.floor(have / per))
+  if (n < 1) return fail(`Need at least ${per} chips in stock`)
   const cost = n * (hasTech(w, 'cpu-design') && w.silicon.designs.some((x) => x.spec.kind === 'cpu' && x.status === 'ready') ? 14_000 : 26_000)
   if (w.cash < cost) return fail('Not enough cash for chassis and CPUs')
   spend(w, cost)
-  w.silicon.chipStock[d.id] = have - n * 8
+  w.silicon.chipStock[d.id] = have - n * per
   const site = findSite(w, siteId)
   site.stock[d.gpuId] = (site.stock[d.gpuId] ?? 0) + n
   return ok(n)

@@ -8,7 +8,7 @@ import { dailySilicon } from './chips'
 import { webQuality, weeklyDigest } from './web'
 import { dailyStore } from './store'
 import { checkAchievements, dailyCorporate, initRivals, parodyPost } from './corporate'
-import { dailyMarket, initCompetitors, marketDemandTokensPerDay, modelShare, rentalPrice, rentalUtilisation, serverMarketPrice } from './market'
+import { RENTAL_KIND, dailyMarket, initCompetitors, marketDemandTokensPerDay, modelShare, rentalPrice, rentalUtilisation, serverMarketPrice } from './market'
 import { poisson, rnd } from './rng'
 import { HOURS_PER_YEAR, type DayLedger, type World } from './types'
 import { CLOUD, cloudRate } from './cloud'
@@ -71,8 +71,9 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
     if (!st) continue
     const g = gpu(w, r.gpuId)
     const eff = r.servers * frac(k)
-    const util = rentalUtilisation(w, g, r.priceMult)
-    const rev = eff * st.throttle * GPUS_PER_SERVER * rentalPrice(w, g) * r.priceMult * util
+    const kind = RENTAL_KIND[r.kind ?? 'ondemand']
+    const util = kind.util ?? rentalUtilisation(w, g, r.priceMult)
+    const rev = eff * st.throttle * GPUS_PER_SERVER * rentalPrice(w, g) * (r.kind && r.kind !== 'ondemand' ? kind.price : r.priceMult) * util
     addBusy(k, r.servers, util * 0.85)
     w.cash += rev; w.today.revenue += rev; w.today.rentalRev += rev
   }

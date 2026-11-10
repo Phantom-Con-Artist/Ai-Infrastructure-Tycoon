@@ -120,3 +120,20 @@ describe('world', () => {
     expect(w.competitors.length).toBeGreaterThan(4)
   })
 })
+
+describe('VM cloud', () => {
+  it('rents CPU servers as reserved VMs and earns steady revenue; CPUs cannot train', () => {
+    const { w, site, hall } = boot(31)
+    w.tick = 24 * 365 * 1.2 // Turin-era
+    w.cash = 1e9
+    expect(A.orderServers(w, site.id, 'cpu-turin', 20).ok).toBe(true)
+    while ((site.stock['cpu-turin'] ?? 0) < 20) step(w)
+    while (w.tick < hall.readyTick + 24) step(w)
+    expect(A.installServers(w, site.id, hall.id, 'cpu-turin', 20).ok).toBe(true)
+    expect(A.setRental(w, site.id, 'cpu-turin', 20, 1, 'reserved').ok).toBe(true)
+    expect(A.setRental(w, site.id, 'cpu-turin', 20, 1, 'spot').ok).toBe(false) // locked for a year
+    stepMany(w, 24 * 10)
+    expect(w.ledger.at(-1)!.rentalRev).toBeGreaterThan(0)
+    expect(A.validateTraining(w, { name: 'x', paramsB: 1, tokensT: 0.01, siteId: site.id, gpuId: 'cpu-turin', servers: 1 })).toMatch(/CPU/)
+  })
+})
