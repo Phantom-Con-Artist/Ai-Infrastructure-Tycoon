@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Globe, Clapperboard, Trophy, Microchip, BookOpen, Building2, FlaskConical, Handshake, Home, LogOut, Save, Server, Lightbulb, Pause, Play, FastForward, ChevronsRight } from 'lucide-react'
+import { ShoppingBag, Globe, Clapperboard, Trophy, Microchip, BookOpen, Building2, FlaskConical, Handshake, Home, LogOut, Save, Server, Lightbulb, Pause, Play, FastForward, ChevronsRight } from 'lucide-react'
 import { totalItMw, valuation } from '@sim/world'
 import { totalGpus } from '@sim/util'
 import { dateOf, money, num } from './format'
@@ -12,13 +12,14 @@ import { Silicon } from './screens/Silicon'
 import { Rankings } from './screens/Rankings'
 import { Studio } from './screens/Studio'
 import { Web } from './screens/Web'
+import { Store } from './screens/Store'
 import { Contracts, Finance, Research } from './screens/Business'
 import { TitleBar } from './TitleBar'
 import { Menu } from './Menu'
 
 const NAV: [Screen, string, React.ReactNode][] = [
   ['overview', 'HQ', <Home size={20} key="h" />], ['sites', 'Sites', <Building2 size={20} key="s" />], ['fleet', 'Fleet', <Server size={20} key="f" />], ['silicon', 'Silicon', <Microchip size={20} key="c" />],
-  ['lab', 'Lab', <FlaskConical size={20} key="l" />], ['contracts', 'Deals', <Handshake size={20} key="d" />], ['research', 'R&D', <Lightbulb size={20} key="r" />],
+  ['lab', 'Lab', <FlaskConical size={20} key="l" />], ['store', 'Store', <ShoppingBag size={20} key="st" />], ['contracts', 'Deals', <Handshake size={20} key="d" />], ['research', 'R&D', <Lightbulb size={20} key="r" />],
   ['finance', 'Books', <BookOpen size={20} key="b" />], ['rankings', 'Ranks', <Trophy size={20} key="t" />], ['studio', 'Studio', <Clapperboard size={20} key="v" />], ['web', 'Web', <Globe size={20} key="wb" />]
 ]
 const SPEED_ICON = [<Pause size={15} key="0" />, <Play size={14} key="1" />, <ChevronsRight size={16} key="2" />, <FastForward size={15} key="3" />, <span key="4" style={{ fontWeight: 700 }}>×4</span>]
@@ -93,6 +94,7 @@ function Game() {
         {screen === 'rankings' && <Rankings />}
         {screen === 'studio' && <Studio />}
         {screen === 'web' && <Web />}
+        {screen === 'store' && <Store />}
       </main>
       <aside className="feed">
         <h4>The Wire <span className="tag">{w.news.length}</span></h4>

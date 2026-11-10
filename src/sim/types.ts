@@ -50,7 +50,7 @@ export interface AiModel {
   id: string; name: string; owner: string; paramsB: number; activeParamsB: number; tokensT: number
   loss: number; elo: number; releaseTick: number; priceMtok: number; posttrain: number
   tokensServed: number; revenue: number; share: number; demandTokPerDay: number; capacityTokPerDay: number; releasedByPlayer: boolean
-  arch?: ArchSpec; evals?: Record<string, number>; mix?: Partial<Record<Domain, number>>; subsidiary?: string; hype?: number
+  arch?: ArchSpec; evals?: Record<string, number>; mix?: Partial<Record<Domain, number>>; subsidiary?: string; hype?: number; reservedTokPerDay?: number
 }
 export interface Competitor { corp: string; name: string; elo: number; priceMtok: number }
 
@@ -92,4 +92,5 @@ export interface World {
   datasets: Record<string, number>
   rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean; keynotes?: number
   web: import('./web').WebPresence
+  products: import('./store').Product[]
 }

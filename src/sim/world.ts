@@ -6,6 +6,7 @@ import { stepSite } from './facility'
 import { rollDailyEvents } from './events'
 import { dailySilicon } from './chips'
 import { webQuality, weeklyDigest } from './web'
+import { dailyStore } from './store'
 import { checkAchievements, dailyCorporate, initRivals, parodyPost } from './corporate'
 import { dailyMarket, initCompetitors, marketDemandTokensPerDay, modelShare, rentalPrice, rentalUtilisation, serverMarketPrice } from './market'
 import { poisson, rnd } from './rng'
@@ -14,7 +15,7 @@ import { CLOUD, cloudRate } from './cloud'
 import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric, yearOf } from './util'
 import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
-export const WORLD_VERSION = 6
+export const WORLD_VERSION = 7
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
 
 export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }): World {
@@ -29,7 +30,7 @@ export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo
     staff: { engineers: 3, researchers: 1, ops: 2, sales: 1 },
     events: [], news: [{ tick: 0, kind: 'info', title: `${company} is founded`, body: `${ADVISORS.find((a) => a.id === advisor)?.name ?? 'Your advisor'} slides a term sheet across the table. $40M seed. No pressure.` }],
     ledger: [], today: emptyDay(0), quarterProfit: 0, totalTco2: 0, totalWaterL: 0, achievements: [],
-    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}, rivals: initRivals(), founderStake: 0.6, web: { domains: [] }
+    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}, rivals: initRivals(), founderStake: 0.6, web: { domains: [] }, products: []
   }
 }
 
@@ -102,14 +103,16 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
     m.share = share
     const demand = demandPerHour * share * regionMult(deps.map((d) => d.siteId))
     if (m.subsidiary) capPerHour = demand
+    const totalCap = capPerHour
+    capPerHour = Math.max(0, capPerHour - (m.reservedTokPerDay ?? 0) / 24) // consumer products are served first
     const served = Math.min(demand, capPerHour)
     const rev = (served / 1e6) * m.priceMtok
     m.demandTokPerDay = demand * 24
-    m.capacityTokPerDay = capPerHour * 24
+    m.capacityTokPerDay = totalCap * 24
     m.tokensServed += served
     m.revenue += rev
     w.cash += rev; w.today.revenue += rev; w.today.inferRev += rev
-    for (const d of deps) addBusy(statKey(d.siteId, d.gpuId), d.servers, capPerHour > 0 ? Math.min(1, 0.25 + 0.75 * served / capPerHour) : 0)
+    for (const d of deps) addBusy(statKey(d.siteId, d.gpuId), d.servers, totalCap > 0 ? Math.min(1, 0.25 + 0.75 * (served + (totalCap - capPerHour)) / totalCap) : 0)
     if (demand > 0 && served < demand * 0.8) w.reputation = clamp(w.reputation - 0.002, 0, 100)
     else if (served > 0) w.reputation = clamp(w.reputation + 0.001, 0, 100)
   }
@@ -271,6 +274,7 @@ function dailyTick(w: World): void {
   dailyMarket(w)
   dailySilicon(w)
   dailyCorporate(w)
+  dailyStore(w)
   checkAchievements(w)
   if (Math.floor(w.tick / 24) % 7 === 0 && w.tick > 0) { const d = weeklyDigest(w); pushNews(w, 'event', d.title, d.lines.slice(0, 2).join(' ')) }
   if (webQuality(w) > 0) w.reputation = clamp(w.reputation + webQuality(w) * 0.01, 0, 100)

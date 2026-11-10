@@ -51,3 +51,25 @@ describe('renting cloud compute', () => {
     expect(w.cash).toBeLessThan(cash0)
   })
 })
+
+import * as S from './store'
+describe('store products', () => {
+  it('a chat app grows users, converts ~a few % to paid, and is capped by GPU capacity', () => {
+    const w = createWorld(21); w.cash = 1e10
+    w.models.push({ id: 'mm', name: 'Brainy', owner: 'player', paramsB: 70, activeParamsB: 70, tokensT: 15, loss: 1.9, elo: 1600, releaseTick: 0, priceMtok: 2, posttrain: 2, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 5e12, releasedByPlayer: true })
+    const r = S.createProduct(w, { name: 'BrainyChat', category: 'chat', modelId: 'mm' })
+    expect(r.ok).toBe(true)
+    const p = (r as any).value
+    expect(Act.deployModel(w, 'mm', CLOUD, 'nv-h1000', 250).ok).toBe(true)
+    for (let d = 0; d < 120; d++) for (let h = 0; h < 24; h++) step(w)
+    const last = p.history.at(-1)
+    expect(last.users).toBeGreaterThan(1e6)
+    const paidFrac = last.paid / last.users
+    expect(paidFrac).toBeGreaterThan(0.01); expect(paidFrac).toBeLessThan(0.15)
+    expect(last.revenue).toBeGreaterThan(0)
+    // starve capacity → service degrades
+    w.deployments = []
+    for (let d = 0; d < 10; d++) for (let h = 0; h < 24; h++) step(w)
+    expect(p.servedFrac).toBeLessThan(0.1)
+  })
+})
