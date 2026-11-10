@@ -17,8 +17,9 @@ const local: Backend = {
 }
 export const saves: Backend = (typeof window !== 'undefined' && (window as unknown as { saves?: Backend }).saves) || local
 
-export interface Settings { autosaveDays: number; startSpeed: number; reduceMotion: boolean; uiScale: number; confirmQuit: boolean; skipIntro: boolean }
+import type { Hub, Screen } from './nav'
+export interface Settings { autosaveDays: number; startSpeed: number; reduceMotion: boolean; uiScale: number; confirmQuit: boolean; skipIntro: boolean; confirmExpensive: boolean; expertMode: boolean; lastTab: Partial<Record<Hub, Screen>> }
 const SKEY = 'aitycoon.settings.v1'
-export const DEFAULT_SETTINGS: Settings = { autosaveDays: 30, startSpeed: 1, reduceMotion: false, uiScale: 1, confirmQuit: true, skipIntro: false }
+export const DEFAULT_SETTINGS: Settings = { autosaveDays: 30, startSpeed: 1, reduceMotion: false, uiScale: 1, confirmQuit: true, skipIntro: false, confirmExpensive: true, expertMode: false, lastTab: {} }
 export function loadSettings(): Settings { try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SKEY) ?? '{}') } } catch { return DEFAULT_SETTINGS } }
 export function storeSettings(s: Settings): void { try { localStorage.setItem(SKEY, JSON.stringify(s)) } catch { /* ignore */ } }
