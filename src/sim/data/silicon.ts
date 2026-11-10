@@ -76,3 +76,30 @@ export const PACKAGES: Record<PackageKind, PackageSpec> = {
 }
 export const WAFER_SCALE_MM2 = 46_225
 export const WAFER_DIAMETER_MM = 300
+
+/**
+ * Absurd-but-real chip mods. Every one moves a real number: FLOPS, power, unit cost, NRE, schedule, yield or market
+ * appeal (a demand multiplier for chips you sell). Multipliers stack multiplicatively.
+ */
+export interface ChipMod {
+  id: string; name: string; blurb: string
+  tflops?: number; tdp?: number; tdpAdd?: number; cost?: number; nre?: number; months?: number; appeal?: number; yield?: number
+}
+export const CHIP_MODS: ChipMod[] = [
+  { id: 'rgb',        name: 'RGB gamer lighting',        blurb: 'Every HBM stack pulses to the loss curve. Adds 6 W and a 40% markup in spirit.', tdpAdd: 6, cost: 40, appeal: 1.08 },
+  { id: 'gold',       name: 'Solid-gold heat spreader',  blurb: 'Better than copper? Marginally. Better than copper at parties? Vastly.', tdp: 0.97, cost: 9_000, appeal: 1.15 },
+  { id: 'espresso',   name: 'Waste-heat espresso boiler', blurb: 'A 700 W chip should at least make coffee. Ops teams adore it.', tdp: 0.98, cost: 320, appeal: 1.06 },
+  { id: 'quantum',    name: 'Quantum-ish garnish',       blurb: 'One qubit, glued on, decoherent within a microsecond. Investors weep with joy.', cost: 25_000, nre: 50e6, appeal: 1.4 },
+  { id: 'vibes',      name: 'Vibes co-processor',        blurb: 'A tiny on-die LLM negotiates its own clock with the scheduler. It usually wins.', tflops: 1.04, tdp: 1.06, nre: 20e6, months: 2 },
+  { id: 'ludicrous',  name: 'Ludicrous-speed bin',       blurb: 'Top 1% of dies, factory overvolted. Comes with a fire extinguisher.', tflops: 1.12, tdp: 1.3, yield: 0.7, appeal: 1.05 },
+  { id: 'aquarium',   name: 'Integrated aquarium loop',  blurb: 'Coolant runs through a tiny reef. The fish are fine. Probably.', tdp: 0.9, cost: 1_200, appeal: 1.1 },
+  { id: 'blockchain', name: 'On-die blockchain',         blurb: 'Every FLOP is notarised. Nobody asked. Some people paid.', tflops: 0.95, appeal: 1.2 },
+  { id: 'haiku',      name: 'Haiku error firmware',      blurb: '“Uncorrectable— / the ECC weeps softly / your job has died now”', appeal: 1.03 },
+  { id: 'round',      name: 'Round die',                 blurb: 'Circles are friendlier. Wastes the wafer corners, wins design awards.', yield: 1.04, tflops: 0.93, appeal: 1.12 },
+  { id: 'duck',       name: 'Rubber-duck debug die',     blurb: 'A 1 mm² die that silently listens to your verification engineers. Tape-out ships sooner.', months: -2, cost: 15 },
+  { id: 'tinfoil',    name: 'Tinfoil EMI hat',           blurb: 'Blocks interference, 5G, and at least three conspiracy theories.', tdpAdd: -2, cost: 4, appeal: 1.02 }
+]
+export const chipMod = (id: string): ChipMod | undefined => CHIP_MODS.find((m) => m.id === id)
+
+/** Cosmetic finish of the package in the 3D viewer. No effect on the numbers. */
+export interface ChipLook { substrate: string; lid: 'nickel' | 'black' | 'clear' | 'copper'; accent: string; label: string }

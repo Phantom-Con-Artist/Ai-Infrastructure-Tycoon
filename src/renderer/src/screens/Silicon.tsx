@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { ChipScene, DEFAULT_LOOK } from '../three/ChipScene'
+import { CHIP_MODS } from '@sim/data/silicon'
 import { Cpu, Factory, Microchip, Sparkles } from 'lucide-react'
 import * as C from '@sim/chips'
 import { HBM, LITHO, PACKAGES, node, type LithoKind, type PackageKind } from '@sim/data/silicon'
@@ -37,6 +39,9 @@ export function Silicon() {
   )
 }
 
+const SUBSTRATES: [string, string][] = [['#2f5d43', 'Classic green'], ['#1f2a44', 'Midnight'], ['#5a2d6e', 'Royal purple'], ['#7a2f2f', 'Oxblood'], ['#d8d2c4', 'Ceramic'], ['#101114', 'Murdered-out']]
+const ACCENTS = ['#9a7bff', '#4fd1c5', '#ff8a3d', '#ff4f7b', '#8be04e', '#f2f2f2']
+
 function Designer({ onDone }: { onDone: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
   const o = C.siliconOptions(w)
@@ -46,6 +51,7 @@ function Designer({ onDone }: { onDone: () => void }) {
     precision: o.precisions[o.precisions.length - 1], redundancy: true, hbmId: o.hbm[o.hbm.length - 1] ?? 'hbm2e', hbmStacks: o.packages.includes('cowos-s') ? 4 : 2, hbmHeight: 8, cpuCores: 64
   }))
   const up = (p: Partial<ChipSpec>): void => set((x) => ({ ...x, ...p }))
+  const [exploded, setExploded] = useState(true)
   const year = yearOf(w.tick)
   const e = useMemo(() => evaluateChip(s, year), [s, year])
   const err = C.validateDesign(w, s)
@@ -76,9 +82,34 @@ function Designer({ onDone }: { onDone: () => void }) {
         <div className="row"><Field label="Tensor generation"><Num value={s.archGen} min={1} max={o.maxArch} onChange={(v) => up({ archGen: Math.max(1, Math.min(o.maxArch, v)) })} /></Field>
           <Field label="Precision"><select value={s.precision} onChange={(ev) => up({ precision: ev.target.value as ChipSpec['precision'] })}>{(['bf16', 'fp8', 'fp4'] as const).map((p) => <option key={p} value={p} disabled={!o.precisions.includes(p)}>{p.toUpperCase()}</option>)}</select></Field></div>
         <label className="row" style={{ fontSize: 13 }}><input type="checkbox" checked={s.redundancy} onChange={(ev) => up({ redundancy: ev.target.checked })} /> Redundant units (harvest defective dies)</label>
+        <Field label="Finish">
+          <div className="col" style={{ gap: 8 }}>
+            <div className="row wrap" style={{ gap: 6 }}>{SUBSTRATES.map(([c, l]) => <button key={c} title={l} aria-label={l} className={'swatch' + ((s.look?.substrate ?? DEFAULT_LOOK.substrate) === c ? ' on' : '')} style={{ background: c }} onClick={() => up({ look: { ...DEFAULT_LOOK, ...s.look, substrate: c } })} />)}</div>
+            <div className="seg">{(['nickel', 'black', 'copper', 'clear'] as const).map((l) => <button key={l} className={(s.look?.lid ?? 'nickel') === l ? 'on' : ''} onClick={() => up({ look: { ...DEFAULT_LOOK, ...s.look, lid: l } })}>{l === 'clear' ? 'Glass' : l[0].toUpperCase() + l.slice(1)}</button>)}</div>
+            <div className="row wrap" style={{ gap: 6 }}>{ACCENTS.map((c) => <button key={c} aria-label={'accent ' + c} className={'swatch sm' + ((s.look?.accent ?? DEFAULT_LOOK.accent) === c ? ' on' : '')} style={{ background: c }} onClick={() => up({ look: { ...DEFAULT_LOOK, ...s.look, accent: c } })} />)}</div>
+          </div>
+        </Field>
+        <Field label={`Questionable engineering · ${(s.mods ?? []).length} on`}>
+          <div className="mod-grid">{CHIP_MODS.map((m) => {
+            const on = (s.mods ?? []).includes(m.id)
+            const fx = [m.tflops && `${m.tflops > 1 ? '+' : ''}${Math.round((m.tflops - 1) * 100)}% FLOPS`, (m.tdp || m.tdpAdd) && `${(m.tdp ?? 1) > 1 || (m.tdpAdd ?? 0) > 0 ? '+' : '−'}power`, m.cost && `+$${m.cost >= 1000 ? (m.cost / 1000).toFixed(0) + 'k' : m.cost}`, m.nre && `+$${(m.nre / 1e6).toFixed(0)}M NRE`, m.months && `${m.months > 0 ? '+' : ''}${m.months} mo`, m.yield && `${m.yield > 1 ? '+' : ''}${Math.round((m.yield - 1) * 100)}% yield`, m.appeal && `×${m.appeal.toFixed(2)} appeal`].filter(Boolean)
+            return <button key={m.id} className={'mod' + (on ? ' on' : '')} title={m.blurb} onClick={() => up({ mods: on ? (s.mods ?? []).filter((x) => x !== m.id) : [...(s.mods ?? []), m.id] })}>
+              <b>{m.name}</b><span>{m.blurb}</span><em>{fx.join(' · ')}</em></button>
+          })}</div>
+        </Field>
       </div>
 
       <div className="col" style={{ gap: 14, alignContent: 'start' }}>
+        <div className="chip-stage">
+          <ChipScene s={s} e={e} exploded={exploded} />
+          <div className="chip-hud">
+            <div><div className="eyebrow">{s.kind === 'gpu' ? 'Accelerator' : 'CPU'} · {n.name}</div><b>{s.name || 'Untitled'}</b></div>
+            <span className="grow" />
+            {e.appeal !== 1 && <span className="tag" style={{ background: 'oklch(1 0 0 / .1)', color: 'inherit' }}>appeal ×{e.appeal.toFixed(2)}</span>}
+            <button className="btn sm" onClick={() => setExploded((x) => !x)}>{exploded ? 'Assemble' : 'Explode'}</button>
+          </div>
+          <div className="chip-foot">drag to orbit · scroll to zoom</div>
+        </div>
         <div className="panel row" style={{ gap: 26, alignItems: 'center' }}>
           <Floorplan s={s} e={e} size={300} />
           <div className="col" style={{ gap: 10, justifyItems: 'center' }}>

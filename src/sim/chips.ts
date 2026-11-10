@@ -159,7 +159,7 @@ export function chipDemandPerDay(w: World, d: ChipDesign): number {
     const global = 30_000 * Math.pow(1.08, years)
     const ref = 900 / 11000 // a typical 2023 server CPU: score ~900 at ~$11k
     const ratio = (e.cpuScore / d.salePrice) / ref
-    return global * Math.min(0.4, 0.08 * Math.pow(ratio, 2.2)) * (0.5 + w.reputation / 100)
+    return global * Math.min(0.4, 0.08 * Math.pow(ratio, 2.2)) * (0.5 + w.reputation / 100) * e.appeal
   }
   const cat = gpuCatalog(yearOf(w.tick)).filter((g) => g.year >= yearOf(w.tick) - 3)
   const best = Math.max(...cat.map((g) => g.tflops / g.priceUsd))
@@ -167,7 +167,7 @@ export function chipDemandPerDay(w: World, d: ChipDesign): number {
   const memRatio = e.memGB / Math.max(...cat.map((g) => g.memGB))
   const global = 9_000 * Math.pow(1.35, Math.min(years, 8)) * w.market.boom
   const share = Math.min(0.6, 0.12 * Math.pow(ratio, 2) * Math.pow(memRatio, 0.5))
-  return global * share * (0.4 + 0.8 * w.reputation / 100) * ecosystem(w) * (1 + (d.hype ?? 0))
+  return global * share * (0.4 + 0.8 * w.reputation / 100) * ecosystem(w) * (1 + (d.hype ?? 0)) * e.appeal
 }
 
 export function dailySilicon(w: World): void {

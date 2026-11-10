@@ -1,4 +1,4 @@
-import { HBM, PACKAGES, WAFER_DIAMETER_MM, WAFER_SCALE_MM2, node, nodeCatalog, type NodeSpec, type PackageKind } from './data/silicon'
+import { HBM, PACKAGES, chipMod, WAFER_DIAMETER_MM, WAFER_SCALE_MM2, node, nodeCatalog, type NodeSpec, type PackageKind } from './data/silicon'
 
 /**
  * Chip physics. Calibrated so an H100-like design (N4, 814 mm², 50% compute area, 1.83 GHz, 5×HBM3)
@@ -14,6 +14,8 @@ export interface ChipSpec {
   redundancy: boolean        // harvest partially defective dies by fusing off units
   hbmId: string; hbmStacks: number; hbmHeight: number
   cpuCores?: number          // cpu only
+  mods?: string[]            // absurd-but-real add-ons (data/silicon CHIP_MODS)
+  look?: import('./data/silicon').ChipLook
 }
 export interface ChipEval {
   ok: boolean; problems: string[]
@@ -22,6 +24,8 @@ export interface ChipEval {
   tdpW: number; wPerMm2: number; coolingNeeded: 'air' | 'liquid' | 'immersion'
   dpw: number; dieYield: number; goodDiesPerWafer: number
   dieCost: number; hbmCost: number; pkgCost: number; unitCost: number
+  /** Demand multiplier from mods (1 = none). */
+  appeal: number
   nreUsd: number; designMonths: number
   perfPerWatt: number; perfPerDollar: number
   cpuScore: number           // SPECint-rate-ish for CPUs
@@ -63,10 +67,13 @@ export function evaluateChip(c: ChipSpec, year: number): ChipEval {
     if (c.hbmHeight > hbm.maxStack) problems.push(`${hbm.name} stacks top out at ${hbm.maxStack}-high`)
   }
   const totalArea = area * dies
+  const mods = (c.mods ?? []).map(chipMod).filter((m): m is NonNullable<typeof m> => !!m)
+  const mm = (k: 'tflops' | 'tdp' | 'appeal' | 'yield'): number => mods.reduce((a, m) => a * (m[k] ?? 1), 1)
+  const ms = (k: 'tdpAdd' | 'cost' | 'nre' | 'months'): number => mods.reduce((a, m) => a + (m[k] ?? 0), 0)
   const transistorsB = (n.densityMTr * totalArea * 0.68) / 1000 // large GPUs pack below peak logic density
   const computeT = transistorsB * 1e9 * c.computeFrac
   const archMult = Math.pow(1.35, c.archGen - 1)
-  const tflops = c.kind === 'gpu' ? (computeT * ARCH_FLOP_PER_CYCLE_PER_TR * archMult * c.clockGHz * 1e9) / 1e12 : 0
+  const tflops = c.kind === 'gpu' ? ((computeT * ARCH_FLOP_PER_CYCLE_PER_TR * archMult * c.clockGHz * 1e9) / 1e12) * mm('tflops') : 0
   const precMult = c.precision === 'fp4' ? 4 : c.precision === 'fp8' ? 2 : 1
   // power: dynamic ∝ switched transistors · f · V², V rises with f above nominal
   const fRatio = c.clockGHz / n.fNomGHz
@@ -77,21 +84,21 @@ export function evaluateChip(c: ChipSpec, year: number): ChipEval {
   const memGB = c.kind === 'gpu' ? (c.hbmStacks * c.hbmHeight * hbm.dieGb) / 8 : 0
   const memTBs = c.kind === 'gpu' ? (c.hbmStacks * hbm.busBits * hbm.gbpsPerPin) / 8 / 1000 : 0
   const hbmW = memTBs * 1e12 * 8 * hbm.pjPerBit * 1e-12
-  const tdpW = Math.round(dyn + leak + hbmW + 25 * dies)
+  const tdpW = Math.round((dyn + leak + hbmW + 25 * dies) * mm('tdp') + ms('tdpAdd'))
   const wPerMm2 = tdpW / totalArea
   const coolingNeeded = wPerMm2 > 1.6 || tdpW > 1500 ? 'immersion' : wPerMm2 > 0.75 || tdpW > 800 ? 'liquid' : 'air'
   if (fRatio > 1.3) problems.push('Clock is beyond what this node can close timing at')
   // economics
   const dpw = diesPerWafer(area)
-  const y = dieYield(area, n, year, c.redundancy, waferScale)
+  const y = Math.min(1, dieYield(area, n, year, c.redundancy, waferScale) * mm('yield'))
   const good = dpw * y
   if (good < 0.05) problems.push('Effectively zero yield: shrink the die or add redundancy')
   const dieCost = good > 0 ? (n.waferUsd / good) * dies : Infinity
   const hbmCost = memGB * hbm.usdPerGB
   const pkgCost = pkg.usd + (c.kind === 'gpu' ? c.hbmStacks * 25 : 0)
-  const unitCost = (dieCost + hbmCost + pkgCost) / (1 - pkg.yieldLoss) + 120 // test, burn-in, margin of error
-  const nreUsd = n.maskUsd * (waferScale ? 1.5 : 1) + n.designUsd * Math.min(2.2, 0.5 + totalArea / 900) * (c.kind === 'cpu' ? 0.8 : c.kind === 'hbm' ? 0.4 : 1)
-  const designMonths = Math.round(8 + nodeCatalog().indexOf(n) * 1.5 + totalArea / 600)
+  const unitCost = (dieCost + hbmCost + pkgCost) / (1 - pkg.yieldLoss) + 120 + ms('cost') // test, burn-in, margin of error
+  const nreUsd = n.maskUsd * (waferScale ? 1.5 : 1) + n.designUsd * Math.min(2.2, 0.5 + totalArea / 900) * (c.kind === 'cpu' ? 0.8 : c.kind === 'hbm' ? 0.4 : 1) + ms('nre')
+  const designMonths = Math.max(4, Math.round(8 + nodeCatalog().indexOf(n) * 1.5 + totalArea / 600 + ms('months')))
   const sramMB = (transistorsB * 1e9 * c.sramFrac) / 6 / 8 / 1e6 * 0.22 // 6T cells + tags, periphery, register files
   const cores = c.cpuCores ?? 0
   const cpuScore = c.kind === 'cpu' ? cores * c.clockGHz * archMult * 2.4 : 0
@@ -100,7 +107,7 @@ export function evaluateChip(c: ChipSpec, year: number): ChipEval {
   return {
     ok: problems.length === 0, problems, transistorsB, atoms: transistorsB * 1e9 * ATOMS_PER_TRANSISTOR,
     tflops, tflopsFp8: tfl, memGB, memTBs, sramMB, tdpW, wPerMm2, coolingNeeded,
-    dpw, dieYield: y, goodDiesPerWafer: good, dieCost, hbmCost, pkgCost, unitCost, nreUsd, designMonths,
+    dpw, dieYield: y, goodDiesPerWafer: good, dieCost, hbmCost, pkgCost, unitCost, nreUsd, designMonths, appeal: mm('appeal'),
     perfPerWatt: c.kind === 'cpu' ? cpuScore / tdpW : tflops / tdpW, perfPerDollar: c.kind === 'cpu' ? cpuScore / unitCost : tflops / unitCost, cpuScore
   }
 }
