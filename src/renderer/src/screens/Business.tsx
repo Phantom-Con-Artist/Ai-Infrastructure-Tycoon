@@ -120,12 +120,7 @@ export function Finance() {
             {!w.public && <div className="row" style={{ justifyContent: 'space-between' }}><span className="dim" style={{ fontSize: 13 }}>Founder stake {(w.founderStake * 100).toFixed(0)}% · IPO sells 20% of the company</span><button className="btn sm" disabled={!hasTech(w, 'ipo')} onClick={() => act((x) => ipo(x), 'Listed!')}>IPO</button></div>}
             <div className="row"><Field label="Borrow ($M)"><Num value={amt} onChange={setAmt} min={1} /></Field><button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => act((x) => A.borrow(x, amt * 1e6), 'Funds wired')}>Borrow</button></div>
           </div>
-          <div className="panel col">
-            <h2>Staff</h2>
-            <table><tbody>{(Object.keys(w.staff) as (keyof typeof w.staff)[]).map((k) => (
-              <tr key={k}><td style={{ textTransform: 'capitalize' }}>{k}</td><td className="mono r">{w.staff[k]}</td><td className="mono dim r">{money(SALARY[k], 0)}/yr</td>
-                <td className="r"><button className="btn sm" onClick={() => act((x) => A.hire(x, k, 1))}>+1</button> <button className="btn sm" onClick={() => act((x) => A.hire(x, k, -1))}>−1</button></td></tr>))}</tbody></table>
-          </div>
+          <div className="panel row" style={{ justifyContent: 'space-between' }}><span>Hiring, morale and research labs live on the <b>Team</b> screen.</span><button className="btn sm" onClick={() => useGame.getState().go('team')}>Open Team</button></div>
           <div className="panel col">
             <h2>Executive team</h2>
             <div className="advisors">{ADVISORS.map((a) => (

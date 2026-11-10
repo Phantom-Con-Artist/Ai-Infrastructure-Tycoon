@@ -94,4 +94,5 @@ export interface World {
   rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean; keynotes?: number
   web: import('./web').WebPresence
   products: import('./store').Product[]
+  people: import('./people').Person[]; candidates: import('./people').Person[]; labs: import('./people').ResearchLab[]; chipStaff?: number
 }

@@ -6,6 +6,7 @@ import { EQUIP, HALL_SIZES, RACK_COST, hallShellCost, type EquipKind, type HallS
 import { canPlace, footprint, itemAt, relayout, type Rot } from './layout'
 import { leadDays, serverMarketPrice } from './market'
 import { vendorDiscount } from './corporate'
+import { ROLES, makeCandidate, recomputeStaff } from './people'
 import { CLOUD, cloudCapacity, cloudGpus } from './cloud'
 import { pick } from './rng'
 import { HOURS_PER_YEAR, type Equip, type Hall, type Rack, type RentalKind, type Site, type World } from './types'
@@ -346,9 +347,13 @@ export function deployModel(w: World, modelId: string, siteId: string, gpuId: st
 
 // ---------------------------------------------------------------- company
 export function hire(w: World, role: keyof World['staff'], n: number): Result {
-  if (n > 0) { const cost = n * 45_000; if (w.cash < cost) return fail('Not enough cash'); spend(w, cost, 'opex') }
-  if (w.staff[role] + n < 0) return fail('No one left to fire')
-  w.staff[role] += n; return ok(undefined)
+  if (n > 0) {
+    const cost = n * 45_000; if (w.cash < cost) return fail('Not enough cash'); spend(w, cost, 'opex')
+    for (let i = 0; i < n; i++) { const p = makeCandidate(w); w.people.push({ ...p, role, skill: 4, trait: 'none', salary: Math.round(ROLES[role].base * 0.7), hiredTick: w.tick }) }
+  } else {
+    for (let i = 0; i < -n; i++) { const p = [...w.people].filter((x) => x.role === role).sort((a, b) => a.skill - b.skill)[0]; if (!p) return fail('No one left to fire'); w.people = w.people.filter((x) => x !== p) }
+  }
+  recomputeStaff(w); return ok(undefined)
 }
 export function startResearch(w: World, id: string): Result {
   const t = TECHS.find((x) => x.id === id); if (!t) return fail('Unknown tech')

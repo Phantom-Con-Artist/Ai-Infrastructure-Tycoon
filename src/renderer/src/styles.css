@@ -56,8 +56,8 @@ button, input, select { font: inherit; color: inherit; }
 .winctl button:hover { background: var(--surface-3); color: var(--tx); }
 .winctl button.x:hover { background: var(--red); color: white; }
 
-.nav { grid-area: nav; display: flex; flex-direction: column; align-items: center; padding: 8px 0 14px; gap: 4px; }
-.nav button { width: 64px; background: none; border: 0; padding: 9px 0 7px; cursor: pointer; display: grid; justify-items: center; gap: 4px; color: var(--tx-3); font: 550 11px var(--sans); border-radius: var(--r-m); transition: all .25s var(--ease); }
+.nav { grid-area: nav; display: flex; flex-direction: column; align-items: center; padding: 6px 0 10px; gap: 2px; overflow-y: auto; scrollbar-width: none; }
+.nav button { width: 64px; flex: none; background: none; border: 0; padding: 6px 0 5px; cursor: pointer; display: grid; justify-items: center; gap: 3px; color: var(--tx-3); font: 550 10.5px var(--sans); border-radius: var(--r-m); transition: all .25s var(--ease); }
 .nav button svg { transition: transform .35s var(--spring); }
 .nav button:hover { color: var(--tx); background: var(--surface-2); }
 .nav button:hover svg { transform: translateY(-1px) scale(1.06); }

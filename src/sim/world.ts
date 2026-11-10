@@ -7,6 +7,7 @@ import { rollDailyEvents } from './events'
 import { dailySilicon } from './chips'
 import { webQuality, weeklyDigest } from './web'
 import { dailyStore } from './store'
+import { dailyPeople, foundingTeam, labBoost, makeCandidate, payrollPerDay, recomputeStaff } from './people'
 import { checkAchievements, dailyCorporate, initRivals, parodyPost } from './corporate'
 import { RENTAL_KIND, dailyMarket, initCompetitors, marketDemandTokensPerDay, modelShare, rentalPrice, rentalUtilisation, serverMarketPrice } from './market'
 import { poisson, rnd } from './rng'
@@ -15,11 +16,11 @@ import { CLOUD, cloudRate } from './cloud'
 import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric, yearOf } from './util'
 import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
-export const WORLD_VERSION = 7
+export const WORLD_VERSION = 8
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
 
 export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }): World {
-  return {
+  const w: World = {
     version: WORLD_VERSION, tick: 0, rng: seed | 0, nextId: 1,
     company, ceo, advisor, logo,
     cash: 40_000_000, loans: [], reputation: 50, esg: 50, gameOver: false, negCashDays: 0,
@@ -30,8 +31,12 @@ export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo
     staff: { engineers: 3, researchers: 1, ops: 2, sales: 1 },
     events: [], news: [{ tick: 0, kind: 'info', title: `${company} is founded`, body: `${ADVISORS.find((a) => a.id === advisor)?.name ?? 'Your advisor'} slides a term sheet across the table. $40M seed. No pressure.` }],
     ledger: [], today: emptyDay(0), quarterProfit: 0, totalTco2: 0, totalWaterL: 0, achievements: [],
-    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}, rivals: initRivals(), founderStake: 0.6, web: { domains: [] }, products: []
+    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}, rivals: initRivals(), founderStake: 0.6, web: { domains: [] }, products: [], people: [], candidates: [], labs: []
   }
+  w.people = foundingTeam(w)
+  for (let i = 0; i < 8; i++) w.candidates.push(makeCandidate(w))
+  recomputeStaff(w)
+  return w
 }
 
 export interface FleetStat { total: number; healthy: number; throttle: number; busy: number }
@@ -235,7 +240,7 @@ function dailyTick(w: World): void {
   const t = w.today
   const t2 = t
   // staff, loans, site fixed costs
-  const payroll = (Object.keys(w.staff) as (keyof World['staff'])[]).reduce((a, k) => a + w.staff[k] * SALARY[k], 0) / 365
+  const payroll = payrollPerDay(w)
   w.cash -= payroll; t.staffCost += payroll
   let interest = 0
   for (const l of w.loans) interest += (l.principal * l.rate * (w.advisor === 'cfo' ? 0.92 : 1)) / 365
@@ -249,7 +254,7 @@ function dailyTick(w: World): void {
     const t = tech(rs.current)!
     const lv = rs.levels[t.id] ?? 0
     const cost = techCost(t, lv), days = techDays(t, lv)
-    const speed = (1 + Math.sqrt(w.staff.researchers) * 0.25) * (w.advisor === 'res' ? 1.1 : 1)
+    const speed = (1 + Math.sqrt(w.staff.researchers) * 0.25) * (w.advisor === 'res' ? 1.1 : 1) * labBoost(w, t.branch)
     const perDay = Math.min((cost / days) * speed, Math.max(0, w.cash), cost - rs.progressUsd)
     rs.progressUsd += perDay; w.cash -= perDay; t2.opex += perDay
     if (rs.progressUsd >= cost - 1) {
@@ -276,6 +281,7 @@ function dailyTick(w: World): void {
   dailySilicon(w)
   dailyCorporate(w)
   dailyStore(w)
+  dailyPeople(w)
   checkAchievements(w)
   if (Math.floor(w.tick / 24) % 7 === 0 && w.tick > 0) { const d = weeklyDigest(w); pushNews(w, 'event', d.title, d.lines.slice(0, 2).join(' ')) }
   if (webQuality(w) > 0) w.reputation = clamp(w.reputation + webQuality(w) * 0.01, 0, 100)
