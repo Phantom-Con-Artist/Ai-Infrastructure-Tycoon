@@ -7,10 +7,10 @@ const BG = ['oklch(0.92 0.04 255)', 'oklch(0.93 0.05 155)', 'oklch(0.94 0.05 75)
 function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 const pickN = (h: number, n: number, salt: number): number => (((h >>> (salt % 24)) ^ Math.imul(h, salt * 2654435761)) >>> 0) % n
 
-export function Portrait({ seed, size = 52, jacket = false }: { seed: string; size?: number; jacket?: boolean }) {
+export function Portrait({ seed, size = 52, jacket = false, bg: bgIn }: { seed: string; size?: number; jacket?: boolean; bg?: string }) {
   const h = hash(seed)
   const skin = SKIN[pickN(h, SKIN.length, 1)], hair = HAIR[pickN(h, HAIR.length, 3)]
-  const shirt = jacket ? '#1d1d1f' : SHIRT[pickN(h, SHIRT.length, 5)], bg = BG[pickN(h, BG.length, 7)]
+  const shirt = jacket ? '#1d1d1f' : SHIRT[pickN(h, SHIRT.length, 5)], bg = bgIn ?? BG[pickN(h, BG.length, 7)]
   const style = pickN(h, 6, 9), glasses = pickN(h, 4, 11) === 0, beard = pickN(h, 5, 13) === 0, smile = pickN(h, 3, 17)
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden style={{ display: 'block' }}>

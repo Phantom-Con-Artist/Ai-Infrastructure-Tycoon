@@ -9,7 +9,7 @@ ACCENT = mat("Accent", (0.95, 0.95, 0.95), 0.2, 0.35)          # tinted per inst
 SIDE = mat("RackSide", (0.20, 0.22, 0.26), 0.55, 0.38)
 FRAME = mat("RackFrame", (0.13, 0.14, 0.16), 0.6, 0.35)
 GRILLE = mat("Grille", (0.07, 0.075, 0.09), 0.5, 0.6)
-FIBER = mat("Fiber", (0.98, 0.78, 0.12), 0.05, 0.5)
+FIBER = mat("Fiber", (0.85, 0.66, 0.18), 0.05, 0.6)
 PORT = mat("Port", (0.03, 0.03, 0.04), emit=(0.25, 0.55, 1.0), strength=5)
 HEAT = mat("Heatsink", (0.55, 0.57, 0.6), 0.95, 0.25)
 
@@ -50,7 +50,7 @@ def rack():
     box("torports", (0.04, -0.512, 2.215), (0.44, 0.006, 0.022), PORT, parent=r)
     box("label", (-0.24, -0.53, 2.28), (0.12, 0.006, 0.03), WHITE, parent=r)
     box("ladder", (0, 0, 2.42), (0.30, D, 0.02), FRAME, parent=r)              # cable ladder
-    box("fibre", (0.06, 0, 2.44), (0.08, D, 0.025), FIBER, parent=r)           # thin yellow fibre bundle
+    box("fibre", (0.08, 0, 2.44), (0.045, D, 0.02), FIBER, parent=r)           # thin yellow fibre bundle
     for sy in (-1, 1):
         box(f"trayleg{sy}", (0, sy * 0.4, 2.37), (0.02, 0.02, 0.08), FRAME, parent=r)
     box("torportsR", (0, 0.512, 2.215), (0.5, 0.006, 0.022), PORT, parent=r)

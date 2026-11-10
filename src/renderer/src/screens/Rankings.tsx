@@ -11,10 +11,11 @@ import { Summary, Tabs } from '../ui'
 import { CorpLogo, WordMark, type LogoGlyph } from '../art/Logos'
 import { Portrait } from '../art/People'
 import { Globe } from '../art/Globe'
+import { CorpWordmark } from '../art/Brand'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
 
-const TABS = ['models', 'labs', 'evals', 'companies', 'rich list'] as const
+const TABS = ['models', 'labs', 'evals', 'companies', 'people', 'rich list'] as const
 
 export function Rankings() {
   const [tab, setTab] = useState<(typeof TABS)[number]>('models')
@@ -28,6 +29,7 @@ export function Rankings() {
       {tab === 'labs' && <Labs />}
       {tab === 'evals' && <Evals />}
       {tab === 'companies' && <Companies />}
+      {tab === 'people' && <People />}
       {tab === 'rich list' && <Rich />}
     </>
   )
@@ -49,6 +51,35 @@ function Models() {
       <td style={{ width: '40%' }}><div className="row" style={{ gap: 10 }}><div className="bar" style={{ flex: 1 }}><i style={{ width: `${Math.max(4, (r.elo - 1000) / (top - 1000) * 100)}%`, background: r.you ? 'var(--accent)' : 'var(--blue)' }} /></div><b style={{ width: 44, textAlign: 'right' }}>{Math.round(r.elo)}</b></div></td>
       <td className="r">${r.price.toFixed(2)}</td></tr>)}
   </tbody></table></div>
+}
+
+const FOCUS_LABEL: Record<string, string> = { frontier: 'Frontier models', open: 'Open weights', image: 'Image & video', speech: 'Speech & voice', coding: 'Coding tools', data: 'Data labelling', hub: 'Model hub', search: 'Search', gpu: 'GPUs', asic: 'Custom silicon', memory: 'HBM memory', foundry: 'Foundry', network: 'Networking', cloud: 'Hyperscale cloud', neocloud: 'GPU cloud', devices: 'Devices' }
+const KIND_ORDER = ['all', 'lab', 'chip', 'cloud'] as const
+
+/** Who's who: every rival CEO, with their company's mark, focus, HQ and personal stake. */
+function People() {
+  const w = useWorld()
+  const [kind, setKind] = useState<(typeof KIND_ORDER)[number]>('all')
+  const list = CORPS.filter((c) => kind === 'all' || c.kind === kind || (kind === 'lab' && c.kind === 'both'))
+    .map((c) => ({ c, r: w.rivals.find((x) => x.id === c.id) }))
+    .sort((a, b) => (b.r?.valuation ?? 0) - (a.r?.valuation ?? 0))
+  return (
+    <div className="col" style={{ gap: 14 }}>
+      <Tabs tabs={KIND_ORDER} value={kind} onChange={setKind} />
+      <div className="ceo-grid">{list.map(({ c, r }, i) => (
+        <article key={c.id} className="ceo-card" style={{ ['--bc' as string]: c.color, animationDelay: `${Math.min(i, 12) * 45}ms`, opacity: r?.owned ? 0.55 : undefined }}>
+          <div className="ceo-face"><Portrait seed={c.ceo} size={84} jacket={c.id === 'nvidious'} bg="transparent" /></div>
+          <div className="col" style={{ gap: 6, minWidth: 0 }}>
+            <CorpWordmark id={c.id} size={14} />
+            <b className="ceo-name">{c.ceo}</b>
+            <span className="dim" style={{ fontSize: 12 }}>CEO · {FOCUS_LABEL[c.focus]} · {c.hq}</span>
+            <i className="ceo-quip">“{c.quip}”</i>
+            {r && <span style={{ fontSize: 12 }}>{r.owned ? <span className="tag g">acquired by you</span> : <>Company {money(r.valuation)} · stake worth <b>{money(r.valuation * r.ceoStake)}</b></>}</span>}
+          </div>
+        </article>))}
+      </div>
+    </div>
+  )
 }
 
 function Labs() {

@@ -11,7 +11,7 @@ import { gpu, hasTech } from '@sim/util'
 import type { Hall, Site } from '@sim/types'
 import { useGame, useWorld } from '../store'
 import { money } from '../format'
-import { InstancedGlb, MODEL, at } from './Instanced'
+import { InstancedGlb, MaterialClock, MODEL, at } from './Instanced'
 import { VENDOR_HEX } from '../vendors'
 import { previewRemove } from '@sim/preview'
 import { touchSystem } from '@sim/managers'
@@ -91,7 +91,7 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
         <color attach="background" args={['#eef1f5']} />
         <fog attach="fog" args={['#eef1f5', 60, 180]} />
         <hemisphereLight args={['#ffffff', '#c8ced8', 1.1]} />
-        <directionalLight position={[20, 40, 15]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-40} shadow-camera-right={40} shadow-camera-top={40} shadow-camera-bottom={-40} />
+        <directionalLight position={[20, 40, 15]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-40} shadow-camera-right={40} shadow-camera-top={40} shadow-camera-bottom={-40} shadow-bias={-0.0004} shadow-normalBias={0.04} />
         <Suspense fallback={null}>
           <Floor hall={hall} built={built}
             onMove={(x, y) => { setHover([x, y]); if (painting.current && (tool === 'rack' || tool === 'remove')) apply(x, y, true) }}
@@ -185,6 +185,7 @@ function HallContents({ hall }: { hall: Hall }) {
   }, [hall, sig, Math.floor(w.tick / 6)]) // status colours refresh every 6 game-hours
   return (
     <group>
+      <MaterialClock />
       <StatusPads transforms={pads} colors={padColors} />
       {rackT.length > 0 && <InstancedGlb url={MODEL('rack')} transforms={rackT} />}
       {serverT.length > 0 && <InstancedGlb url={MODEL('server')} transforms={serverT} tint={serverTint} />}
