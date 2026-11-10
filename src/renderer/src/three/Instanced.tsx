@@ -2,7 +2,8 @@ import { useGLTF } from '@react-three/drei'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
-export const MODEL = (name: string): string => `models/${name}.glb`
+export const ASSET_VERSION = 3
+export const MODEL = (name: string): string => `models/${name}.glb?v=${ASSET_VERSION}`
 
 interface Part { geometry: THREE.BufferGeometry; material: THREE.Material; local: THREE.Matrix4 }
 
