@@ -19,6 +19,7 @@ import { CorpLogo, WordMark, type LogoGlyph } from '../art/Logos'
 import { Portrait } from '../art/People'
 import { ACHIEVEMENTS, domination } from '@sim/corporate'
 import { ManagerCard, SYSTEM_LABEL } from '../ManagerCard'
+import { InProgress } from '../InProgress'
 
 function goToStep(s: Step): void {
   const g = useGame.getState()
@@ -120,6 +121,7 @@ export function Overview() {
       <div className="hq-mid">
         <div className="col" style={{ gap: 16 }}>
           <Path />
+          <InProgress />
           <div className="panel col" style={{ gap: 10 }}>
             <div className="eyebrow">Cash, last 120 days</div>
             {w.ledger.length > 1 ? <Spark w={620} h={96} data={w.ledger.slice(-120).map((d) => d.cash)} /> : <p className="dim">The chart fills in once the clock runs.</p>}

@@ -32,7 +32,12 @@ const ROT_Y = (r: Rot): number => (-r * Math.PI) / 2
 function tileToWorld(h: Hall, x: number, y: number, fw = 1, fd = 1): [number, number] {
   return [(x + fw / 2) * TILE - (h.w * TILE) / 2, (y + fd / 2) * TILE - (h.d * TILE) / 2]
 }
-const STATUS = { ok: new THREE.Color('#38b26b'), hot: new THREE.Color('#e8572f'), throttled: new THREE.Color('#e9a23b'), dark: new THREE.Color('#9aa1ad'), empty: new THREE.Color('#c9ced6') }
+const STATUS_HEX = { ok: '#38b26b', throttled: '#e9a23b', hot: '#e8572f', failed: '#c2379a', dark: '#5b6472', empty: '#c9ced6' } as const
+type RackState = keyof typeof STATUS_HEX
+const STATUS_LABEL: Record<RackState, string> = { ok: 'Healthy', throttled: 'Throttled', hot: 'Hot · no cooling', failed: 'Broken servers', dark: 'No power', empty: 'Empty' }
+const STATUS = Object.fromEntries(Object.entries(STATUS_HEX).map(([k, v]) => [k, new THREE.Color(v)])) as Record<RackState, THREE.Color>
+/** One colour per rack, worst problem first. */
+const rackState = (r: Hall['racks'][number]): RackState => !r.gpuId || r.servers === 0 ? 'empty' : !r.powered ? 'dark' : !r.cooled ? 'hot' : r.failed > 0 ? 'failed' : r.throttle < 0.95 ? 'throttled' : 'ok'
 
 export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
   const w = useWorld()
@@ -158,7 +163,7 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
         <span><span className="kbd">Esc</span> inspect</span>
         {(carry ? carryErr : ghostErr) && <span className="neg">{carry ? carryErr : ghostErr}</span>}
       </div>
-      <div className="legend"><span><i style={{ background: '#38b26b' }} />Healthy</span><span><i style={{ background: '#e9a23b' }} />Throttled</span><span><i style={{ background: '#e8572f' }} />No cooling</span><span><i style={{ background: '#9aa1ad' }} />No power</span></div>
+      <div className="legend">{(Object.keys(STATUS_HEX) as RackState[]).map((k) => { const n = hall.racks.filter((r) => rackState(r) === k).length; return <span key={k} style={{ opacity: n ? 1 : 0.45 }}><i style={{ background: STATUS_HEX[k] }} />{STATUS_LABEL[k]}{n ? <b style={{ marginLeft: 4 }}>{n}</b> : null}</span> })}</div>
     </div>
   )
 }
@@ -206,9 +211,9 @@ function Floor({ hall, built, onMove, onDown, onUp, onLeave }: { hall: Hall; bui
 
 function HallContents({ hall }: { hall: Hall }) {
   const w = useWorld()
-  const sig = hall.racks.map((r) => `${r.x},${r.y},${r.rot},${r.servers},${r.gpuId},${r.powered ? 1 : 0}${r.cooled ? 1 : 0}`).join('|') + '#' + hall.equipment.map((e) => `${e.kind}${e.x},${e.y},${e.rot}`).join('|')
-  const { rackT, serverT, serverTint, blankT, pads, padColors, eq } = useMemo(() => {
-    const rackT: THREE.Matrix4[] = [], serverT: THREE.Matrix4[] = [], serverTint: THREE.Color[] = [], blankT: THREE.Matrix4[] = [], pads: THREE.Matrix4[] = [], padColors: THREE.Color[] = []
+  const sig = hall.racks.map((r) => `${r.x},${r.y},${r.rot},${r.servers},${r.gpuId},${r.powered ? 1 : 0}${r.cooled ? 1 : 0}${r.failed}${r.throttle < 0.95 ? 't' : ''}`).join('|') + '#' + hall.equipment.map((e) => `${e.kind}${e.x},${e.y},${e.rot}`).join('|')
+  const { rackT, serverT, serverTint, blankT, pads, caps, padColors, eq } = useMemo(() => {
+    const rackT: THREE.Matrix4[] = [], serverT: THREE.Matrix4[] = [], serverTint: THREE.Color[] = [], blankT: THREE.Matrix4[] = [], pads: THREE.Matrix4[] = [], caps: THREE.Matrix4[] = [], padColors: THREE.Color[] = []
     for (const r of hall.racks) {
       const [x, z] = tileToWorld(hall, r.x, r.y)
       rackT.push(at(x, 0, z, ROT_Y(r.rot)))
@@ -216,8 +221,8 @@ function HallContents({ hall }: { hall: Hall }) {
       for (let k = 0; k < r.servers; k++) { serverT.push(at(x, 0.12 + k * 0.255, z, ROT_Y(r.rot))); serverTint.push(tint) }
       if (r.gpuId) for (let k = r.servers; k < 8; k++) blankT.push(at(x, 0.12 + k * 0.255, z, ROT_Y(r.rot))) // populated racks get blanking panels; empty racks stay hollow
       pads.push(at(x, 0.006, z))
-      const c = !r.gpuId ? STATUS.empty : !r.powered ? STATUS.dark : !r.cooled ? STATUS.hot : r.throttle < 0.95 ? STATUS.throttled : STATUS.ok
-      padColors.push(c)
+      caps.push(at(x, 2.26, z)) // a light strip on the rack roof, readable from the default camera
+      padColors.push(STATUS[rackState(r)])
     }
     const eq: Record<string, THREE.Matrix4[]> = { pdu: [], crah: [], cdu: [], ups: [] }
     for (const e of hall.equipment) {
@@ -225,13 +230,14 @@ function HallContents({ hall }: { hall: Hall }) {
       const [x, z] = tileToWorld(hall, e.x, e.y, f.w, f.d)
       eq[e.kind].push(at(x, 0, z, ROT_Y(e.rot)))
     }
-    return { rackT, serverT, serverTint, blankT, pads, padColors, eq }
+    return { rackT, serverT, serverTint, blankT, pads, caps, padColors, eq }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hall, sig, Math.floor(w.tick / 6)]) // status colours refresh every 6 game-hours
   return (
     <group>
       <MaterialClock />
       <StatusPads transforms={pads} colors={padColors} />
+      <StatusPads transforms={caps} colors={padColors} cap />
       {rackT.length > 0 && <InstancedGlb url={MODEL('rack')} transforms={rackT} />}
       {serverT.length > 0 && <InstancedGlb url={MODEL('server')} transforms={serverT} tint={serverTint} />}
       {blankT.length > 0 && <InstancedGlb url={MODEL('blank')} transforms={blankT} />}
@@ -240,7 +246,7 @@ function HallContents({ hall }: { hall: Hall }) {
   )
 }
 
-function StatusPads({ transforms, colors }: { transforms: THREE.Matrix4[]; colors: THREE.Color[] }) {
+function StatusPads({ transforms, colors, cap: roof }: { transforms: THREE.Matrix4[]; colors: THREE.Color[]; cap?: boolean }) {
   const ref = useRef<THREE.InstancedMesh>(null)
   useEffect(() => {
     const m = ref.current; if (!m) return
@@ -248,7 +254,7 @@ function StatusPads({ transforms, colors }: { transforms: THREE.Matrix4[]; color
     m.count = transforms.length; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true
   })
   const cap = Math.max(1, transforms.length)
-  return <instancedMesh ref={ref} args={[undefined, undefined, cap]} key={cap}><boxGeometry args={[TILE * 0.92, 0.01, TILE * 0.92]} /><meshBasicMaterial transparent opacity={0.55} /></instancedMesh>
+  return <instancedMesh ref={ref} args={[undefined, undefined, cap]} key={cap}>{roof ? <boxGeometry args={[TILE * 0.5, 0.05, TILE * 0.5]} /> : <boxGeometry args={[TILE * 0.92, 0.01, TILE * 0.92]} />}<meshBasicMaterial transparent opacity={roof ? 1 : 0.55} toneMapped={false} /></instancedMesh>
 }
 
 function Coverage({ hall, tool, sel }: { hall: Hall; tool: Tool; sel?: string }) {

@@ -146,3 +146,51 @@ describe('rival releases', () => {
     expect(new Set(titles).size).toBe(titles.length)
   })
 })
+
+import { datasetById, datasetCatalog, genDataset } from './models'
+import { jobs, trainingOutlook } from './progress'
+import { dailyPeople } from './people'
+import { yearOf } from './util'
+describe('fix & clarify round', () => {
+  const withSite = (): { w: ReturnType<typeof createWorld>; siteId: string } => {
+    const w = createWorld(7); w.cash = 1e12
+    const r = A.buildSite(w, 'or'); if (!r.ok) throw new Error(r.error)
+    return { w, siteId: r.value.id }
+  }
+  it('same-day orders of one server stack into a single line with a start time', () => {
+    const { w, siteId } = withSite()
+    const id = gpuCatalog(yearOf(w.tick))[0].id
+    expect(A.orderServers(w, siteId, id, 4).ok).toBe(true)
+    expect(A.orderServers(w, siteId, id, 6).ok).toBe(true)
+    const s = w.sites[0]
+    expect(s.orders).toHaveLength(1)
+    expect(s.orders[0].servers).toBe(10)
+    const j = jobs(w).find((x) => x.kind === 'delivery')!
+    expect(j.frac).toBe(0)
+    for (let i = 0; i < 48; i++) step(w)
+    expect(jobs(w).find((x) => x.kind === 'delivery')!.frac).toBeGreaterThan(0)
+    A.orderServers(w, siteId, id, 1)
+    expect(s.orders).toHaveLength(2) // a later day is a separate shipment
+  })
+  it('the hiring board is fully replaced every week', () => {
+    const w = createWorld(7)
+    const before = new Set(w.candidates.map((c) => c.id))
+    w.tick = 7 * 24; dailyPeople(w)
+    expect(w.candidates).toHaveLength(8)
+    expect(w.candidates.some((c) => before.has(c.id))).toBe(false)
+  })
+  it('the dataset market keeps restocking with bigger editions', () => {
+    expect(datasetCatalog(2040).length).toBeGreaterThan(datasetCatalog(2030).length)
+    expect(genDataset(40).tokensT).toBeGreaterThan(genDataset(0).tokensT)
+    expect(datasetById('gen-12')!.id).toBe('gen-12')
+    expect(datasetById('gen-x')).toBeUndefined()
+    const w = createWorld(7); w.cash = 1e12; w.tick = 3 * 8766
+    expect(A.buyDataset(w, 'gen-0').ok).toBe(true)
+    expect(A.buyDataset(w, 'gen-0').ok).toBe(false)
+  })
+  it('training outlook names the bottleneck', () => {
+    const elo = (p: number, t: number): number => eloFromLoss(modelLoss(p, p, t, false, 1))
+    expect(trainingOutlook((s, d) => elo(0.05 * s, 50 * d)).lever).toBe('size')
+    expect(trainingOutlook((s, d) => elo(500 * s, 0.01 * d)).lever).toBe('data')
+  })
+})

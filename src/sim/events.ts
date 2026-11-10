@@ -1,5 +1,5 @@
 import { region } from './data/hardware'
-import { DATASETS } from './models'
+import { datasetById } from './models'
 import { pick, rnd, range } from './rng'
 import type { Site, World } from './types'
 import { newId, pushNews } from './util'
@@ -7,7 +7,7 @@ import { newId, pushNews } from './util'
 type R = { ok: true; value: undefined } | { ok: false; error: string }
 export interface EventDef { name: string; site: boolean; fire: (w: World, s?: Site) => void }
 
-const legalRisk = (w: World): number => Object.keys(w.datasets ?? {}).reduce((a, id) => a + (DATASETS.find((d) => d.id === id)?.legalRisk ?? 0), 0)
+const legalRisk = (w: World): number => Object.keys(w.datasets ?? {}).reduce((a, id) => a + (datasetById(id)?.legalRisk ?? 0), 0)
 
 /** Every random event, by id. The daily roll decides *whether*; these decide *what happens*. Dev tools fire them directly. */
 export const EVENTS: Record<string, EventDef> = {

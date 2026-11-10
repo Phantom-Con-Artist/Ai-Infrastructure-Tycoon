@@ -59,6 +59,7 @@ describe('event registry', () => {
     // computed by running the pre-registry events.ts (commit 6034490) inside today's tree. The cast grew from 14 to
     // 35 rivals (each draws a valuation shock per day), which moves the RNG: trimmed to the original 14 the hash is
     // still b47fbe92, and bcb2039a is the same run with the full cast.
-    expect(fnv(JSON.stringify(w.events) + JSON.stringify(w.news.filter((n) => n.category === 'incident' || n.category === 'market')) + w.rng)).toBe('bcb2039a')
+    // 3b5228db: the weekly hiring board now draws a full new list (different RNG draw count), 2026-11-10.
+    expect(fnv(JSON.stringify(w.events) + JSON.stringify(w.news.filter((n) => n.category === 'incident' || n.category === 'market')) + w.rng)).toBe('3b5228db')
   })
 })

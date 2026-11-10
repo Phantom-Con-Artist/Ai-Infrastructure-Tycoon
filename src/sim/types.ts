@@ -20,15 +20,15 @@ export interface Equip { id: string; kind: EquipKind; x: number; y: number; rot:
 export interface Hall {
   id: string; name: string; w: number; d: number; racks: Rack[]; equipment: Equip[]
   cooling: CoolingType; coolKw: number; powerKw: number; fabric: FabricType; upsKwh: number; upsSoc: number
-  readyTick: number
+  readyTick: number; startTick?: number
   // live state
   tempC: number; throttle: number; itKw: number; coolPowerKw: number; pue: number; online: boolean; waterL: number
 }
-export interface Generator { id: string; kind: GenKind; mw: number; mwh: number; soc: number; readyTick: number }
-export interface Order { id: string; gpuId: string; servers: number; arriveTick: number }
+export interface Generator { id: string; kind: GenKind; mw: number; mwh: number; soc: number; readyTick: number; startTick?: number }
+export interface Order { id: string; gpuId: string; servers: number; arriveTick: number; placedTick?: number }
 export interface Site {
   id: string; name: string; regionId: string
-  utilityMw: number; pendingUtility: { mw: number; readyTick: number }[]
+  utilityMw: number; pendingUtility: { mw: number; readyTick: number; startTick?: number }[]
   halls: Hall[]; gens: Generator[]
   stock: Record<string, number>; orders: Order[]
   // live

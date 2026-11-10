@@ -66,7 +66,7 @@ export function buildHall(w: World, siteId: string, spec: HallSpec): Result<Hall
   const build = Math.round((60 + z.w * z.d * 0.08) * (1 - (hasTech(w, 'prefab') ? 0.4 : 0)))
   const h: Hall = {
     id: newId(w, 'h'), name: spec.name ?? `Hall ${String.fromCharCode(65 + s.halls.length)}`, w: z.w, d: z.d, racks: [], equipment: [],
-    cooling: spec.cooling, coolKw: 0, powerKw: 0, fabric: spec.fabric, upsKwh: 0, upsSoc: 0, readyTick: w.tick + build * 24,
+    cooling: spec.cooling, coolKw: 0, powerKw: 0, fabric: spec.fabric, upsKwh: 0, upsSoc: 0, readyTick: w.tick + build * 24, startTick: w.tick,
     tempC: 22, throttle: 1, itKw: 0, coolPowerKw: 0, pue: 0, online: false, waterL: 0
   }
   s.halls.push(h)
@@ -185,7 +185,7 @@ export function buyUtility(w: World, siteId: string, mw: number): Result {
   const cost = mw * 1_300_000
   if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost)
-  s.pendingUtility.push({ mw, readyTick: w.tick + Math.round(r.permitDays * (0.5 + mw / 400) * (1 - techSum(w, 'permit'))) * 24 })
+  s.pendingUtility.push({ mw, startTick: w.tick, readyTick: w.tick + Math.round(r.permitDays * (0.5 + mw / 400) * (1 - techSum(w, 'permit'))) * 24 })
   return ok(undefined)
 }
 export function buildGenerator(w: World, siteId: string, kind: GenKind, mw: number, mwh = 0): Result {
@@ -195,7 +195,7 @@ export function buildGenerator(w: World, siteId: string, kind: GenKind, mw: numb
   const cost = mw * g.usdPerMw + mwh * (g.usdPerMwhStored ?? 0)
   if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost)
-  s.gens.push({ id: newId(w, 'g'), kind, mw, mwh: kind === 'battery' ? (mwh || mw * 2) : 0, soc: 0, readyTick: w.tick + g.leadDays * 24 })
+  s.gens.push({ id: newId(w, 'g'), kind, mw, mwh: kind === 'battery' ? (mwh || mw * 2) : 0, soc: 0, readyTick: w.tick + g.leadDays * 24, startTick: w.tick })
   return ok(undefined)
 }
 
@@ -210,7 +210,12 @@ export function orderServers(w: World, siteId: string, gpuId: string, count: num
   const cost = Math.round(price * count * discount)
   if (!canAfford(w, cost)) return fail(`Need $${(cost / 1e6).toFixed(2)}M`)
   spend(w, cost)
-  s.orders.push({ id: newId(w, 'o'), gpuId, servers: count, arriveTick: w.tick + (leadDays(w) + Math.round(Math.log2(1 + count) * 3)) * 24 })
+  const arriveTick = w.tick + (leadDays(w) + Math.round(Math.log2(1 + count) * 3)) * 24
+  // Orders for the same server placed on the same day ride on one truck: they stack into a single line.
+  const day = Math.floor(w.tick / 24)
+  const same = s.orders.find((o) => o.gpuId === gpuId && o.placedTick !== undefined && Math.floor(o.placedTick / 24) === day)
+  if (same) { same.servers += count; same.arriveTick = Math.max(same.arriveTick, arriveTick) }
+  else s.orders.push({ id: newId(w, 'o'), gpuId, servers: count, arriveTick, placedTick: w.tick })
   return ok(undefined)
 }
 export function maxServersPerRack(w: World, hall: Hall, gpuId: string): number {
@@ -435,9 +440,9 @@ export function setAdvisor(w: World, id: string): Result {
 export { statKey, eloFromLoss }
 
 // ---------------------------------------------------------------- data & architectures
-import { DATASETS, archStats, type ArchSpec, type Domain } from './models'
+import { datasetById, archStats, type ArchSpec, type Domain } from './models'
 export function buyDataset(w: World, id: string): Result {
-  const d = DATASETS.find((x) => x.id === id); if (!d) return fail('Unknown dataset')
+  const d = datasetById(id); if (!d) return fail('Unknown dataset')
   if (d.needsTech && !hasTech(w, d.needsTech)) return fail('Locked behind research')
   if (d.year > yearOf(w.tick) + 0.5) return fail('Not available yet')
   if ((w.datasets[id] ?? 0) > 0) return fail('Already owned')
@@ -453,7 +458,7 @@ export function mixSummary(w: World, mix: Record<string, number>): { tokensT: nu
   const byDomain: Partial<Record<Domain, number>> = {}
   for (const [id, t] of Object.entries(mix)) {
     if (t <= 0) continue
-    const d = DATASETS.find((x) => x.id === id)
+    const d = datasetById(id)
     const own = w.datasets[id] ?? 0
     if (!d || own <= 0) return { tokensT: 0, quality: 0, shares: {}, maxEpochs: 0, error: `You don't own ${d?.name ?? id}` }
     const epochs = t / own

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FlaskRound, UserPlus } from 'lucide-react'
-import { ROLES, TRAITS, createLab, firePerson, giveRaise, hirePerson, labBoost, payrollPerDay, setLabFocus, type Person, type Role } from '@sim/people'
+import { ROLES, TRAITS, daysToNewBoard, createLab, firePerson, giveRaise, hirePerson, labBoost, payrollPerDay, setLabFocus, type Person, type Role } from '@sim/people'
 import { BRANCHES, type Branch } from '@sim/data/tech'
 import { money } from '../format'
 import { useGame, useWorld } from '../store'
@@ -63,7 +63,7 @@ function Hiring() {
   const w = useWorld(); const act = useGame((s) => s.act)
   return (
     <>
-      <p className="dim" style={{ marginBottom: 14 }}>The board refreshes weekly. Stars cost more, and rivals will try to poach them unless they're happy (or loyal). Signing bonus is 25% of salary.</p>
+      <p className="dim" style={{ marginBottom: 14 }}><b style={{ color: 'var(--tx)' }}>New candidates in {daysToNewBoard(w)} day{daysToNewBoard(w) === 1 ? '' : 's'}.</b> The whole board is replaced every week, and the talent gets better as your reputation grows. Stars cost more, and rivals will try to poach them unless they're happy (or loyal). Signing bonus is 25% of salary.</p>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 10 }}>
         {w.candidates.map((p) => <PersonCard key={p.id} p={p} actions={<button className="btn sm pri" onClick={() => void useGame.getState().confirmAct(`Hire ${p.name}?`, PV.previewSpend(w, p.salary * 0.25), 'Hire', (x) => hirePerson(x, p.id), { okMsg: `${p.name} hired`, system: 'people' })}><UserPlus size={13} /> Hire · {money(p.salary * 0.25)}</button>} />)}
       </div>

@@ -2,7 +2,7 @@ import type { Branch } from './data/tech'
 import { canAfford } from './rules'
 import { CORPS } from './data/lore'
 import { pick, range, rnd } from './rng'
-import type { World } from './types'
+import { HOURS_PER_YEAR, type World } from './types'
 import { newId, pushNews, spend } from './util'
 
 export type IcRole = 'engineers' | 'researchers' | 'ops' | 'sales' | 'chip'
@@ -40,7 +40,9 @@ const LAST = ['Loveless', 'Hopperton', 'Torvaldson', 'LeCant', 'Fei-Fei', 'Sutsk
 
 export function makeCandidate(w: World): Person {
   const role: Role = rnd(w) < 0.15 ? pick(w, MANAGER_ROLES) : pick(w, IC_ROLES)
-  const skill = Math.round(Math.min(10, Math.max(1, 3 + rnd(w) * 5 + (rnd(w) < 0.12 ? 3 : 0))))
+  // the talent pool gets better as the industry matures and as your name starts to mean something
+  const pull = Math.min(2, Math.max(0, (w.tick / HOURS_PER_YEAR) * 0.2 + (w.reputation - 50) / 40))
+  const skill = Math.round(Math.min(10, Math.max(1, 3 + pull + rnd(w) * 5 + (rnd(w) < 0.12 ? 3 : 0))))
   const traitR = rnd(w)
   const trait = traitR < 0.06 ? '10x' : traitR < 0.18 ? 'ex-big' : traitR < 0.26 ? 'phd' : traitR < 0.34 ? 'burnout' : traitR < 0.38 ? 'celebrity' : traitR < 0.46 ? 'loyal' : 'none'
   const tr = TRAITS.find((t) => t.id === trait)!
@@ -108,12 +110,14 @@ export function setLabFocus(w: World, id: string, focus: Branch): R {
   l.focus = focus; return { ok: true, value: undefined }
 }
 
+export const BOARD_SIZE = 8
+/** Days until the hiring board is replaced. */
+export const daysToNewBoard = (w: World): number => 7 - (Math.floor(w.tick / 24) % 7)
 export function dailyPeople(w: World): void {
   const day = Math.floor(w.tick / 24)
-  if (day % 7 === 0 || w.candidates.length < 4) {
-    w.candidates = w.candidates.filter(() => rnd(w) < 0.4)
-    while (w.candidates.length < 8) w.candidates.push(makeCandidate(w))
-  }
+  // A whole new board every week; if you hire it nearly empty mid-week a few late applicants trickle in.
+  if (day % 7 === 0) { w.candidates = []; while (w.candidates.length < BOARD_SIZE) w.candidates.push(makeCandidate(w)) }
+  else while (w.candidates.length < 3) w.candidates.push(makeCandidate(w))
   const profitable = (w.ledger.at(-1)?.revenue ?? 0) > (w.ledger.at(-1)?.staffCost ?? 0) * 2
   for (const p of [...w.people]) {
     const fair = ROLES[p.role].base * Math.pow(p.skill / 5, 1.6)

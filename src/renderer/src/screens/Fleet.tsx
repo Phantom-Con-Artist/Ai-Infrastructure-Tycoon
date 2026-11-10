@@ -17,6 +17,7 @@ import * as Sum from '../summaries'
 import { ManagerCard } from '../ManagerCard'
 import { NodeDesigner } from '../NodeDesigner'
 import { orderableNodes } from '@sim/nodes'
+import { InProgress } from '../InProgress'
 import { WordMark, type LogoGlyph } from '../art/Logos'
 
 export function Fleet() {
@@ -27,6 +28,7 @@ export function Fleet() {
     <>
       <div className="page-head"><div><div className="eyebrow">GPU market is {w.market.boom > 1.2 ? 'hot' : w.market.boom < 0.85 ? 'cooling' : 'steady'} · new orders arrive in {leadDays(w)} days</div><h1>Fleet & Cloud</h1></div><Tabs tabs={['buy', 'cloud'] as const} value={tab} onChange={setTab} /></div>
       <Summary items={Sum.fleetSummary(w)} />
+      <InProgress title="On order" kinds={['delivery']} />
       {tab === 'cloud' && <div style={{ marginBottom: 14 }}><ManagerCard system="sales" /></div>}
       {tab === 'buy' ? <Buy /> : <div className="col" style={{ gap: 14 }}><CloudPools /><RivalClouds /></div>}
     </>

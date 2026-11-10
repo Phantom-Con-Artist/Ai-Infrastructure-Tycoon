@@ -4,7 +4,8 @@ import { AudioLines, Clapperboard, Code2, Image as ImageIcon, MessageSquare, Spa
 import * as A from '@sim/actions'
 import { GPUS_PER_SERVER } from '@sim/data/hardware'
 import { eloFromLoss, goodput, modelLoss, referencePrice, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
-import { DATASETS, EVALS, RIVAL_MIX, TEMPLATES, archLossDelta, archStats, evalScore, type ArchSpec } from '@sim/models'
+import { trainingOutlook, type Outlook } from '@sim/progress'
+import { datasetById, datasetCatalog, daysToNextDataset, EVALS, RIVAL_MIX, TEMPLATES, archLossDelta, archStats, evalScore, type ArchSpec } from '@sim/models'
 import { NetFlow, type NetNode } from '../art/NetFlow'
 import { CLOUD, cloudCapacity, cloudGpus, cloudRate } from '@sim/cloud'
 import { CorpLogo } from '../art/Logos'
@@ -51,7 +52,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
   const bases = baseOptions(w)
   const [baseId, setBaseId] = useState(bases[0]?.id ?? '')
   const base = method === 'scratch' ? undefined : bases.find((b) => b.id === baseId) ?? bases[0]
-  const owned = DATASETS.filter((d) => (w.datasets[d.id] ?? 0) > 0)
+  const owned = Object.keys(w.datasets).filter((id) => (w.datasets[id] ?? 0) > 0).map((id) => datasetById(id)).filter((d) => !!d)
   const [mix, setMix] = useState<Record<string, number>>(() => Object.fromEntries(owned.map((d) => [d.id, Math.min(d.tokensT, 2)])))
   const [siteId, setSite] = useState(w.sites.find((s) => s.halls.some((h) => h.racks.some((r) => r.servers > 0)))?.id ?? CLOUD)
   const cloud = siteId === CLOUD
@@ -138,6 +139,8 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
               <input type="range" min={0} max={d.tokensT * 4} step={d.tokensT / 100} value={mix[d.id] ?? 0} onChange={(ev) => setMix({ ...mix, [d.id]: +ev.target.value })} /></Field>))}</div>}
         <div className="dim" style={{ fontSize: 12.5 }}>{m.tokensT.toFixed(2)}T tokens · quality ×{(m.quality || 0).toFixed(2)} · {((m.tokensT * 1000) / Math.max(st.activeB, 1e-9)).toFixed(0)} tokens/param (Chinchilla ≈ 20){m.error ? ` · ${m.error}` : ''}</div>
       </div>
+      <OutlookCard elo={elo} rival={Math.max(1300, ...w.competitors.map((c) => c.elo))} hours={rate > 0 ? F / rate / 3600 : Infinity} cost={cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0} servers={n} ready={m.tokensT > 0 && !!gid}
+        outlook={trainingOutlook((sm, dm) => foundryElo(method, eloFromLoss(method === 'continue' && base ? modelLoss(base.paramsB, base.activeParamsB, m.tokensT * dm + base.tokensT, base.moe, m.quality || 1) : modelLoss(st.totalB * sm, st.activeB * sm, Math.max(m.tokensT * dm, 0.001), arch.experts > 1, m.quality || 1) + archLossDelta(arch)) + techSum(w, 'elo'), base, m.tokensT * dm, m.quality || 1, modality))} />
       <div className="panel row wrap" style={{ gap: 14, alignItems: 'end' }}>
         <Field label="Model name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Compute"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></select></Field>
@@ -151,16 +154,58 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
 }
 
 function DataMarket() {
-  const w = useWorld(); const act = useGame((s) => s.act)
+  const w = useWorld()
+  const year = yearOf(w.tick)
+  const all = datasetCatalog(year)
+  const isOwned = (id: string): boolean => (w.datasets[id] ?? 0) > 0
+  const fixed = all.filter((d) => !d.id.startsWith('gen-') && !isOwned(d.id))
+  // newest editions first; older unsold volumes drop off the shelf so the market stays readable
+  const editions = all.filter((d) => d.id.startsWith('gen-') && !isOwned(d.id)).reverse().slice(0, 12)
+  const owned = all.filter((d) => isOwned(d.id))
+  const card = (d: (typeof all)[number]): React.ReactNode => { const own = isOwned(d.id); const locked = (d.needsTech && !hasTech(w, d.needsTech)) || d.year > year + 0.5; return (
+    <div key={d.id} className="panel lift col" style={{ gap: 8, opacity: locked ? 0.5 : 1 }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}><span className="tag b">{d.domain}</span>{d.legalRisk > 0.4 ? <span className="tag r">legal risk {(d.legalRisk * 100).toFixed(0)}%</span> : d.legalRisk > 0.1 ? <span className="tag a">some risk</span> : <span className="tag g">clean</span>}</div>
+      <h3>{d.name}</h3><div className="dim" style={{ fontSize: 12.5 }}>{d.source}</div>
+      <div className="row" style={{ gap: 18, fontSize: 13 }}><span><b>{num(d.tokensT)}T</b> tokens</span><span>quality <b>×{d.quality}</b></span></div>
+      <button className={'btn sm ' + (own ? 'ghost' : 'pri')} disabled={own || !!locked} onClick={() => void useGame.getState().confirmAct(`Buy ${d.name}?`, PV.previewSpend(w, d.usd), 'Buy', (x) => A.buyDataset(x, d.id))}>{own ? 'Owned' : locked ? 'Locked' : d.usd === 0 ? 'Download free' : `Buy · ${money(d.usd)}`}</button>
+    </div>) }
+  const grid: React.CSSProperties = { gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 12 }
   return (
-    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 12 }}>
-      {DATASETS.map((d) => { const own = (w.datasets[d.id] ?? 0) > 0; const locked = (d.needsTech && !hasTech(w, d.needsTech)) || d.year > yearOf(w.tick) + 0.5; return (
-        <div key={d.id} className="panel lift col" style={{ gap: 8, opacity: locked ? 0.5 : 1 }}>
-          <div className="row" style={{ justifyContent: 'space-between' }}><span className="tag b">{d.domain}</span>{d.legalRisk > 0.4 ? <span className="tag r">legal risk {(d.legalRisk * 100).toFixed(0)}%</span> : d.legalRisk > 0.1 ? <span className="tag a">some risk</span> : <span className="tag g">clean</span>}</div>
-          <h3>{d.name}</h3><div className="dim" style={{ fontSize: 12.5 }}>{d.source}</div>
-          <div className="row" style={{ gap: 18, fontSize: 13 }}><span><b>{num(d.tokensT)}T</b> tokens</span><span>quality <b>×{d.quality}</b></span></div>
-          <button className={'btn sm ' + (own ? 'ghost' : 'pri')} disabled={own || !!locked} onClick={() => void useGame.getState().confirmAct(`Buy ${d.name}?`, PV.previewSpend(w, d.usd), 'Buy', (x) => A.buyDataset(x, d.id))}>{own ? 'Owned' : locked ? 'Locked' : d.usd === 0 ? 'Download free' : `Buy · ${money(d.usd)}`}</button>
-        </div>) })}
+    <div className="col" style={{ gap: 18 }}>
+      <p className="dim" style={{ fontSize: 13 }}><b style={{ color: 'var(--tx)' }}>Next edition in {daysToNextDataset(year)} days.</b> A new, larger dataset goes on sale every quarter, so the market never runs dry. What you buy moves to your library below.</p>
+      {editions.length > 0 && <><h3>New this year</h3><div className="grid" style={grid}>{editions.map(card)}</div></>}
+      {fixed.length > 0 && <><h3>Catalogue</h3><div className="grid" style={grid}>{fixed.map(card)}</div></>}
+      {owned.length > 0 && <><h3>Your library · {owned.length}</h3><div className="grid" style={grid}>{owned.map(card)}</div></>}
+    </div>
+  )
+}
+
+function Curve({ title, pts, unit }: { title: string; pts: { x: number; elo: number }[]; unit: string }) {
+  const lo = Math.min(...pts.map((p) => p.elo)), hi = Math.max(...pts.map((p) => p.elo)), rg = hi - lo || 1
+  const xy = pts.map((p, i) => [(i / (pts.length - 1)) * 200, 58 - ((p.elo - lo) / rg) * 52] as const)
+  const mid = xy[2], gain = pts[3].elo - pts[2].elo
+  return (
+    <div className="curve">
+      <div className="row" style={{ justifyContent: 'space-between' }}><b>{title}</b><span className="dim">2× {unit} → {gain >= 0 ? '+' : ''}{Math.round(gain)} Elo</span></div>
+      <svg viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden><polyline fill="none" stroke="var(--accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" points={xy.map((p) => p.join(',')).join(' ')} /><line x1={mid[0]} x2={mid[0]} y1={0} y2={64} stroke="var(--line)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" /></svg>
+      <div className="axis"><span>¼×</span><span>you are here</span><span>4×</span></div>
+    </div>
+  )
+}
+function OutlookCard({ elo, rival, hours, cost, servers, outlook, ready }: { elo: number; rival: number; hours: number; cost: number; servers: number; outlook: Outlook; ready: boolean }) {
+  const gap = Math.round(elo - rival)
+  return (
+    <div className="panel outlook">
+      <div className="row" style={{ justifyContent: 'space-between' }}><h3>What you'll get</h3><span className="dim" style={{ fontSize: 12.5 }}>Three levers: model size and data decide quality, GPUs decide speed.</span></div>
+      {!ready ? <p className="dim">Add some training data and pick GPUs to see the forecast.</p> : <>
+        <div className="outlook-nums">
+          <div><span className="k">Expected quality</span><span className="v">{Math.round(elo)} Elo</span><span className={gap >= 0 ? 'pos' : 'dim'} style={{ fontSize: 12.5 }}>{gap >= 0 ? `${gap} ahead of the best rival` : `${-gap} behind the best rival`}</span></div>
+          <div><span className="k">Time to train</span><span className="v">{dur(hours)}</span><span className="dim" style={{ fontSize: 12.5 }}>on {num(servers * 8)} GPUs · {dur(hours / 2)} with twice as many</span></div>
+          <div><span className="k">Cost</span><span className="v">{cost > 0 ? money(cost) : 'Your own GPUs'}</span><span className="dim" style={{ fontSize: 12.5 }}>{cost > 0 ? 'cloud rental for the whole run' : 'power only; they earn no rent meanwhile'}</span></div>
+        </div>
+        <div className="outlook-verdict">{outlook.verdict}</div>
+        <div className="outlook-curves"><Curve title="Model size" pts={outlook.size} unit="size" /><Curve title="Training data" pts={outlook.data} unit="data" /></div>
+      </>}
     </div>
   )
 }
