@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BookOpen, Building2, FlaskConical, Handshake, Home, LogOut, Save, Server, Lightbulb, Pause, Play, FastForward, ChevronsRight } from 'lucide-react'
+import { Microchip, BookOpen, Building2, FlaskConical, Handshake, Home, LogOut, Save, Server, Lightbulb, Pause, Play, FastForward, ChevronsRight } from 'lucide-react'
 import { totalItMw, valuation } from '@sim/world'
 import { totalGpus } from '@sim/util'
 import { dateOf, money, num } from './format'
@@ -8,12 +8,13 @@ import { Overview } from './screens/Overview'
 import { Sites } from './screens/Sites'
 import { Fleet } from './screens/Fleet'
 import { Lab } from './screens/Lab'
+import { Silicon } from './screens/Silicon'
 import { Contracts, Finance, Research } from './screens/Business'
 import { TitleBar } from './TitleBar'
 import { Menu } from './Menu'
 
 const NAV: [Screen, string, React.ReactNode][] = [
-  ['overview', 'HQ', <Home size={20} key="h" />], ['sites', 'Sites', <Building2 size={20} key="s" />], ['fleet', 'Fleet', <Server size={20} key="f" />],
+  ['overview', 'HQ', <Home size={20} key="h" />], ['sites', 'Sites', <Building2 size={20} key="s" />], ['fleet', 'Fleet', <Server size={20} key="f" />], ['silicon', 'Silicon', <Microchip size={20} key="c" />],
   ['lab', 'Lab', <FlaskConical size={20} key="l" />], ['contracts', 'Deals', <Handshake size={20} key="d" />], ['research', 'R&D', <Lightbulb size={20} key="r" />],
   ['finance', 'Books', <BookOpen size={20} key="b" />]
 ]
@@ -81,6 +82,7 @@ function Game() {
         {screen === 'overview' && <Overview />}
         {screen === 'sites' && <Sites />}
         {screen === 'fleet' && <Fleet />}
+        {screen === 'silicon' && <Silicon />}
         {screen === 'lab' && <Lab />}
         {screen === 'contracts' && <Contracts />}
         {screen === 'research' && <Research />}

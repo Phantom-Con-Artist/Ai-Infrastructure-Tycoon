@@ -3,7 +3,7 @@ import { createWorld, step } from '@sim/world'
 import type * as A from '@sim/actions'
 import type { World } from '@sim/types'
 
-export type Screen = 'overview' | 'sites' | 'fleet' | 'lab' | 'contracts' | 'research' | 'finance'
+export type Screen = 'overview' | 'sites' | 'fleet' | 'silicon' | 'lab' | 'contracts' | 'research' | 'finance'
 export const SPEEDS = [0, 6, 24, 168, 720] // game-hours per real second
 
 import { saves, loadSettings, storeSettings, type Settings } from './saves'
@@ -87,3 +87,5 @@ export const useWorld = (): World => {
   useGame((s) => s.rev)
   return useGame.getState().w as World
 }
+// Dev-only handle for live UI testing and debugging from the console.
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __game: typeof useGame }).__game = useGame

@@ -1,5 +1,8 @@
 import type { CoolingType, FabricType, GenKind } from './data/hardware'
 import type { EquipKind } from './data/equipment'
+import type { GpuSpec } from './data/hardware'
+import type { LithoKind } from './data/silicon'
+import type { ChipSpec } from './silicon'
 
 export const HOURS_PER_YEAR = 8766
 export const START_YEAR = 2023
@@ -55,13 +58,21 @@ export interface Contract {
 export interface Loan { id: string; principal: number; rate: number }
 export interface NewsItem { tick: number; kind: 'info' | 'good' | 'bad' | 'event'; title: string; body: string }
 export interface ActiveEvent { id: string; kind: string; title: string; endTick: number; siteId?: string; mag: number }
-export interface ResearchState { done: string[]; current?: string; progressUsd: number; budgetPerDay: number }
+export interface ResearchState { done: string[]; levels: Record<string, number>; current?: string; progressUsd: number; budgetPerDay: number }
 export interface Staff { engineers: number; researchers: number; ops: number; sales: number }
 export interface DayLedger { day: number; revenue: number; powerCost: number; staffCost: number; interest: number; opex: number; capex: number; cash: number; itMw: number; gpus: number; rentalRev: number; inferRev: number; contractRev: number }
 export interface MarketState {
   boom: number; supplyTight: number; tokensPerDay: number; priceDrift: number
   gpuPressure: Record<string, number>
 }
+
+export interface ChipDesign {
+  id: string; spec: ChipSpec; status: 'designing' | 'ready'; startTick: number; readyTick: number
+  nrePaid: number; nreTotal: number; wafersPerMonth: number; source: 'foundry' | 'fab'
+  salePrice: number; sold: number; revenue: number; made: number; gpuId?: string
+}
+export interface Fab { modules: number; readyTick: number; tools: Record<LithoKind, number>; toolsPending: { kind: LithoKind; readyTick: number }[] }
+export interface Silicon { designs: ChipDesign[]; fab: Fab | null; chipStock: Record<string, number> }
 
 export interface World {
   version: number; tick: number; rng: number; nextId: number
@@ -74,4 +85,5 @@ export interface World {
   events: ActiveEvent[]; news: NewsItem[]; ledger: DayLedger[]
   today: DayLedger; quarterProfit: number; totalTco2: number; totalWaterL: number
   achievements: string[]
+  silicon: Silicon; customGpus: GpuSpec[]
 }

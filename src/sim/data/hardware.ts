@@ -101,22 +101,4 @@ export const REGIONS: RegionSpec[] = [
 ]
 export const region = (id: string): RegionSpec => REGIONS.find((r) => r.id === id) ?? REGIONS[0]
 
-export interface TechSpec { id: string; name: string; blurb: string; costUsd: number; days: number; requires?: string[]; effect: string }
-export const TECHS: TechSpec[] = [
-  { id: 'rdhx',      name: 'Rear-door heat exchangers', blurb: 'Take the edge off 45 kW racks.',               costUsd: 1_500_000,   days: 45,  effect: 'unlock:rdhx' },
-  { id: 'dlc',       name: 'Direct-to-chip liquid cooling', blurb: 'Cold plates and CDUs. Mandatory for Blackwall.', costUsd: 8_000_000, days: 120, requires: ['rdhx'], effect: 'unlock:dlc' },
-  { id: 'immersion', name: 'Two-phase immersion',        blurb: 'Dunk it. 200 kW racks.',                       costUsd: 25_000_000,  days: 240, requires: ['dlc'], effect: 'unlock:immersion' },
-  { id: 'ib400',     name: 'InfiniBand NDR 400G',        blurb: 'Training that scales past a few hundred GPUs.',costUsd: 3_000_000,   days: 60,  effect: 'unlock:ib400' },
-  { id: 'ib800',     name: 'InfiniBand XDR 800G',        blurb: 'Rail-optimised 800G fabrics.',                 costUsd: 20_000_000,  days: 180, requires: ['ib400'], effect: 'unlock:ib800' },
-  { id: 'ib1600',    name: 'Co-packaged optics 1.6T',    blurb: 'Light instead of copper.',                     costUsd: 80_000_000,  days: 360, requires: ['ib800'], effect: 'unlock:ib1600' },
-  { id: 'flash',     name: 'FlashAttention-ish kernels', blurb: '+8% MFU. Free lunch, billed as research.',      costUsd: 4_000_000,   days: 60,  effect: 'mfu:0.08' },
-  { id: 'fp8',       name: 'FP8 mixed-precision training', blurb: '+15% MFU on supported silicon.',             costUsd: 12_000_000,  days: 120, requires: ['flash'], effect: 'mfu:0.15' },
-  { id: 'ckpt',      name: 'Async checkpointing',        blurb: 'Fewer minutes lost per GPU failure.',          costUsd: 2_500_000,   days: 45,  effect: 'restart:0.5' },
-  { id: 'moe',       name: 'Mixture-of-Experts',         blurb: 'Active params ≪ total params. Cheaper serving.',costUsd: 15_000_000, days: 150, effect: 'unlock:moe' },
-  { id: 'distill',   name: 'Distillation pipeline',      blurb: 'Small models punch above their weight (+60 Elo for ≤70B).', costUsd: 10_000_000, days: 120, effect: 'distill:60' },
-  { id: 'synth',     name: 'Synthetic data engine',      blurb: '+0.15 data quality on new runs.',               costUsd: 18_000_000,  days: 180, requires: ['flash'], effect: 'dq:0.15' },
-  { id: 'speculative',name:'Speculative decoding',       blurb: '+40% inference throughput.',                    costUsd: 6_000_000,   days: 90,  effect: 'infer:0.4' },
-  { id: 'smr',       name: 'SMR licensing',              blurb: 'Allows small modular reactors on site.',        costUsd: 60_000_000,  days: 540, effect: 'unlock:smr' },
-  { id: 'hotaisle',  name: 'Hot-aisle containment',      blurb: '+15% COP for air-cooled halls.',                costUsd: 1_000_000,   days: 30,  effect: 'airCop:0.15' },
-  { id: 'prefab',    name: 'Modular prefab halls',       blurb: 'Hall build time -40%.',                         costUsd: 7_000_000,   days: 90,  effect: 'build:0.4' }
-]
+export { TECHS, type TechSpec } from './tech'

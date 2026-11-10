@@ -1,14 +1,16 @@
 import { ADVISORS } from './data/lore'
-import { GPUS_PER_SERVER, TECHS, gpuCatalog, region, residual } from './data/hardware'
+import { GPUS_PER_SERVER, gpuCatalog, region, residual } from './data/hardware'
+import { tech, techCost, techDays } from './data/tech'
 import { eloFromLoss, goodput, modelLoss, serveMemoryGB, serveTokPerSecPerServer, trainingMfu } from './ai'
 import { stepSite } from './facility'
 import { rollDailyEvents } from './events'
+import { dailySilicon } from './chips'
 import { dailyMarket, initCompetitors, marketDemandTokensPerDay, modelShare, rentalPrice, rentalUtilisation, serverMarketPrice } from './market'
 import { poisson, rnd } from './rng'
 import { HOURS_PER_YEAR, type DayLedger, type World } from './types'
-import { clamp, findSite, gpu, newId, pushNews, worstFabric, yearOf } from './util'
+import { clamp, findSite, gpu, newId, pushNews, techSum, worstFabric, yearOf } from './util'
 
-export const WORLD_VERSION = 2
+export const WORLD_VERSION = 3
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
 
 export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }): World {
@@ -19,10 +21,11 @@ export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo
     sites: [], rentals: [], deployments: [], runs: [], models: [], contracts: [],
     market: { boom: 1, supplyTight: 0.5, tokensPerDay: 1.5e12, priceDrift: 1, gpuPressure: {} },
     competitors: initCompetitors(),
-    research: { done: [], progressUsd: 0, budgetPerDay: 0 },
+    research: { done: [], levels: {}, progressUsd: 0, budgetPerDay: 0 },
     staff: { engineers: 3, researchers: 1, ops: 2, sales: 1 },
     events: [], news: [{ tick: 0, kind: 'info', title: `${company} is founded`, body: `${ADVISORS.find((a) => a.id === advisor)?.name ?? 'Your advisor'} slides a term sheet across the table. $40M seed. No pressure.` }],
-    ledger: [], today: emptyDay(0), quarterProfit: 0, totalTco2: 0, totalWaterL: 0, achievements: []
+    ledger: [], today: emptyDay(0), quarterProfit: 0, totalTco2: 0, totalWaterL: 0, achievements: [],
+    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: []
   }
 }
 
@@ -145,6 +148,7 @@ export function finishRun(w: World, runId: string): void {
     const loss = modelLoss(run.paramsB, run.activeParamsB, run.tokensT, run.moe, run.dataQuality)
     let elo = eloFromLoss(loss)
     if (w.research.done.includes('distill') && run.paramsB <= 70) elo += 60
+    elo += techSum(w, 'elo')
     w.models.push({
       id: newId(w, 'm'), name: run.name, owner: 'player', paramsB: run.paramsB, activeParamsB: run.activeParamsB, tokensT: run.tokensT,
       loss, elo, releaseTick: w.tick, priceMtok: 0, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: false
@@ -180,7 +184,7 @@ function failures(w: World): void {
         if (r.failed > 0) {
           const spares = s.stock[r.gpuId] ?? 0
           if (spares > 0) { const swap = Math.min(spares, r.failed); r.failed -= swap; s.stock[r.gpuId] = spares - swap }
-          const repairH = 48 * (w.advisor === 'ops' ? 0.85 : 1) / (1 + w.staff.ops * 0.04)
+          const repairH = 48 * (w.advisor === 'ops' ? 0.85 : 1) * (1 - Math.min(0.8, techSum(w, 'repair'))) / (1 + w.staff.ops * 0.04)
           const fixed = Math.min(r.failed, poisson(w, r.failed / repairH))
           r.failed -= fixed
         }
@@ -215,6 +219,7 @@ export const SALARY: Record<keyof World['staff'], number> = { engineers: 230_000
 
 function dailyTick(w: World): void {
   const t = w.today
+  const t2 = t
   // staff, loans, site fixed costs
   const payroll = (Object.keys(w.staff) as (keyof World['staff'])[]).reduce((a, k) => a + w.staff[k] * SALARY[k], 0) / 365
   w.cash -= payroll; t.staffCost += payroll
@@ -227,13 +232,17 @@ function dailyTick(w: World): void {
   // research
   const rs = w.research
   if (rs.current) {
-    const tech = TECHS.find((x) => x.id === rs.current)!
+    const t = tech(rs.current)!
+    const lv = rs.levels[t.id] ?? 0
+    const cost = techCost(t, lv), days = techDays(t, lv)
     const speed = (1 + Math.sqrt(w.staff.researchers) * 0.25) * (w.advisor === 'res' ? 1.1 : 1)
-    const perDay = Math.min((tech.costUsd / tech.days) * speed, Math.max(0, w.cash))
-    rs.progressUsd += perDay; w.cash -= perDay; t.opex += perDay
-    if (rs.progressUsd >= tech.costUsd) {
-      rs.done.push(tech.id); rs.current = undefined; rs.progressUsd = 0
-      pushNews(w, 'good', `Research complete: ${tech.name}`, tech.blurb)
+    const perDay = Math.min((cost / days) * speed, Math.max(0, w.cash), cost - rs.progressUsd)
+    rs.progressUsd += perDay; w.cash -= perDay; t2.opex += perDay
+    if (rs.progressUsd >= cost - 1) {
+      rs.levels[t.id] = lv + 1
+      if (!rs.done.includes(t.id)) rs.done.push(t.id)
+      rs.current = undefined; rs.progressUsd = 0
+      pushNews(w, 'good', `Research complete: ${t.name}${t.repeatable ? ` ${roman(lv + 1)}` : ''}`, t.blurb)
     }
   }
   // roll up
@@ -250,6 +259,7 @@ function dailyTick(w: World): void {
     w.quarterProfit = 0
   }
   dailyMarket(w)
+  dailySilicon(w)
   rollDailyEvents(w)
   // expire contracts whose runs never started or are late
   for (const c of w.contracts) if (c.accepted && !c.done && w.tick > c.deadlineTick + 24 * 20) {
@@ -288,3 +298,5 @@ export function step(w: World): void {
 
 export function stepMany(w: World, hours: number): void { for (let i = 0; i < hours; i++) step(w) }
 export function availableGpus(w: World): ReturnType<typeof gpuCatalog> { return gpuCatalog(yearOf(w.tick)) }
+
+export const roman = (n: number): string => { const m: [number, string][] = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]; let r = ''; for (const [v, k] of m) while (n >= v) { r += k; n -= v } return r }

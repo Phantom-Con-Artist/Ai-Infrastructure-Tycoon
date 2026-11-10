@@ -33,3 +33,10 @@ export function dur(hours: number): string {
   if (hours < 24 * 90) return `${(hours / 24).toFixed(1)} d`
   return `${(hours / 8766).toFixed(2)} y`
 }
+const SUP: Record<string, string> = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻' }
+/** 5.9×10¹⁶ style scientific notation. */
+export function sci(n: number, d = 1): string {
+  if (!Number.isFinite(n) || n === 0) return String(n)
+  const e = Math.floor(Math.log10(Math.abs(n)))
+  return `${(n / 10 ** e).toFixed(d)}×10${String(e).split('').map((c) => SUP[c] ?? c).join('')}`
+}

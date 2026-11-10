@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import * as A from '@sim/actions'
 import { ADVISORS } from '@sim/data/lore'
-import { TECHS } from '@sim/data/hardware'
+import { BRANCHES, TECHS, techCost, techDays, type Branch } from '@sim/data/tech'
+import { roman } from '@sim/world'
 import { committed, gpu, hallServers } from '@sim/util'
 import { creditLimit, debt, SALARY } from '@sim/world'
 import { dateOf, dur, money, num } from '../format'
@@ -57,26 +58,46 @@ function Offer({ id, open, toggle }: { id: string; open: boolean; toggle: () => 
 
 export function Research() {
   const w = useWorld(); const act = useGame((s) => s.act)
+  const [branch, setBranch] = useState<Branch | 'All'>('All')
   const cur = TECHS.find((t) => t.id === w.research.current)
+  const curLv = cur ? (w.research.levels[cur.id] ?? 0) : 0
+  const maxTier = Math.max(...TECHS.map((t) => t.tier))
+  const branches = branch === 'All' ? BRANCHES : [branch]
+  const doneCount = Object.values(w.research.levels).reduce((a, b) => a + b, 0)
   return (
     <>
-      <Head title="R&D" sub={`Spend flows daily while researching. ${w.staff.researchers} researchers speed it up.`} />
-      {cur && <div className="panel" style={{ marginBottom: 24 }}><b>{cur.name}</b><Bar v={w.research.progressUsd} max={cur.costUsd} warnAt={2} badAt={2} /><div className="dim mono" style={{ fontSize: 12 }}>{money(w.research.progressUsd)} / {money(cur.costUsd)}</div></div>}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(2,1fr)' }}>
-        {TECHS.map((t) => {
-          const done = w.research.done.includes(t.id)
-          const locked = !!t.requires?.some((r) => !w.research.done.includes(r))
-          return (
-            <div key={t.id} className="panel flat col" style={{ opacity: locked ? 0.45 : 1 }}>
-              <div className="row" style={{ justifyContent: 'space-between' }}><h3>{t.name}</h3>{done ? <span className="tag g">done</span> : w.research.current === t.id ? <span className="tag a">researching</span> : null}</div>
-              <div className="dim" style={{ fontSize: 12.5 }}>{t.blurb}</div>
-              <div className="row" style={{ justifyContent: 'space-between' }}>
-                <span className="mono dim" style={{ fontSize: 12 }}>{money(t.costUsd)} · {t.days} d{t.requires ? ` · needs ${t.requires.join(', ')}` : ''}</span>
-                {!done && w.research.current !== t.id && <button className="btn sm pri" disabled={locked} onClick={() => act((x) => A.startResearch(x, t.id), 'Research started')}>Research</button>}
-              </div>
-            </div>
-          )
-        })}
+      <div className="page-head"><div><div className="eyebrow">{doneCount} upgrades researched · {w.staff.researchers} researchers</div><h1>Research & Development</h1>
+        <p className="sub">Everything in the game unlocks here. Tiers go deeper than you can afford — on purpose. Upgrades marked ∞ can be researched forever.</p></div></div>
+      {cur && <div className="panel row" style={{ marginBottom: 18, gap: 18 }}>
+        <div style={{ flex: 1 }}><div className="eyebrow">Researching</div><h3>{cur.name}{cur.repeatable ? ` ${roman(curLv + 1)}` : ''}</h3>
+          <div className="bar" style={{ marginTop: 8 }}><i style={{ width: `${(w.research.progressUsd / techCost(cur, curLv)) * 100}%` }} /></div></div>
+        <div className="dim" style={{ fontSize: 13, textAlign: 'right' }}>{money(w.research.progressUsd)} / {money(techCost(cur, curLv))}<br />spend flows daily while unpaused</div>
+      </div>}
+      <div className="row wrap" style={{ gap: 6, marginBottom: 16 }}>{(['All', ...BRANCHES] as const).map((b) => <button key={b} className={'btn sm ' + (branch === b ? 'pri' : '')} onClick={() => setBranch(b)}>{b}</button>)}</div>
+      <div style={{ overflowX: 'auto', paddingBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `110px repeat(${maxTier}, minmax(210px, 1fr))`, gap: 10, minWidth: 110 + maxTier * 220 }}>
+          <div />{Array.from({ length: maxTier }, (_, i) => <div key={i} className="dim" style={{ fontSize: 12, fontWeight: 600 }}>Level {i + 1}</div>)}
+          {branches.map((br) => <Fragment key={br}>
+            <div style={{ fontWeight: 650, fontSize: 13, paddingTop: 12 }}>{br}</div>
+            {Array.from({ length: maxTier }, (_, i) => <div key={i} className="col" style={{ gap: 8, alignContent: 'start' }}>
+              {TECHS.filter((t) => t.branch === br && t.tier === i + 1).map((t) => {
+                const lv = w.research.levels[t.id] ?? 0
+                const done = lv > 0 && !t.repeatable, maxed = !!t.repeatable?.max && lv >= t.repeatable.max
+                const locked = !!t.requires?.some((r) => !w.research.done.includes(r))
+                const active = w.research.current === t.id
+                return (
+                  <button key={t.id} disabled={locked || done || maxed} onClick={() => act((x) => A.startResearch(x, t.id), 'Research started')}
+                    style={{ textAlign: 'left', border: 0, cursor: locked || done ? 'default' : 'pointer', padding: '11px 12px', borderRadius: 14, display: 'grid', gap: 4,
+                      background: done || maxed ? 'var(--accent-soft)' : active ? 'var(--ink)' : 'var(--surface)', color: active ? 'var(--surface)' : undefined,
+                      boxShadow: active ? 'var(--sh-2)' : 'var(--sh-1)', opacity: locked ? 0.45 : 1, transition: 'all .25s var(--ease)' }}>
+                    <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}><b style={{ fontSize: 13 }}>{t.name}</b>{t.repeatable ? <span className="tag b">{lv ? roman(lv) : '∞'}</span> : done ? <span className="tag g">✓</span> : null}</div>
+                    <span style={{ fontSize: 11.5, opacity: 0.75, lineHeight: 1.35 }}>{t.blurb}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 600, opacity: 0.8 }}>{locked ? `Needs ${t.requires!.map((r) => TECHS.find((x) => x.id === r)?.name).join(', ')}` : done ? 'Researched' : maxed ? 'Maxed' : `${money(techCost(t, lv))} · ${techDays(t, lv)} d`}</span>
+                  </button>)
+              })}
+            </div>)}
+          </Fragment>)}
+        </div>
       </div>
     </>
   )

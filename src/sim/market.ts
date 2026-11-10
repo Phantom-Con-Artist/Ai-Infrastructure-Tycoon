@@ -3,7 +3,7 @@ import { GPUS_PER_SERVER, gpuCatalog, serverPriceUsd, type GpuSpec } from './dat
 import { referencePrice } from './ai'
 import { gauss, pick, range, rnd } from './rng'
 import { HOURS_PER_YEAR, type Competitor, type Contract, type World } from './types'
-import { clamp, newId, pushNews, siteServers, yearOf } from './util'
+import { clamp, newId, pushNews, siteServers, techSum, yearOf } from './util'
 
 /** Street price of a GPU (new silicon tracks list price; old silicon decays). */
 export function gpuMarketPrice(w: World, g: GpuSpec): number {
@@ -24,15 +24,15 @@ export function refRentPerGpuHour(w: World, g: GpuSpec): number {
 }
 export function rentalPrice(w: World, g: GpuSpec): number {
   const p = w.market.gpuPressure[g.id] ?? 1
-  return refRentPerGpuHour(w, g) * Math.pow(clamp(p, 0.3, 3), 0.8)
+  return refRentPerGpuHour(w, g) * Math.pow(clamp(p, 0.3, 3), 0.8) * (1 + techSum(w, 'rentPrice'))
 }
 export function rentalUtilisation(w: World, g: GpuSpec, priceMult: number): number {
   const p = w.market.gpuPressure[g.id] ?? 1
   const salesBoost = 1 + Math.min(0.08, Math.log10(1 + w.staff.sales) * 0.04)
-  return clamp(0.8 * p * salesBoost * Math.pow(priceMult, -1.6) * (0.6 + 0.4 * w.reputation / 100), 0.03, 0.97)
+  return clamp(0.8 * p * salesBoost * Math.pow(priceMult, -1.6) * (0.6 + 0.4 * w.reputation / 100) + techSum(w, 'rentUtil'), 0.03, 0.97)
 }
 
-export function marketDemandTokensPerDay(w: World): number { return w.market.tokensPerDay * w.market.boom }
+export function marketDemandTokensPerDay(w: World): number { return w.market.tokensPerDay * w.market.boom * (1 + techSum(w, 'demand')) }
 
 export function currentCompetitors(w: World): Competitor[] { return w.competitors }
 

@@ -8,7 +8,7 @@ import { leadDays, serverMarketPrice } from './market'
 import { pick } from './rng'
 import { HOURS_PER_YEAR, type Equip, type Hall, type Rack, type Site, type World } from './types'
 import {
-  committed, coolingUnlocked, fabricUnlocked, findSite, gpu, hallServers, hasTech, newId, pushNews, siteHealthy, spend, yearOf
+  committed, coolingUnlocked, fabricUnlocked, findSite, gpu, hallServers, hasTech, newId, pushNews, siteHealthy, spend, techSum, yearOf
 } from './util'
 
 export type Result<T = undefined> = { ok: true; value: T } | { ok: false; error: string }
@@ -164,7 +164,7 @@ export function buyUtility(w: World, siteId: string, mw: number): Result {
   const cost = mw * 1_300_000
   if (w.cash < cost) return fail('Not enough cash')
   spend(w, cost)
-  s.pendingUtility.push({ mw, readyTick: w.tick + Math.round(r.permitDays * (0.5 + mw / 400)) * 24 })
+  s.pendingUtility.push({ mw, readyTick: w.tick + Math.round(r.permitDays * (0.5 + mw / 400) * (1 - techSum(w, 'permit'))) * 24 })
   return ok(undefined)
 }
 export function buildGenerator(w: World, siteId: string, kind: GenKind, mw: number, mwh = 0): Result {
@@ -347,7 +347,9 @@ export function hire(w: World, role: keyof World['staff'], n: number): Result {
 }
 export function startResearch(w: World, id: string): Result {
   const t = TECHS.find((x) => x.id === id); if (!t) return fail('Unknown tech')
-  if (w.research.done.includes(id)) return fail('Already researched')
+  const lv = w.research.levels[id] ?? 0
+  if (lv > 0 && !t.repeatable) return fail('Already researched')
+  if (t.repeatable?.max && lv >= t.repeatable.max) return fail('Maxed out')
   if (t.requires?.some((r) => !w.research.done.includes(r))) return fail('Prerequisites missing')
   if (w.research.current && w.research.current !== id) w.research.progressUsd = 0
   w.research.current = id

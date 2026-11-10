@@ -1,4 +1,5 @@
-import { COOLING, FABRICS, TECHS, type CoolingType, type FabricType, type GpuSpec, gpuById } from './data/hardware'
+import { COOLING, FABRICS, type CoolingType, type FabricType, type GpuSpec, gpuById } from './data/hardware'
+import { TECHS } from './data/tech'
 import { HOURS_PER_YEAR, START_YEAR, type Hall, type Site, type World } from './types'
 
 export const newId = (w: World, p: string): string => `${p}${(w.nextId++).toString(36)}`
@@ -6,18 +7,20 @@ export const yearOf = (tick: number): number => START_YEAR + tick / HOURS_PER_YE
 export const dayOf = (tick: number): number => Math.floor(tick / 24)
 export const clamp = (x: number, a: number, b: number): number => Math.min(b, Math.max(a, x))
 export const hasTech = (w: World, id: string): boolean => w.research.done.includes(id)
+export const techLevel = (w: World, id: string): number => w.research.levels?.[id] ?? (w.research.done.includes(id) ? 1 : 0)
 /** Sum of numeric effect values for effects like "mfu:0.08". */
 export function techSum(w: World, key: string): number {
   let s = 0
-  for (const id of w.research.done) {
-    const t = TECHS.find((x) => x.id === id)
-    if (t && t.effect.startsWith(key + ':')) s += parseFloat(t.effect.split(':')[1])
+  for (const t of TECHS) {
+    if (!t.effect.startsWith(key + ':')) continue
+    const lv = w.research.levels?.[t.id] ?? (w.research.done.includes(t.id) ? 1 : 0)
+    s += parseFloat(t.effect.split(':')[1]) * lv
   }
   return s
 }
 export const coolingUnlocked = (w: World, c: CoolingType): boolean => !COOLING[c].needsTech || hasTech(w, COOLING[c].needsTech!)
 export const fabricUnlocked = (w: World, f: FabricType): boolean => !FABRICS[f].needsTech || hasTech(w, FABRICS[f].needsTech!)
-export const gpu = (w: World, id: string): GpuSpec => gpuById(id, yearOf(w.tick) + 50)
+export const gpu = (w: World, id: string): GpuSpec => w.customGpus?.find((g) => g.id === id) ?? gpuById(id, yearOf(w.tick) + 50)
 export const advisorPerk = (w: World, id: string): boolean => w.advisor === id
 
 export const hallServers = (h: Hall, gpuId?: string): number => h.racks.reduce((a, r) => a + (gpuId && r.gpuId !== gpuId ? 0 : r.servers), 0)
