@@ -428,3 +428,17 @@ export function startArchTraining(w: World, o: { name: string; arch: ArchSpec; m
   run.arch = { ...o.arch }; run.mix = m.shares
   return r
 }
+
+// ---------------------------------------------------------------- power management
+export function setPowerStrategy(w: World, siteId: string, strategy: NonNullable<Site['strategy']>): Result { findSite(w, siteId).strategy = strategy; return ok(undefined) }
+export function setDemandResponse(w: World, siteId: string, pct: number): Result { findSite(w, siteId).drPct = Math.max(0, Math.min(0.5, pct)); return ok(undefined) }
+/** Ten-year power purchase agreement: hedge `mw` of grid draw at a fixed price near today's average. */
+export const ppaQuote = (w: World, siteId: string): number => Math.round(region(findSite(w, siteId).regionId).basePriceMwh * (0.88 + 0.12 * w.market.supplyTight))
+export function signPpa(w: World, siteId: string, mw: number): Result {
+  const s = findSite(w, siteId)
+  if (!hasTech(w, 'ppa')) return fail('Research “Power purchase agreements” first')
+  if (mw <= 0 || mw > s.utilityMw) return fail(`Contract between 1 and ${s.utilityMw} MW`)
+  s.ppa = { mw, price: ppaQuote(w, siteId), untilTick: w.tick + 10 * HOURS_PER_YEAR }
+  pushNews(w, 'good', `PPA signed for ${s.name}`, `${mw} MW at $${s.ppa.price}/MWh for ten years. Your CFO finally smiles.`)
+  return ok(undefined)
+}

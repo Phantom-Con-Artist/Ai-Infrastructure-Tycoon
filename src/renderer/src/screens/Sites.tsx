@@ -9,6 +9,9 @@ import { HallEditor } from '../three/HallEditor'
 import { useGame, useWorld } from '../store'
 import { EmptyState, Field, Num, Tabs } from '../ui'
 import { EmptyHallArt, EmptyLand } from '../art/Illustrations'
+import { PowerFlow } from '../art/PowerFlow'
+import { WorldMap } from '../art/WorldMap'
+import { LineChart } from './Store'
 
 export function Sites() {
   const w = useWorld()
@@ -28,9 +31,10 @@ function RegionPicker({ first, onCancel, onDone }: { first: boolean; onCancel: (
       ) : (
         <div className="page-head"><div><h1>New site</h1><p className="sub">Expand into another region.</p></div><button className="btn ghost" onClick={onCancel}>Cancel</button></div>
       )}
+      <div className="panel gap-l" style={{ padding: 0, overflow: 'hidden' }}><WorldMap w={w} height={330} onPick={(id) => document.getElementById('region-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })} /></div>
       <div className="grid gap-l" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
         {REGIONS.map((r) => (
-          <div key={r.id} className="panel lift col" style={{ gap: 10 }}>
+          <div key={r.id} id={'region-' + r.id} className="panel lift col" style={{ gap: 10 }}>
             <div className="row" style={{ justifyContent: 'space-between' }}><h3>{r.name.split(',')[0]}</h3><span className="tag">{r.country}</span></div>
             <div className="dim" style={{ fontSize: 13, minHeight: 38 }}>{r.blurb}</div>
             <div className="row" style={{ gap: 16, fontSize: 13 }}>
@@ -125,9 +129,31 @@ function PowerTab({ siteId }: { siteId: string }) {
   const [gmw, setGmw] = useState(10)
   const [gmwh, setGmwh] = useState(40)
   const rg = region(site.regionId)
+  const [ppaMw, setPpaMw] = useState(Math.max(1, Math.round(site.utilityMw / 2)))
   const prov = A.siteProvisionedKw(site) / 1000, cap = A.siteSupplyCapKw(site) / 1000
+  const strat = site.strategy ?? 'cost'
+  const h = site.history ?? []
   return (
+    <div className="col" style={{ gap: 16 }}>
+    <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
+      <div className="panel"><h2>Live power flow</h2><PowerFlow site={site} /></div>
+      <div className="panel col" style={{ gap: 12 }}>
+        <h2>Dispatch strategy</h2>
+        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {([['cost', 'Lowest cost', 'Cheapest source first. Gas when it beats the grid.'], ['green', 'Green', 'Renewables + batteries first, buys certificates, gas only in emergencies.'], ['resilient', 'Resilient', 'Keeps batteries 80% charged for outages.'], ['arbitrage', 'Arbitrage', 'Cycles batteries aggressively on price swings.']] as const).map(([k, n, b]) =>
+            <button key={k} className={'adv' + (strat === k ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => act((x) => A.setPowerStrategy(x, siteId, k))}><b>{n}</b><span>{b}</span></button>)}
+        </div>
+        <Field label={`Demand response: shed ${((site.drPct ?? 0) * 100).toFixed(0)}% of load during price spikes (paid 80% of spot)`}><input type="range" min={0} max={0.5} step={0.05} value={site.drPct ?? 0} onChange={(e) => act((x) => A.setDemandResponse(x, siteId, +e.target.value))} /></Field>
+        {site.flow && site.flow.drCredit > 0 && <span className="tag g">earning {money(site.flow.drCredit)}/h from the grid right now</span>}
+      </div>
+    </div>
+    <div className="panel"><h2>Last 48 hours</h2><LineChart fmt={(v) => v.toFixed(1)} series={[{ name: 'Spot $/MWh', color: 'var(--amber)', data: h.map((x) => x.price) }, { name: 'Draw MW \u00d710', color: 'var(--blue)', data: h.map((x) => x.mw * 10) }, { name: 'Grid MW \u00d710', color: 'var(--tx-3)', data: h.map((x) => x.grid * 10), dash: true }]} /></div>
     <div className="row" style={{ alignItems: 'flex-start', gap: 20 }}>
+      <div className="panel col" style={{ flex: 1 }}>
+        <h2>Power purchase agreement</h2>
+        {site.ppa && site.ppa.untilTick > w.tick ? <div>Hedged <b>{site.ppa.mw} MW</b> at <b>${site.ppa.price}/MWh</b> until {dateOf(site.ppa.untilTick)}</div> : <div className="dim" style={{ fontSize: 13 }}>Lock grid energy at <b>${A.ppaQuote(w, siteId)}/MWh</b> for 10 years. Protects you from spikes, costs you on cheap days.</div>}
+        <div className="row"><Field label="MW to hedge"><Num value={ppaMw} min={1} max={site.utilityMw} onChange={setPpaMw} /></Field><button className="btn" style={{ alignSelf: 'end' }} disabled={!hasTech(w, 'ppa')} onClick={() => act((x) => A.signPpa(x, siteId, ppaMw))}>{hasTech(w, 'ppa') ? 'Sign PPA' : 'Research PPAs'}</button></div>
+      </div>
       <div className="panel col" style={{ flex: 1 }}>
         <h2>Utility connection</h2>
         <div style={{ fontSize: 28, fontWeight: 650, letterSpacing: '-.03em' }}>{site.utilityMw} MW <span className="dim" style={{ fontSize: 14, fontWeight: 500 }}>of {rg.gridCapMw} MW regional headroom</span></div>
@@ -147,6 +173,7 @@ function PowerTab({ siteId }: { siteId: string }) {
         </div>
         <div><button className="btn pri" onClick={() => act((x) => A.buildGenerator(x, siteId, kind, gmw, gmwh), 'Construction started')}>Build · {money(gmw * GENERATORS[kind].usdPerMw + (kind === 'battery' ? gmwh * 280_000 : 0))}</button></div>
       </div>
+    </div>
     </div>
   )
 }

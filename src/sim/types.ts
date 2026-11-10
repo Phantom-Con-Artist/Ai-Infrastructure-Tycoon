@@ -32,6 +32,9 @@ export interface Site {
   // live
   ambientC: number; priceMwh: number; windCf: number; spotNoise: number; gridUp: boolean
   demandMw: number; supplyMw: number; gridMw: number; powerFactor: number; costPerHour: number; carbonKgPerHour: number
+  strategy?: 'cost' | 'green' | 'resilient' | 'arbitrage'; drPct?: number; ppa?: { mw: number; price: number; untilTick: number }
+  flow?: { solar: number; wind: number; firm: number; battery: number; gas: number; grid: number; it: number; cooling: number; other: number; curtailed: number; drCredit: number }
+  history?: { price: number; mw: number; grid: number }[]
 }
 
 export type RentalKind = 'ondemand' | 'reserved' | 'spot'

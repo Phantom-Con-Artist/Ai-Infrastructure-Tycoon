@@ -73,26 +73,36 @@ export function energyPrice(w: World, site: Site): number {
   return r.basePriceMwh * diurnal * seasonal * Math.exp(site.spotNoise) * ev * (advisorPerk(w, 'cpo') ? 0.94 : 1) * Math.max(0.4, 1 - techSum(w, 'powerCost'))
 }
 
-export interface Dispatch { gridMw: number; powerFactor: number; costPerHour: number; carbonKg: number }
+export interface Dispatch { gridMw: number; powerFactor: number; costPerHour: number; carbonKg: number; flow: NonNullable<Site['flow']> }
 
 export function dispatch(w: World, site: Site, demandMw: number): Dispatch {
   const r = region(site.regionId)
   const tick = w.tick
   const sun = Math.max(0, Math.sin(Math.PI * (dayFrac(tick) * 24 - 6) / 12)) * (0.75 + 0.25 * Math.cos(2 * Math.PI * (yearFrac(tick) - 0.45)))
+  const strategy = site.strategy ?? 'cost'
+  let solarMw = 0, windMw = 0, batOut = 0, gasMw = 0, drCredit = 0, curtailed = 0
   let free = 0, nuke = 0, nukeFuel = 0, cost = 0, carbon = 0
   let gasCap = 0, batMw = 0, batSoc = 0
   const bats = site.gens.filter((g) => g.kind === 'battery' && tick >= g.readyTick)
   for (const g of site.gens) {
     if (tick < g.readyTick) continue
     cost += (GENERATORS[g.kind].opexPerMwYear * g.mw) / HOURS_PER_YEAR
-    if (g.kind === 'solar') free += g.mw * r.solarCf * 2.6 * sun * 1.0
-    else if (g.kind === 'wind') free += g.mw * clamp(site.windCf, 0, 1)
+    if (g.kind === 'solar') { const s = g.mw * r.solarCf * 2.6 * sun; free += s; solarMw += s }
+    else if (g.kind === 'wind') { const s = g.mw * clamp(site.windCf, 0, 1); free += s; windMw += s }
     else if (g.kind === 'geothermal') { free += g.mw * 0.92; carbon += g.mw * 0.92 * 20 }
     else if (g.kind === 'nuclear') { nuke += g.mw * 0.92; nukeFuel += g.mw * 0.92 * GENERATORS.nuclear.fuelPerMwh }
     else if (g.kind === 'gas') gasCap += g.mw
     else if (g.kind === 'battery') { batMw += g.mw; batSoc += g.soc }
   }
   let remaining = demandMw
+  // Demand response: during price spikes, shed a share of load and get paid by the grid operator.
+  const priceNow = site.priceMwh
+  if ((site.drPct ?? 0) > 0 && site.gridUp && priceNow > r.basePriceMwh * 2) {
+    curtailed = demandMw * (site.drPct ?? 0)
+    remaining -= curtailed
+    drCredit = curtailed * priceNow * 0.8
+    cost -= drCredit
+  }
   const baseload = free + nuke
   const used = Math.min(baseload, remaining)
   remaining -= used
@@ -110,14 +120,17 @@ export function dispatch(w: World, site: Site, demandMw: number): Dispatch {
       b.soc += c * 0.88; chargeMw -= c; surplus -= c
     }
   }
-  if (remaining > 0 && bats.length && (!site.gridUp || price > avgPrice * 1.15 || gasCap === 0 && price > avgPrice)) {
+  const reserve = strategy === 'resilient' ? 0.8 : 0
+  const dischargeWhen = !site.gridUp || (strategy === 'resilient' ? false : strategy === 'green' ? true : strategy === 'arbitrage' ? price > avgPrice * 1.05 : (price > avgPrice * 1.15 || (gasCap === 0 && price > avgPrice)))
+  if (remaining > 0 && bats.length && dischargeWhen) {
     let need = remaining
     for (const b of bats) {
-      const d = Math.min(need, b.mw, b.soc)
-      b.soc -= d; need -= d
+      const floor = site.gridUp ? b.mwh * reserve : 0
+      const d = Math.max(0, Math.min(need, b.mw, b.soc - floor))
+      b.soc -= d; need -= d; batOut += d
     }
     remaining = need
-  } else if (bats.length && site.gridUp && price < avgPrice * 0.85 && remaining >= 0) {
+  } else if (bats.length && site.gridUp && (price < avgPrice * (strategy === 'arbitrage' ? 0.95 : 0.85) || (strategy === 'resilient' && bats.some((b) => b.soc < b.mwh * 0.8))) && remaining >= 0) {
     // cheap grid power: top up batteries
     let extra = 0
     for (const b of bats) {
@@ -132,24 +145,33 @@ export function dispatch(w: World, site: Site, demandMw: number): Dispatch {
   let gridMw = 0
   const gasFuelCost = GENERATORS.gas.fuelPerMwh
   const gridCap = site.gridUp ? site.utilityMw : 0
-  const preferGas = gasCap > 0 && (gasFuelCost < price || !site.gridUp)
+  const preferGas = gasCap > 0 && (!site.gridUp || (strategy !== 'green' && gasFuelCost < price))
+  const ppa = site.ppa && site.ppa.untilTick > tick ? site.ppa : null
   const takeGas = (): void => {
+    if (strategy === 'green' && site.gridUp) return
     const g = Math.min(gasCap, remaining)
-    if (g > 0) { cost += g * gasFuelCost; carbon += g * GENERATORS.gas.carbonT * 1000; remaining -= g }
+    if (g > 0) { cost += g * gasFuelCost; carbon += g * GENERATORS.gas.carbonT * 1000; remaining -= g; gasMw += g }
   }
   const takeGrid = (): void => {
     const g = Math.min(gridCap, remaining)
-    if (g > 0) { gridMw += g; cost += g * price; carbon += g * r.carbon * 1000; remaining -= g }
+    if (g > 0) {
+      const hedged = ppa ? Math.min(g, ppa.mw) : 0
+      gridMw += g; cost += hedged * (ppa?.price ?? price) + (g - hedged) * price
+      carbon += g * r.carbon * 1000 * (strategy === 'green' ? 0.3 : 1) // green buys certificates
+      if (strategy === 'green') cost += g * 6 // RECs
+      remaining -= g
+    }
   }
   if (preferGas) { takeGas(); takeGrid() } else { takeGrid(); takeGas() }
+  if (strategy === 'green' && remaining > 0) { const g = Math.min(gasCap, remaining); if (g > 0) { cost += g * gasFuelCost; carbon += g * GENERATORS.gas.carbonT * 1000; remaining -= g; gasMw += g } }
 
   // Export surplus if the grid is up.
   if (surplus > 0 && site.gridUp) cost -= surplus * price * 0.35
   // Utility capacity charge ($2,500 / MW-month).
   cost += (site.utilityMw * 2500) / 730
-  const supplied = demandMw - Math.max(0, remaining)
+  const supplied = demandMw - Math.max(0, remaining) - curtailed
   const powerFactor = demandMw <= 1e-9 ? 1 : clamp(supplied / demandMw, 0, 1)
-  return { gridMw, powerFactor, costPerHour: cost, carbonKg: carbon }
+  return { gridMw, powerFactor, costPerHour: cost, carbonKg: carbon, flow: { solar: solarMw, wind: windMw, firm: nuke + (free - solarMw - windMw), battery: batOut, gas: gasMw, grid: gridMw, it: 0, cooling: 0, other: 0, curtailed, drCredit } }
 }
 
 /** Advance one site by one hour. `busy[gpuId]` is the fraction of healthy servers doing work. */
@@ -193,6 +215,10 @@ export function stepSite(w: World, site: Site, busy: Record<string, number>): { 
   site.supplyMw = demandMw * d.powerFactor
   site.costPerHour = d.costPerHour
   site.carbonKgPerHour = d.carbonKg
+  const itMw = loads.reduce((a, l) => a + l.heat, 0) / 1000, coolMw = site.halls.reduce((a, h) => a + h.coolPowerKw, 0) / 1000
+  site.flow = { ...d.flow, it: itMw * d.powerFactor, cooling: coolMw * d.powerFactor, other: Math.max(0, demandMw - itMw - coolMw) * d.powerFactor }
+  ;(site.history ??= []).push({ price: site.priceMwh, mw: site.demandMw, grid: d.gridMw })
+  if (site.history.length > 48) site.history.shift()
 
   for (const { h, heat, cap, total } of loads) {
     let pf = site.powerFactor
