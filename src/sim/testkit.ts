@@ -20,3 +20,9 @@ export function ready(w: World, site: Site, hall: Hall, gpuId: string, n: number
   while (w.tick < hall.readyTick + 24 || (site.stock[gpuId] ?? 0) < n) step(w)
   const r = A.installServers(w, site.id, hall.id, gpuId, n); if (!r.ok) throw new Error(r.error)
 }
+/** FNV-1a 32-bit hash for determinism fingerprints. */
+export function fnv(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  return (h >>> 0).toString(16)
+}
