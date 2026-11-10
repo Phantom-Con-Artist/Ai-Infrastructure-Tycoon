@@ -21,7 +21,7 @@ export const gpu = (w: World, id: string): GpuSpec => gpuById(id, yearOf(w.tick)
 export const advisorPerk = (w: World, id: string): boolean => w.advisor === id
 
 export const hallServers = (h: Hall, gpuId?: string): number => h.racks.reduce((a, r) => a + (gpuId && r.gpuId !== gpuId ? 0 : r.servers), 0)
-export const hallHealthy = (h: Hall, gpuId?: string): number => h.racks.reduce((a, r) => a + (gpuId && r.gpuId !== gpuId ? 0 : r.servers - r.failed), 0)
+export const hallHealthy = (h: Hall, gpuId?: string): number => h.racks.reduce((a, r) => a + (gpuId && r.gpuId !== gpuId ? 0 : r.powered ? r.servers - r.failed : 0), 0)
 export const siteServers = (s: Site, gpuId?: string): number => s.halls.reduce((a, h) => a + hallServers(h, gpuId), 0)
 export const siteHealthy = (s: Site, gpuId?: string): number => s.halls.reduce((a, h) => a + (h.online ? hallHealthy(h, gpuId) : 0), 0)
 export const totalGpus = (w: World): number => w.sites.reduce((a, s) => a + siteServers(s) * 8, 0)

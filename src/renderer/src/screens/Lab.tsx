@@ -32,7 +32,7 @@ function Train({ onStart }: { onStart: () => void }) {
   const [dq, setDq] = useState(1)
   const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
   const site = w.sites.find((s) => s.id === siteId)
-  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId)))] : []
+  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
   const [gpuId, setGpu] = useState(gpuIds[0] ?? '')
   const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[0] ?? ''
   const total = site && gid ? site.halls.reduce((a, h) => a + hallServers(h, gid), 0) : 0
@@ -142,7 +142,7 @@ function ModelCard({ id }: { id: string }) {
   const deps = w.deployments.filter((d) => d.modelId === id)
   const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
   const site = w.sites.find((s) => s.id === siteId)
-  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId)))] : []
+  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
   const [gpuId, setGpu] = useState(gpuIds[0] ?? '')
   const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[0] ?? ''
   const free = site && gid ? site.halls.reduce((a, h) => a + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0

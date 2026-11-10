@@ -123,7 +123,7 @@ function rollContracts(w: World): void {
   if (open >= 6 || rnd(w) > 0.4) return
   // size offers to what the player's biggest site can actually do
   let best = { servers: 8, tflops: 312, site: '' }
-  for (const s of w.sites) for (const gId of Object.keys(s.stock).concat(s.halls.flatMap((h) => h.racks.map((r) => r.gpuId)))) {
+  for (const s of w.sites) for (const gId of Object.keys(s.stock).concat(s.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))) {
     const g = gpuCatalog(yearOf(w.tick) + 50).find((x) => x.id === gId)
     if (!g) continue
     const n = siteServers(s, gId)

@@ -26,3 +26,7 @@ export function Spark({ data, w = 220, h = 48, color = 'var(--phos)' }: { data: 
   const pts = data.map((d, i) => `${(i / (data.length - 1)) * w},${h - 3 - ((d - mn) / rg) * (h - 6)}`).join(' ')
   return <svg width={w} height={h} style={{ display: 'block' }}><polyline fill="none" stroke={color} strokeWidth="1.5" points={pts} /></svg>
 }
+
+export function EmptyState({ art, eyebrow, title, body, children }: { art: ReactNode; eyebrow: string; title: string; body: ReactNode; children?: ReactNode }) {
+  return <div className="empty"><div>{art}</div><div><div className="eyebrow">{eyebrow}</div><h2>{title}</h2><p>{body}</p>{children && <div className="acts">{children}</div>}</div></div>
+}

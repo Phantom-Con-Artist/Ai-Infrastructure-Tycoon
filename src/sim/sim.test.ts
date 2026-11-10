@@ -9,8 +9,10 @@ function boot(seed = 7) {
   const s = A.buildSite(w, 'or')
   if (!s.ok) throw new Error(s.error)
   const site = s.value
-  const h = A.buildHall(w, site.id, { slots: 24, cooling: 'air', powerKw: 1500, coolKw: 1600, fabric: 'eth100' })
+  const h = A.buildHall(w, site.id, { size: 'M', cooling: 'air', fabric: 'eth100' })
   if (!h.ok) throw new Error(h.error)
+  const lay = A.autoLayout(w, h.value.id)
+  if (!lay.ok) throw new Error(lay.error)
   return { w, site, hall: h.value }
 }
 const ready = (w: ReturnType<typeof createWorld>, site: any, hall: any, gpuId: string, n: number) => {
@@ -30,6 +32,30 @@ describe('scaling laws', () => {
 })
 describe('hardware catalog', () => {
   it('is endless', () => { expect(gpuCatalog(2050).length).toBeGreaterThan(gpuCatalog(2023).length) })
+})
+describe('layout puzzle', () => {
+  it('racks out of PDU reach are dark; overloaded PDUs throttle', () => {
+    const w = createWorld(2); w.cash = 1e9
+    const site = (A.buildSite(w, 'tx') as any).value
+    A.buyUtility(w, site.id, 20); site.utilityMw = 22; site.pendingUtility = []
+    w.research.done.push('rdhx', 'dlc')
+    const hall = (A.buildHall(w, site.id, { size: 'L', cooling: 'dlc', fabric: 'eth100' }) as any).value
+    expect(A.placeEquipment(w, hall.id, 'pdu', 0, 0).ok).toBe(true)
+    expect(A.placeEquipment(w, hall.id, 'crah', 1, 0).ok).toBe(true)
+    const near = (A.placeRack(w, hall.id, 3, 1) as any).value
+    const far = (A.placeRack(w, hall.id, 30, 16) as any).value
+    expect(near.powered && near.cooled).toBe(true)
+    expect(far.powered || far.cooled).toBe(false)
+    for (let x = 2; x < 9; x++) for (let y = 2; y < 8; y++) A.placeRack(w, hall.id, x, y)
+    A.orderServers(w, site.id, 'nv-h1000', 400)
+    while (w.tick < hall.readyTick + 24 || (site.stock['nv-h1000'] ?? 0) < 400) step(w)
+    const n = (A.installServers(w, site.id, hall.id, 'nv-h1000', 400) as any).value
+    expect(A.setRental(w, site.id, 'nv-h1000', n, 0.5).ok).toBe(true)
+    stepMany(w, 6)
+    const pdu = hall.equipment.find((e: any) => e.kind === 'pdu')
+    expect(pdu.load).toBeGreaterThan(400)
+    expect(near.throttle).toBeLessThan(1)
+  })
 })
 describe('world', () => {
   it('is deterministic and serialisable', () => {
@@ -83,8 +109,9 @@ describe('world', () => {
     expect(A.orderServers(w, site.id, 'nv-b2000', 4).ok).toBe(true)
     while ((site.stock['nv-b2000'] ?? 0) < 4) step(w)
     expect(A.installServers(w, site.id, hall.id, 'nv-b2000', 4).ok).toBe(true)
-    expect(hall.racks.length).toBe(4)
-    expect(hall.racks.every((r) => r.servers === 1)).toBe(true)
+    const used = hall.racks.filter((r) => r.gpuId === 'nv-b2000')
+    expect(used.length).toBe(4)
+    expect(used.every((r) => r.servers === 1)).toBe(true)
   })
   it('survives three years of idle play without NaN and valuation is finite', () => {
     const { w } = boot(3)

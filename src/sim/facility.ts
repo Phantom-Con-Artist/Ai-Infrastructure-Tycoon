@@ -1,4 +1,5 @@
 import { COOLING, GENERATORS, region, serverKw, type GpuSpec } from './data/hardware'
+import { EQUIP } from './data/equipment'
 import { gauss } from './rng'
 import { HOURS_PER_YEAR, type Hall, type Site, type World } from './types'
 import { advisorPerk, clamp, gpu, techSum } from './util'
@@ -16,9 +17,7 @@ export function ambientAt(w: World, site: Site): number {
 }
 
 export function coolCapacityKw(h: Hall, ambient: number): number {
-  const c = COOLING[h.cooling]
-  const derate = 1 - Math.max(0, ambient - c.derateAbove) * c.derateRate
-  return h.coolKw * clamp(derate, 0.3, 1)
+  return h.coolKw * derateFactor(h, ambient)
 }
 export function copAt(w: World, h: Hall, ambient: number): number {
   const c = COOLING[h.cooling]
@@ -30,13 +29,39 @@ export function copAt(w: World, h: Hall, ambient: number): number {
   return Math.max(0.5 * c.cop, cop * free * hot)
 }
 
+export const derateFactor = (h: Hall, ambient: number): number => {
+  const c = COOLING[h.cooling]
+  return clamp(1 - Math.max(0, ambient - c.derateAbove) * c.derateRate, 0.3, 1)
+}
+
+/** Per-rack electrical draw this hour; also accumulates load on each PDU and cooler. */
 function hallLoad(w: World, h: Hall, busy: Record<string, number>): number {
   let kw = 0
+  for (const e of h.equipment) e.load = 0
+  const byId = new Map(h.equipment.map((e) => [e.id, e]))
   for (const r of h.racks) {
+    if (!r.gpuId || !r.powered || !h.online || r.servers === 0) { r.kw = 0; continue }
     const g: GpuSpec = gpu(w, r.gpuId)
-    kw += (r.servers - r.failed) * serverKw(g, busy[r.gpuId] ?? 0)
+    r.kw = (r.servers - r.failed) * serverKw(g, busy[r.gpuId] ?? 0) * (0.6 + 0.4 * h.throttle * r.throttle)
+    kw += r.kw
+    if (r.pduId) { const p = byId.get(r.pduId); if (p) p.load += r.kw }
+    if (r.coolerId) { const c = byId.get(r.coolerId); if (c) c.load += r.kw }
   }
-  return kw * (0.6 + 0.4 * h.throttle)
+  return kw
+}
+
+/** Local constraints → per-rack throttle for the next hour (PDU breakers, local cooling starvation). */
+function rackThrottles(h: Hall, ambient: number): void {
+  const byId = new Map(h.equipment.map((e) => [e.id, e]))
+  const der = derateFactor(h, ambient)
+  for (const r of h.racks) {
+    const p = r.pduId ? byId.get(r.pduId) : undefined
+    const pduF = p && p.load > EQUIP.pdu.kw ? EQUIP.pdu.kw / p.load : 1
+    const c = r.coolerId ? byId.get(r.coolerId) : undefined
+    let coolF = 0.35
+    if (c) { const cap = EQUIP[c.kind].kw * der; coolF = c.load > cap ? Math.max(0.3, cap / c.load) : 1 }
+    r.throttle = clamp(pduF * coolF, 0, 1)
+  }
 }
 
 export function energyPrice(w: World, site: Site): number {
@@ -169,9 +194,15 @@ export function stepSite(w: World, site: Site, busy: Record<string, number>): { 
   site.costPerHour = d.costPerHour
   site.carbonKgPerHour = d.carbonKg
 
-  for (const { h, heat, cap } of loads) {
-    const pf = site.powerFactor
-    const breaker = h.itKw > h.powerKw && h.itKw > 0 ? h.powerKw / h.itKw : 1
+  for (const { h, heat, cap, total } of loads) {
+    let pf = site.powerFactor
+    // UPS ride-through: cover the shortfall from batteries, recharge when healthy
+    if (pf < 1 && h.upsSoc > 0 && total > 0) {
+      const use = Math.min(total * (1 - pf), h.upsSoc)
+      h.upsSoc -= use
+      pf = Math.min(1, pf + use / total)
+    } else if (pf >= 1) h.upsSoc = Math.min(h.upsKwh, h.upsSoc + h.upsKwh * 0.25)
+    const breaker = 1
     const effHeat = heat * pf
     // thermal state
     if (effHeat <= cap || cap <= 0 && effHeat <= 0) {
@@ -187,6 +218,7 @@ export function stepSite(w: World, site: Site, busy: Record<string, number>): { 
     const w2 = effHeat * (0.5 + site.ambientC / 30) * COOLING[h.cooling].waterLPerKwh
     h.waterL = w2
     waterL += w2
+    rackThrottles(h, site.ambientC)
   }
   return { cost: site.costPerHour + (waterL * r.waterCost) , water: waterL, carbonKg: site.carbonKgPerHour }
 }

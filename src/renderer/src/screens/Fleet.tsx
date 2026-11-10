@@ -45,7 +45,7 @@ export function Fleet() {
       <p className="dim" style={{ marginBottom: 12 }}>Servers you allocate here are rented on the spot market. Higher price multiplier = more $/hour but lower utilisation.</p>
       <div className="col">
         {w.sites.map((s) => {
-          const ids = [...new Set(s.halls.flatMap((h) => h.racks.map((r) => r.gpuId)))]
+          const ids = [...new Set(s.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))]
           return ids.map((id) => {
             const g = gpu(w, id)
             const total = s.halls.reduce((a, h) => a + hallServers(h, id), 0)

@@ -11,11 +11,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "dist": "electron-vite build && electron-builder",
-    "postinstall": "electron-rebuild -f -w better-sqlite3"
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "web": "vite --config vite.web.config.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/space-grotesk": "^5.3.0",
-    "@fontsource/jetbrains-mono": "^5.3.0",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "better-sqlite3": "^13.0.3",

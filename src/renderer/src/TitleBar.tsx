@@ -14,7 +14,7 @@ export function TitleBar() {
   const close = (): void => { void useGame.getState().save('auto').finally(() => window.win?.close()) }
   return (
     <div className="titlebar" onDoubleClick={() => window.win?.toggleMaximize()}>
-      <span className="t"><b>■</b> AI Infrastructure Tycoon{w ? ` — ${w.company}` : ''}</span>
+      <span className="t"><span className="dot" />AI Infrastructure Tycoon{w ? <span className="dim" style={{ fontWeight: 500 }}>· {w.company}</span> : null}</span>
       <span className="sp" />
       <div className="winctl" onDoubleClick={(e) => e.stopPropagation()}>
         <button aria-label="Fullscreen" title="Fullscreen (F11)" onClick={() => window.win?.fullscreen()}>

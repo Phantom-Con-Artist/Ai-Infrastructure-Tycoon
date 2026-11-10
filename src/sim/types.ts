@@ -1,12 +1,19 @@
 import type { CoolingType, FabricType, GenKind } from './data/hardware'
+import type { EquipKind } from './data/equipment'
 
 export const HOURS_PER_YEAR = 8766
 export const START_YEAR = 2023
 
-export interface Rack { gpuId: string; servers: number; failed: number }
+export interface Rack {
+  id: string; x: number; y: number; rot: 0 | 1 | 2 | 3
+  gpuId: string; servers: number; failed: number
+  // derived by layout / live
+  pduId?: string; coolerId?: string; powered: boolean; cooled: boolean; throttle: number; kw: number
+}
+export interface Equip { id: string; kind: EquipKind; x: number; y: number; rot: 0 | 1 | 2 | 3; load: number }
 export interface Hall {
-  id: string; name: string; slots: number; racks: Rack[]
-  cooling: CoolingType; coolKw: number; powerKw: number; fabric: FabricType
+  id: string; name: string; w: number; d: number; racks: Rack[]; equipment: Equip[]
+  cooling: CoolingType; coolKw: number; powerKw: number; fabric: FabricType; upsKwh: number; upsSoc: number
   readyTick: number
   // live state
   tempC: number; throttle: number; itKw: number; coolPowerKw: number; pue: number; online: boolean; waterL: number
@@ -58,7 +65,7 @@ export interface MarketState {
 
 export interface World {
   version: number; tick: number; rng: number; nextId: number
-  company: string; ceo: string; advisor: string
+  company: string; ceo: string; advisor: string; logo: { glyph: string; color: string }
   cash: number; loans: Loan[]; reputation: number; esg: number; gameOver: boolean; negCashDays: number
   sites: Site[]; rentals: Rental[]; deployments: Deployment[]
   runs: TrainingRun[]; models: AiModel[]; contracts: Contract[]

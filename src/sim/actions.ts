@@ -2,9 +2,11 @@ import { ADVISORS, AI_NAME_PARTS } from './data/lore'
 import { COOLING, FABRICS, GENERATORS, GPUS_PER_SERVER, REGIONS, TECHS, gpuCatalog, region, serverPeakKw, residual, type CoolingType, type FabricType, type GenKind } from './data/hardware'
 import { eloFromLoss, referencePrice, serveMemoryGB, trainFlops, trainMemoryGB } from './ai'
 import { creditLimit, debt, finishRun, statKey } from './world'
+import { EQUIP, HALL_SIZES, RACK_COST, hallShellCost, type EquipKind, type HallSize } from './data/equipment'
+import { canPlace, footprint, itemAt, relayout, type Rot } from './layout'
 import { leadDays, serverMarketPrice } from './market'
 import { pick } from './rng'
-import { HOURS_PER_YEAR, type Hall, type Site, type World } from './types'
+import { HOURS_PER_YEAR, type Equip, type Hall, type Rack, type Site, type World } from './types'
 import {
   committed, coolingUnlocked, fabricUnlocked, findSite, gpu, hallServers, hasTech, newId, pushNews, siteHealthy, spend, yearOf
 } from './util'
@@ -41,44 +43,102 @@ export const siteGenMw = (s: Site): number => s.gens.filter((g) => g.kind === 'g
 export const siteProvisionedKw = (s: Site): number => s.halls.reduce((a, h) => a + h.powerKw, 0)
 export const siteSupplyCapKw = (s: Site): number => (s.utilityMw + siteGenMw(s)) * 1000
 
-export interface HallSpec { slots: number; cooling: CoolingType; powerKw: number; coolKw: number; fabric: FabricType; name?: string }
+export interface HallSpec { size: HallSize; cooling: CoolingType; fabric: FabricType; name?: string }
 export function hallCost(spec: HallSpec): number {
-  return 1_500_000 + spec.slots * 45_000 + spec.powerKw * 3_800 + spec.coolKw * COOLING[spec.cooling].usdPerKw + spec.slots * 0
+  const z = HALL_SIZES[spec.size]
+  return hallShellCost(z.w, z.d) + (spec.cooling === 'air' ? 0 : z.w * z.d * 3_000)
 }
 export function buildHall(w: World, siteId: string, spec: HallSpec): Result<Hall> {
   const s = findSite(w, siteId)
   if (!coolingUnlocked(w, spec.cooling)) return fail('Cooling technology not researched')
   if (!fabricUnlocked(w, spec.fabric)) return fail('Fabric technology not researched')
-  if (spec.slots < 4 || spec.slots > 400) return fail('Slots must be 4–400')
-  if (spec.powerKw <= 0 || spec.coolKw <= 0) return fail('Power and cooling capacity must be positive')
-  if (siteProvisionedKw(s) + spec.powerKw > siteSupplyCapKw(s) * 1.0) return fail('Hall power exceeds site utility + generation. Buy more utility capacity first.')
+  const z = HALL_SIZES[spec.size]
+  if (!z) return fail('Unknown hall size')
   const cost = hallCost(spec)
-  if (w.cash < cost) return fail('Not enough cash')
+  if (w.cash < cost) return fail(`Need ${(cost / 1e6).toFixed(1)}M`)
   spend(w, cost)
-  const build = Math.round(150 * (1 - (hasTech(w, 'prefab') ? 0.4 : 0)) * (1 + spec.slots / 400))
+  const build = Math.round((60 + z.w * z.d * 0.08) * (1 - (hasTech(w, 'prefab') ? 0.4 : 0)))
   const h: Hall = {
-    id: newId(w, 'h'), name: spec.name ?? `Hall ${String.fromCharCode(65 + s.halls.length)}`, slots: spec.slots, racks: [],
-    cooling: spec.cooling, coolKw: spec.coolKw, powerKw: spec.powerKw, fabric: spec.fabric, readyTick: w.tick + build * 24,
+    id: newId(w, 'h'), name: spec.name ?? `Hall ${String.fromCharCode(65 + s.halls.length)}`, w: z.w, d: z.d, racks: [], equipment: [],
+    cooling: spec.cooling, coolKw: 0, powerKw: 0, fabric: spec.fabric, upsKwh: 0, upsSoc: 0, readyTick: w.tick + build * 24,
     tempC: 22, throttle: 1, itKw: 0, coolPowerKw: 0, pue: 0, online: false, waterL: 0
   }
   s.halls.push(h)
-  pushNews(w, 'info', `${h.name} under construction`, `${spec.slots} racks, ${spec.powerKw} kW, ${COOLING[spec.cooling].name}. Ready in ~${build} days.`)
+  pushNews(w, 'info', `${h.name} under construction`, `${z.name}, ${COOLING[spec.cooling].name}. Concrete cures in ~${build} days.`)
   return ok(h)
 }
-export function upgradeHallPower(w: World, hallId: string, addKw: number): Result {
+const liquidOk = (h: Hall): boolean => h.cooling === 'dlc' || h.cooling === 'immersion'
+export function placeEquipment(w: World, hallId: string, kind: EquipKind, x: number, y: number, rot: Rot = 0): Result<Equip> {
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
-  if (siteProvisionedKw(f.site) + addKw > siteSupplyCapKw(f.site)) return fail('Site utility + generation cannot supply that. Buy more utility capacity.')
-  const cost = addKw * 3_800
-  if (w.cash < cost) return fail('Not enough cash')
-  spend(w, cost); f.hall.powerKw += addKw
+  const spec = EQUIP[kind]
+  if (spec.needsTech && !hasTech(w, spec.needsTech)) return fail(`${spec.name} needs research first`)
+  if (kind === 'cdu' && !liquidOk(f.hall)) return fail('CDUs need a liquid-cooled hall (retrofit to DLC or immersion)')
+  const err = canPlace(f.hall, kind, x, y, rot); if (err) return fail(err)
+  if (kind === 'pdu' && siteProvisionedKw(f.site) + spec.kw > siteSupplyCapKw(f.site)) return fail('Site utility + generation cannot feed another PDU. Buy more utility capacity.')
+  if (w.cash < spec.cost) return fail(`Need ${(spec.cost / 1e6).toFixed(2)}M`)
+  spend(w, spec.cost)
+  const e: Equip = { id: newId(w, 'e'), kind, x, y, rot, load: 0 }
+  f.hall.equipment.push(e)
+  relayout(f.hall, liquidOk(f.hall))
+  return ok(e)
+}
+export function placeRack(w: World, hallId: string, x: number, y: number, rot: Rot = 0): Result<Rack> {
+  const f = lockHall(w, hallId); if (!f) return fail('No such hall')
+  const err = canPlace(f.hall, 'rack', x, y, rot); if (err) return fail(err)
+  if (w.cash < RACK_COST) return fail('Not enough cash')
+  spend(w, RACK_COST)
+  const r: Rack = { id: newId(w, 'k'), x, y, rot, gpuId: '', servers: 0, failed: 0, powered: false, cooled: false, throttle: 1, kw: 0 }
+  f.hall.racks.push(r)
+  relayout(f.hall, liquidOk(f.hall))
+  return ok(r)
+}
+/** Remove whatever sits on a tile. Racks must be empty; equipment refunds 30%. */
+export function removeAt(w: World, hallId: string, x: number, y: number): Result {
+  const f = lockHall(w, hallId); if (!f) return fail('No such hall')
+  const it = itemAt(f.hall, x, y); if (!it) return fail('Nothing here')
+  if (it.rack) {
+    if (it.rack.servers > 0) return fail('Pull the servers out first')
+    f.hall.racks = f.hall.racks.filter((r) => r !== it.rack)
+    w.cash += RACK_COST * 0.3
+  } else if (it.equip) {
+    f.hall.equipment = f.hall.equipment.filter((e) => e !== it.equip)
+    w.cash += EQUIP[it.equip.kind].cost * 0.3
+  }
+  relayout(f.hall, liquidOk(f.hall))
   return ok(undefined)
 }
-export function upgradeHallCooling(w: World, hallId: string, addKw: number): Result {
+/**
+ * Fill a hall with a sensible starter pattern: a service spine every 10 columns (PDU, then cooler, repeating)
+ * and rack rows with an aisle between each pair. Stops when cash runs out or the hall is full.
+ */
+export function autoLayout(w: World, hallId: string, maxRacks = 1e9): Result<{ racks: number; equipment: number }> {
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
-  const cost = addKw * COOLING[f.hall.cooling].usdPerKw
-  if (w.cash < cost) return fail('Not enough cash')
-  spend(w, cost); f.hall.coolKw += addKw
-  return ok(undefined)
+  const h = f.hall
+  const cooler: EquipKind = liquidOk(h) && hasTech(w, 'dlc') ? 'cdu' : 'crah'
+  let racks = 0, eq = 0
+  for (let x = 0; x < h.w; x += 10) {
+    for (let y = 0; y < h.d; ) {
+      if (canPlace(h, 'pdu', x, y, 0) === null && placeEquipment(w, h.id, 'pdu', x, y, 0).ok) eq++
+      y += 1
+      const fp = footprint(cooler, 0)
+      if (y + fp.d <= h.d && canPlace(h, cooler, x, y, 0) === null && placeEquipment(w, h.id, cooler, x, y, 0).ok) eq++
+      y += fp.d
+      if (cooler === 'cdu') {
+        if (y < h.d && canPlace(h, 'crah', x, y, 0) === null && y + 2 <= h.d && placeEquipment(w, h.id, 'crah', x, y, 0).ok) eq++
+        y += 2
+      }
+    }
+  }
+  for (let y = 0; y < h.d && racks < maxRacks; y++) {
+    if (y % 3 === 2) continue // aisle
+    for (let x = 0; x < h.w && racks < maxRacks; x++) {
+      if (x % 10 === 0) continue
+      if (canPlace(h, 'rack', x, y, 0) !== null) continue
+      if (w.cash < RACK_COST) return ok({ racks, equipment: eq })
+      if (placeRack(w, h.id, x, y, y % 3 === 0 ? 0 : 2).ok) racks++
+    }
+  }
+  return ok({ racks, equipment: eq })
 }
 export function retrofitCooling(w: World, hallId: string, to: CoolingType): Result {
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
@@ -92,7 +152,7 @@ export function upgradeFabric(w: World, hallId: string, to: FabricType): Result 
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
   if (!fabricUnlocked(w, to)) return fail('Not researched')
   const servers = hallServers(f.hall)
-  const cost = (servers + f.hall.slots) * FABRICS[to].usdPerServer * 0.8
+  const cost = (servers + f.hall.racks.length) * FABRICS[to].usdPerServer * 0.8
   if (w.cash < cost) return fail('Not enough cash')
   spend(w, cost); f.hall.fabric = to
   return ok(undefined)
@@ -147,19 +207,16 @@ export function installServers(w: World, siteId: string, hallId: string, gpuId: 
   const perRack = maxServersPerRack(w, hall, gpuId)
   if (perRack < 1) return fail(`One ${gpu(w, gpuId).name} server draws ${serverPeakKw(gpu(w, gpuId)).toFixed(1)} kW — above the ${COOLING[hall.cooling].maxRackKw} kW rack limit of ${hall.cooling} cooling. Retrofit to liquid.`)
   let left = want
-  for (const r of hall.racks) {
-    if (left <= 0) break
-    if (r.gpuId !== gpuId) continue
-    const add = Math.min(left, perRack - r.servers)
-    if (add > 0) { r.servers += add; left -= add }
+  for (const pass of [0, 1]) {
+    for (const r of hall.racks) {
+      if (left <= 0) break
+      if (pass === 0 ? r.gpuId !== gpuId : r.gpuId !== '') continue
+      const add = Math.min(left, perRack - r.servers)
+      if (add > 0) { r.gpuId = gpuId; r.servers += add; left -= add }
+    }
   }
-  while (left > 0 && hall.racks.length < hall.slots) {
-    const add = Math.min(left, perRack)
-    hall.racks.push({ gpuId, servers: add, failed: 0 })
-    left -= add
-  }
+  if (want - left < 1) return fail(hall.racks.length ? 'No free rack space. Place more racks.' : 'Place racks in the hall first.')
   const installed = want - left
-  if (installed < 1) return fail('Hall is out of rack slots')
   s.stock[gpuId] = stock - installed
   return ok(installed)
 }
@@ -184,8 +241,8 @@ export function uninstallServers(w: World, siteId: string, hallId: string, gpuId
     if (n <= 0) break
     if (r.gpuId !== gpuId) continue
     const take = Math.min(n, r.servers); r.servers -= take; r.failed = Math.min(r.failed, r.servers); n -= take
+    if (r.servers === 0) r.gpuId = ''
   }
-  hall.racks = hall.racks.filter((r) => r.servers > 0)
   s.stock[gpuId] = (s.stock[gpuId] ?? 0) + done
   return ok(done)
 }

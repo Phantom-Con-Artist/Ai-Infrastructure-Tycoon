@@ -32,7 +32,7 @@ function Offer({ id, open, toggle }: { id: string; open: boolean; toggle: () => 
   const c = w.contracts.find((x) => x.id === id)!
   const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
   const site = w.sites.find((s) => s.id === siteId)
-  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId)))].filter((g) => gpu(w, g).memGB >= c.minGpuMemGB) : []
+  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))].filter((g) => gpu(w, g).memGB >= c.minGpuMemGB) : []
   const [gpuId, setGpu] = useState(gpuIds[0] ?? '')
   const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[0] ?? ''
   const free = site && gid ? site.halls.reduce((a, h) => a + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0

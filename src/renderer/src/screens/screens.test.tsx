@@ -15,7 +15,8 @@ describe('screens render against a running world', () => {
   it('renders all', () => {
     const w = createWorld(9, 'Test Co', 'cto'); w.cash = 3e8
     const s = (A.buildSite(w, 'or') as any).value
-    const h = (A.buildHall(w, s.id, { slots: 24, cooling: 'air', powerKw: 1000, coolKw: 1100, fabric: 'eth100' }) as any).value
+    const h = (A.buildHall(w, s.id, { size: 'M', cooling: 'air', fabric: 'eth100' }) as any).value
+    A.autoLayout(w, h.id)
     A.orderServers(w, s.id, 'nv-h1000', 40)
     while (w.tick < h.readyTick + 24 || (s.stock['nv-h1000'] ?? 0) < 40) stepMany(w, 1)
     A.installServers(w, s.id, h.id, 'nv-h1000', 40)

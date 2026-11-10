@@ -8,13 +8,13 @@ import { poisson, rnd } from './rng'
 import { HOURS_PER_YEAR, type DayLedger, type World } from './types'
 import { clamp, findSite, gpu, newId, pushNews, worstFabric, yearOf } from './util'
 
-export const WORLD_VERSION = 1
+export const WORLD_VERSION = 2
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
 
-export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo'): World {
+export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }): World {
   return {
     version: WORLD_VERSION, tick: 0, rng: seed | 0, nextId: 1,
-    company, ceo, advisor,
+    company, ceo, advisor, logo,
     cash: 40_000_000, loans: [], reputation: 50, esg: 50, gameOver: false, negCashDays: 0,
     sites: [], rentals: [], deployments: [], runs: [], models: [], contracts: [],
     market: { boom: 1, supplyTight: 0.5, tokensPerDay: 1.5e12, priceDrift: 1, gpuPressure: {} },
@@ -36,10 +36,11 @@ export function fleetStats(w: World): Map<string, FleetStat> {
       for (const r of h.racks) {
         const k = statKey(s.id, r.gpuId)
         const st = m.get(k) ?? { total: 0, healthy: 0, throttle: 0, busy: 0 }
-        const healthy = h.online ? r.servers - r.failed : 0
+        if (!r.gpuId) continue
+        const healthy = h.online && r.powered ? r.servers - r.failed : 0
         st.total += r.servers
         st.healthy += healthy
-        st.throttle += healthy * h.throttle
+        st.throttle += healthy * h.throttle * r.throttle
         m.set(k, st)
       }
     }
@@ -168,9 +169,11 @@ function failures(w: World): void {
       if (!h.online) continue
       const hazard = clamp(Math.pow(2, (h.tempC - 27) / 10), 1, 8)
       for (const r of h.racks) {
+        if (!r.gpuId || r.servers === 0) continue
         const g = gpu(w, r.gpuId)
         const healthy = r.servers - r.failed
-        const k = poisson(w, (healthy * GPUS_PER_SERVER * hazard) / g.mtbfH)
+        const local = r.cooled ? (r.throttle < 0.9 ? 2 : 1) : 3
+        const k = poisson(w, (healthy * GPUS_PER_SERVER * hazard * local) / g.mtbfH)
         if (k > 0) {
           r.failed = Math.min(r.servers, r.failed + k)
         }
@@ -191,6 +194,7 @@ export function fleetValue(w: World): number {
   const y = yearOf(w.tick)
   for (const s of w.sites) {
     for (const h of s.halls) for (const r of h.racks) {
+      if (!r.gpuId) continue
       const g = gpu(w, r.gpuId)
       v += r.servers * serverMarketPrice(w, g) * residual(Math.max(0, y - g.year) * 0.5)
     }
@@ -218,7 +222,7 @@ function dailyTick(w: World): void {
   for (const l of w.loans) interest += (l.principal * l.rate * (w.advisor === 'cfo' ? 0.92 : 1)) / 365
   w.cash -= interest; t.interest += interest
   const fleet = fleetValue(w)
-  const maint = (fleet * 0.03) / 365 + w.sites.reduce((a, s) => a + s.halls.reduce((b, h) => b + (w.tick >= h.readyTick ? h.slots * 22 : 0), 0), 0)
+  const maint = (fleet * 0.03) / 365 + w.sites.reduce((a, s) => a + s.halls.reduce((b, h) => b + (w.tick >= h.readyTick ? h.w * h.d * 4 + h.equipment.length * 60 : 0), 0), 0)
   w.cash -= maint; t.opex += maint
   // research
   const rs = w.research
