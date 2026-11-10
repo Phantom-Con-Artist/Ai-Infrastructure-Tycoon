@@ -15,6 +15,9 @@ import { EmptyFleetArt } from '../art/Illustrations'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
 import { ManagerCard } from '../ManagerCard'
+import { NodeDesigner } from '../NodeDesigner'
+import { orderableNodes } from '@sim/nodes'
+import { WordMark, type LogoGlyph } from '../art/Logos'
 
 export function Fleet() {
   const w = useWorld(); const go = useGame((s) => s.go)
@@ -34,13 +37,13 @@ function Buy() {
   const w = useWorld(); const act = useGame((s) => s.act)
   const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
   const [qty, setQty] = useState<Record<string, number>>({})
-  const cat = gpuCatalog(yearOf(w.tick)).sort((a, b) => b.year - a.year || b.tflops - a.tflops)
+  const cat = [...orderableNodes(w), ...gpuCatalog(yearOf(w.tick)).sort((a, b) => b.year - a.year || b.tflops - a.tflops)]
   const card = (g: GpuSpec) => {
     const price = serverMarketPrice(w, g) * (1 - vendorDiscount(w, g.vendor))
     const n = qty[g.id] ?? 8
     return (
       <div key={g.id} className="panel lift col hw-card" style={{ gap: 10 }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}><CorpWordmark id={g.vendor} size={15} /><span className="row" style={{ gap: 6 }}>{vendorDiscount(w, g.vendor) > 0 && <span className="tag g">subsidiary −45%</span>}<span className="dim" style={{ fontSize: 12 }}>{g.year}</span></span></div>
+        <div className="row" style={{ justifyContent: 'space-between' }}>{g.node ? <span className="row" style={{ gap: 6 }}><WordMark glyph={w.logo.glyph as LogoGlyph} color={w.logo.color} name={w.company.split(' ')[0]} size={14} /><span className="tag b">your design</span></span> : <CorpWordmark id={g.vendor} size={15} />}<span className="row" style={{ gap: 6 }}>{vendorDiscount(w, g.vendor) > 0 && <span className="tag g">subsidiary −45%</span>}<span className="dim" style={{ fontSize: 12 }}>{g.year}</span></span></div>
         <div className="hw-stage" style={{ ['--vc' as string]: corp(g.vendor).color }}>{g.vcpus ? <CpuArt g={g} width={160} /> : <GpuArt g={g} width={160} />}</div>
         <h3>{g.name}</h3>
         <div className="row wrap" style={{ gap: 6, fontSize: 12 }}>
@@ -57,6 +60,7 @@ function Buy() {
   return (
     <div className="col" style={{ gap: 18 }}>
       <Field label="Deliver to"><select value={siteId} onChange={(e) => setSite(e.target.value)} style={{ maxWidth: 360 }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+      <Advanced title="Design your own server node" defaultOpen={w.customGpus.every((g) => !g.node)}><NodeDesigner /></Advanced>
       <h2><Server size={16} /> Accelerators · 8 per server</h2>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => !g.vcpus).map(card)}</div>
       <Advanced title="CPU servers for virtual-machine clouds">

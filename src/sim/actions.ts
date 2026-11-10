@@ -1,4 +1,5 @@
 import { ADVISORS, AI_NAME_PARTS } from './data/lore'
+import { orderableNodes } from './nodes'
 import { canAfford } from './rules'
 import { COOLING, FABRICS, GENERATORS, GPUS_PER_SERVER, REGIONS, TECHS, gpuCatalog, region, serverPeakKw, residual, type CoolingType, type FabricType, type GenKind } from './data/hardware'
 import { eloFromLoss, referencePrice, serveMemoryGB, trainFlops, trainMemoryGB } from './ai'
@@ -200,7 +201,7 @@ export function buildGenerator(w: World, siteId: string, kind: GenKind, mw: numb
 // ---------------------------------------------------------------- hardware
 export function orderServers(w: World, siteId: string, gpuId: string, count: number): Result {
   const s = findSite(w, siteId)
-  const g = gpuCatalog(yearOf(w.tick)).find((x) => x.id === gpuId)
+  const g = gpuCatalog(yearOf(w.tick)).find((x) => x.id === gpuId) ?? orderableNodes(w).find((x) => x.id === gpuId)
   if (!g) return fail('That GPU is not on sale yet')
   if (count < 1) return fail('Order at least one server')
   const price = serverMarketPrice(w, g) * (1 - vendorDiscount(w, g.vendor))
@@ -223,6 +224,7 @@ export function installServers(w: World, siteId: string, hallId: string, gpuId: 
   const stock = s.stock[gpuId] ?? 0
   const want = Math.min(count, stock)
   if (want < 1) return fail('No servers of that type in stock')
+  if (gpu(w, gpuId).node?.cooling === 'liquid' && hall.cooling !== 'dlc' && hall.cooling !== 'immersion') return fail('Liquid-cooled nodes need a liquid-cooled hall (DLC or immersion).')
   const perRack = maxServersPerRack(w, hall, gpuId)
   if (perRack < 1) return fail(`One ${gpu(w, gpuId).name} server draws ${serverPeakKw(gpu(w, gpuId)).toFixed(1)} kW — above the ${COOLING[hall.cooling].maxRackKw} kW rack limit of ${hall.cooling} cooling. Retrofit to liquid.`)
   let left = want

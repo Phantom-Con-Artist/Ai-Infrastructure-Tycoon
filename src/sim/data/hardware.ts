@@ -5,6 +5,8 @@ export interface GpuSpec {
   priceUsd: number    // new price per GPU
   mtbfH: number       // mean time between failures, per GPU, nominal
   vcpus?: number      // CPU servers only: vCPUs per unit (a server = 8 units)
+  /** Set on your own node designs (see sim/nodes.ts). */
+  node?: import('../nodes').NodeInfo
 }
 
 const BASE: GpuSpec[] = [
