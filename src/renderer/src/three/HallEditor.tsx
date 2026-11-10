@@ -1,4 +1,4 @@
-import { Canvas, type ThreeEvent } from '@react-three/fiber'
+import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber'
 import { ContactShadows, OrbitControls } from '@react-three/drei'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
@@ -6,7 +6,7 @@ import { Box, Fan, MousePointer2, Server, Trash2, Waves, Zap, BatteryCharging } 
 import * as A from '@sim/actions'
 import { EQUIP, RACK_COST, TILE, type EquipKind } from '@sim/data/equipment'
 import { COOLING, serverPeakKw } from '@sim/data/hardware'
-import { canPlace, footprint, itemAt, type Rot } from '@sim/layout'
+import { canPlace, footprint, itemAt, moveError, type Rot } from '@sim/layout'
 import { gpu, hasTech } from '@sim/util'
 import type { Hall, Site } from '@sim/types'
 import { useGame, useWorld } from '../store'
@@ -43,12 +43,17 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
   const painting = useRef(false)
   const lastPaint = useRef('')
   const strokeSnap = useRef<typeof w | null>(null)
+  /** Hold-to-move: press on an item, keep still for HOLD_MS, it lifts; release on a tile to drop it there. */
+  const [carry, setCarry] = useState<{ fx: number; fy: number; kind: EquipKind | 'rack' } | null>(null)
+  const holdTimer = useRef<number | null>(null)
+  const [holding, setHolding] = useState<[number, number] | null>(null)
+  const cancelHold = (): void => { if (holdTimer.current) clearTimeout(holdTimer.current); holdTimer.current = null; setHolding(null) }
 
   useEffect(() => {
     const k = (e: KeyboardEvent): void => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return
       if (e.key === 'r' || e.key === 'R') setRot((r) => ((r + 1) % 4) as Rot)
-      if (e.key === 'Escape') setTool('select')
+      if (e.key === 'Escape') { setCarry(null); setTool('select') }
       if (e.key === 'x' || e.key === 'Delete') setTool('remove')
       const n = parseInt(e.key); if (e.altKey && n >= 1 && n <= TOOLS.length) setTool(TOOLS[n - 1].id)
     }
@@ -79,7 +84,28 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
     else run((ww) => A.placeEquipment(ww, hall.id, tool, x, y, rot))
   }
 
-  const fp = tool === 'select' || tool === 'remove' ? { w: 1, d: 1 } : footprint(tool, rot)
+  const startHold = (x: number, y: number): void => {
+    cancelHold()
+    const it = itemAt(hall, x, y); if (!it) return
+    const o = (it.rack ?? it.equip)!
+    setHolding([x, y])
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null; setHolding(null)
+      setCarry({ fx: o.x, fy: o.y, kind: it.rack ? 'rack' : it.equip!.kind }); setRot(o.rot as Rot); setSel(null)
+    }, HOLD_MS)
+  }
+  const drop = (x: number, y: number): void => {
+    if (!carry) return
+    const st = useGame.getState(), before = structuredClone(st.w!)
+    const r = A.moveItem(st.w!, hall.id, carry.fx, carry.fy, x, y, rot)
+    if (!r.ok) st.flash(r.error, 'err')
+    else { st.armUndo(before); touchSystem(st.w!, 'facilities'); st.flash('Moved', 'ok'); setSel([x, y]) }
+    setCarry(null)
+    useGame.setState((s) => ({ rev: s.rev + 1 }))
+  }
+
+  const fp = carry ? footprint(carry.kind, rot) : tool === 'select' || tool === 'remove' ? { w: 1, d: 1 } : footprint(tool, rot)
+  const carryErr = carry && hover ? moveError(hall, carry.fx, carry.fy, hover[0], hover[1], rot) : null
   const ghostErr = hover && tool !== 'select' && tool !== 'remove' ? canPlace(hall, tool, hover[0], hover[1], rot) : null
   const selected = sel ? itemAt(hall, sel[0], sel[1]) : null
   const built = w.tick >= hall.readyTick
@@ -94,13 +120,15 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
         <directionalLight position={[20, 40, 15]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-40} shadow-camera-right={40} shadow-camera-top={40} shadow-camera-bottom={-40} shadow-bias={-0.0004} shadow-normalBias={0.04} />
         <Suspense fallback={null}>
           <Floor hall={hall} built={built}
-            onMove={(x, y) => { setHover([x, y]); if (painting.current && (tool === 'rack' || tool === 'remove')) apply(x, y, true) }}
-            onDown={(x, y, e) => { if (e.button !== 0) return; painting.current = true; lastPaint.current = ''; strokeSnap.current = null; apply(x, y) }}
-            onUp={() => { painting.current = false }}
+            onMove={(x, y) => { setHover([x, y]); if (holding && (holding[0] !== x || holding[1] !== y)) cancelHold(); if (painting.current && (tool === 'rack' || tool === 'remove')) apply(x, y, true) }}
+            onDown={(x, y, e) => { if (e.button !== 0) return; if (carry) return; painting.current = true; lastPaint.current = ''; strokeSnap.current = null; apply(x, y); if (tool === 'select') startHold(x, y) }}
+            onUp={(x, y, released) => { painting.current = false; cancelHold(); if (released && carry && x !== undefined) drop(x, y!) }}
             onLeave={() => setHover(null)} />
           <HallContents hall={hall} />
           <Coverage hall={hall} tool={tool} sel={selected?.equip?.id} />
-          {hover && tool !== 'select' && (
+          {carry && hover && <Ghost hall={hall} x={hover[0]} y={hover[1]} w={fp.w} d={fp.d} ok={!carryErr} remove={false} radius={carry.kind !== 'rack' ? EQUIP[carry.kind].radius : 0} />}
+          {holding && <HoldRing hall={hall} x={holding[0]} y={holding[1]} />}
+          {!carry && hover && tool !== 'select' && (
             <Ghost hall={hall} x={hover[0]} y={hover[1]} w={fp.w} d={fp.d} ok={tool === 'remove' ? !!itemAt(hall, hover[0], hover[1]) : !ghostErr} remove={tool === 'remove'} radius={tool !== 'rack' && tool !== 'remove' ? EQUIP[tool].radius : 0} />
           )}
           {sel && <SelBox hall={hall} x={sel[0]} y={sel[1]} />}
@@ -121,19 +149,35 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
       <Inspector site={site} hall={hall} sel={selected} onAuto={() => act((x) => A.autoLayout(x, hall.id), 'Auto-layout placed', { undoable: true, system: 'facilities' })} />
 
       <div className="hint">
-        <span><span className="kbd">LMB</span> {tool === 'select' ? 'inspect' : tool === 'remove' ? 'remove' : 'place'}</span>
+        {carry ? <span className="carrying"><span className="kbd">Release</span> drop here · <span className="kbd">Esc</span> cancel</span>
+          : <span><span className="kbd">LMB</span> {tool === 'select' ? 'inspect · hold to move' : tool === 'remove' ? 'remove' : 'place'}</span>}
         <span><span className="kbd">R</span> rotate ({rot * 90}°)</span>
         <span><span className="kbd">RMB</span> orbit</span>
         <span><span className="kbd">MMB</span> pan</span>
         <span><span className="kbd">Esc</span> inspect</span>
-        {ghostErr && <span className="neg">{ghostErr}</span>}
+        {(carry ? carryErr : ghostErr) && <span className="neg">{carry ? carryErr : ghostErr}</span>}
       </div>
       <div className="legend"><span><i style={{ background: '#38b26b' }} />Healthy</span><span><i style={{ background: '#e9a23b' }} />Throttled</span><span><i style={{ background: '#e8572f' }} />No cooling</span><span><i style={{ background: '#9aa1ad' }} />No power</span></div>
     </div>
   )
 }
 
-function Floor({ hall, built, onMove, onDown, onUp, onLeave }: { hall: Hall; built: boolean; onMove: (x: number, y: number) => void; onDown: (x: number, y: number, e: ThreeEvent<PointerEvent>) => void; onUp: () => void; onLeave: () => void }) {
+const HOLD_MS = 450
+
+/** A ring that fills while the pointer is held on an item, telling the player a pick-up is coming. */
+function HoldRing({ hall, x, y }: { hall: Hall; x: number; y: number }) {
+  const ref = useRef<THREE.Mesh>(null)
+  const t0 = useRef(performance.now())
+  const [cx, cz] = tileToWorld(hall, x, y)
+  useFrame(() => {
+    const k = Math.min(1, (performance.now() - t0.current) / HOLD_MS)
+    const m = ref.current; if (!m) return
+    m.geometry.dispose(); m.geometry = new THREE.RingGeometry(TILE * 0.55, TILE * 0.68, 40, 1, Math.PI / 2, -k * Math.PI * 2)
+  })
+  return <mesh ref={ref} position={[cx, 2.6, cz]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[TILE * 0.55, TILE * 0.68, 40]} /><meshBasicMaterial color="#2f7df6" transparent opacity={0.9} depthTest={false} /></mesh>
+}
+
+function Floor({ hall, built, onMove, onDown, onUp, onLeave }: { hall: Hall; built: boolean; onMove: (x: number, y: number) => void; onDown: (x: number, y: number, e: ThreeEvent<PointerEvent>) => void; onUp: (x?: number, y?: number, released?: boolean) => void; onLeave: () => void }) {
   const W = hall.w * TILE, D = hall.d * TILE
   const lines = useMemo(() => {
     const pts: number[] = []
@@ -148,7 +192,7 @@ function Floor({ hall, built, onMove, onDown, onUp, onLeave }: { hall: Hall; bui
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow
         onPointerMove={(e) => { e.stopPropagation(); const [x, y] = toTile(e.point); onMove(x, y) }}
         onPointerDown={(e) => { e.stopPropagation(); const [x, y] = toTile(e.point); onDown(x, y, e) }}
-        onPointerUp={onUp} onPointerLeave={() => { onUp(); onLeave() }}>
+        onPointerUp={(e) => { const [x, y] = toTile(e.point); onUp(x, y, true) }} onPointerLeave={() => { onUp(); onLeave() }}>
         <planeGeometry args={[W, D]} /><meshStandardMaterial color={built ? '#f7f8fa' : '#e9edf3'} />
       </mesh>
       <lineSegments geometry={lines}><lineBasicMaterial color="#6f8fbf" transparent opacity={built ? 0.18 : 0.4} /></lineSegments>

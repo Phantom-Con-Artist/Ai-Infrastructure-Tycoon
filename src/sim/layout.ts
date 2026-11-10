@@ -38,6 +38,17 @@ export function itemAt(h: Hall, x: number, y: number): { rack?: Rack; equip?: Eq
   return equip ? { equip } : null
 }
 
+/** Why the item on (fx, fy) can't be set down at (tx, ty) with rotation `rot` — null if it can. Ignores its own tiles. */
+export function moveError(h: Hall, fx: number, fy: number, tx: number, ty: number, rot?: Rot): string | null {
+  const it = itemAt(h, fx, fy); if (!it) return 'Nothing here'
+  if (it.rack) {
+    const racks = h.racks; h.racks = racks.filter((x) => x !== it.rack)
+    try { return canPlace(h, 'rack', tx, ty, rot ?? it.rack.rot) } finally { h.racks = racks }
+  }
+  const e = it.equip!, eq = h.equipment; h.equipment = eq.filter((x) => x !== e)
+  try { return canPlace(h, e.kind, tx, ty, rot ?? e.rot) } finally { h.equipment = eq }
+}
+
 const dist = (ax: number, ay: number, bx: number, by: number): number => Math.hypot(ax - bx, ay - by)
 
 /** Recompute rack → PDU and rack → cooler assignments, plus hall capacity totals. Call after any layout change. */

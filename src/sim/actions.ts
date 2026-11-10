@@ -4,7 +4,7 @@ import { COOLING, FABRICS, GENERATORS, GPUS_PER_SERVER, REGIONS, TECHS, gpuCatal
 import { eloFromLoss, referencePrice, serveMemoryGB, trainFlops, trainMemoryGB } from './ai'
 import { creditLimit, debt, finishRun, statKey } from './world'
 import { EQUIP, HALL_SIZES, RACK_COST, hallShellCost, type EquipKind, type HallSize } from './data/equipment'
-import { canPlace, footprint, itemAt, relayout, type Rot } from './layout'
+import { canPlace, footprint, itemAt, moveError, relayout, type Rot } from './layout'
 import { leadDays, serverMarketPrice } from './market'
 import { vendorDiscount } from './corporate'
 import { ROLES, makeCandidate, recomputeStaff } from './people'
@@ -109,6 +109,20 @@ export function removeAt(w: World, hallId: string, x: number, y: number): Result
     w.cash += EQUIP[it.equip.kind].cost * 0.3
   }
   relayout(f.hall, liquidOk(f.hall))
+  return ok(undefined)
+}
+/**
+ * Pick up whatever sits on (fx, fy) and set it down at (tx, ty), optionally rotated. Free: it is your own crew.
+ * Racks keep their servers. The item's own tiles don't block its new spot, so small nudges work.
+ */
+export function moveItem(w: World, hallId: string, fx: number, fy: number, tx: number, ty: number, rot?: Rot): Result {
+  const f = lockHall(w, hallId); if (!f) return fail('No such hall')
+  const h = f.hall
+  const it = itemAt(h, fx, fy); if (!it) return fail('Nothing here')
+  const err = moveError(h, fx, fy, tx, ty, rot); if (err) return fail(err)
+  const o = (it.rack ?? it.equip)!
+  o.x = tx; o.y = ty; o.rot = rot ?? o.rot
+  relayout(h, liquidOk(h))
   return ok(undefined)
 }
 /**
