@@ -13,6 +13,7 @@ import { PowerFlow } from '../art/PowerFlow'
 import { WorldMap } from '../art/WorldMap'
 import { LineChart } from './Store'
 import * as PV from '@sim/preview'
+import { ManagerCard } from '../ManagerCard'
 
 export function Sites() {
   const w = useWorld()
@@ -139,6 +140,7 @@ function PowerTab({ siteId }: { siteId: string }) {
   const h = site.history ?? []
   return (
     <div className="col" style={{ gap: 16 }}>
+    <ManagerCard system="facilities" />
     <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
       <div className="panel"><h2>Live power flow</h2><PowerFlow site={site} /></div>
       <div className="panel col" style={{ gap: 12 }}>

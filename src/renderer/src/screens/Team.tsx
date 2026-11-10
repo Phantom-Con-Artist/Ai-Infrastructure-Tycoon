@@ -8,6 +8,7 @@ import { Field, Summary, Tabs } from '../ui'
 import { Portrait } from '../art/People'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
+import { ManagerCard } from '../ManagerCard'
 
 export function Team() {
   const [tab, setTab] = useState<'team' | 'hiring' | 'labs'>('team')
@@ -16,6 +17,7 @@ export function Team() {
     <>
       <div className="page-head"><div><div className="eyebrow">{w.people.length} people · payroll {money(payrollPerDay(w) * 365)}/yr</div><h1>Your people</h1></div><Tabs tabs={['team', 'hiring', 'labs'] as const} value={tab} onChange={setTab} /></div>
       <Summary items={Sum.teamSummary(w)} />
+      {tab === 'team' && <div style={{ marginBottom: 16 }}><ManagerCard system="people" /></div>}
       {tab === 'team' && <Org />}
       {tab === 'hiring' && <Hiring />}
       {tab === 'labs' && <Labs />}

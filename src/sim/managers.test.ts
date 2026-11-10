@@ -79,6 +79,12 @@ describe('managers', () => {
     stepMany(w, 24)
     expect(w.research.current).toBeDefined()
   })
+  it('lets you set the research focus branch', () => {
+    const { w } = boot(2)
+    expect(M.setManagerFocus(w, 'Power').ok).toBe(true)
+    expect(w.managerFocus).toBe('Power')
+    expect(M.setManagerFocus(w, 'Nonsense' as never).ok).toBe(false)
+  })
   it('does nothing when no autopilot is on', () => {
     const { w } = boot(2)
     hireMgr(w, 'sales'); hireMgr(w, 'finance')

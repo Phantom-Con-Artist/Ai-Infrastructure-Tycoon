@@ -3,6 +3,7 @@ import * as A from './actions'
 import { createWorld } from './world'
 import { GOALS, checkGoals, nextSteps } from './advisor'
 import { boot, firstGpu, ready } from './testkit'
+import { MILESTONES } from './objectives'
 
 describe('advisor next steps', () => {
   it('tells a brand-new company to buy land', () => {
@@ -54,14 +55,14 @@ describe('goals', () => {
     const rep = w.reputation
     expect(A.buildSite(w, 'or').ok).toBe(true)
     checkGoals(w)
-    expect(w.goalsDone).toContain('first-site')
+    expect(w.goalsDone).toContain('land')
     expect(w.reputation).toBe(rep + 1)
     expect(w.news[0].title).toMatch(/Goal reached/)
     const n = w.goalsDone.length
     checkGoals(w)
     expect(w.goalsDone.length).toBe(n)
   })
-  it('has the milestone chain from the spec', () => {
-    expect(GOALS.map((g) => g.id)).toEqual(['first-site', 'first-hall', 'first-servers', 'first-rental', 'profit-week', 'first-model', 'first-product', 'first-manager'])
+  it('builds on the guided path milestones, plus later goals', () => {
+    expect(GOALS.map((g) => g.id)).toEqual([...MILESTONES.map((m) => m.id), 'profit-week', 'first-product', 'first-manager'])
   })
 })

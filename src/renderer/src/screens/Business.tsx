@@ -11,6 +11,7 @@ import { useGame, useWorld } from '../store'
 import { Advanced, Bar, Field, Head, Num, Spark, Summary } from '../ui'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
+import { ManagerCard } from '../ManagerCard'
 
 export function Contracts() {
   const w = useWorld(); const act = useGame((s) => s.act)
@@ -73,6 +74,7 @@ export function Research() {
       <div className="page-head"><div><div className="eyebrow">{doneCount} upgrades researched · {w.staff.researchers} researchers</div><h1>Research & Development</h1>
         <p className="sub">Everything in the game unlocks here. Tiers go deeper than you can afford — on purpose. Upgrades marked ∞ can be researched forever.</p></div></div>
       <Summary items={Sum.researchSummary(w)} />
+      <div style={{ marginBottom: 16 }}><ManagerCard system="research" /></div>
       {cur && <div className="panel row" style={{ marginBottom: 18, gap: 18 }}>
         <div style={{ flex: 1 }}><div className="eyebrow">Researching</div><h3>{cur.name}{cur.repeatable ? ` ${roman(curLv + 1)}` : ''}</h3>
           <div className="bar" style={{ marginTop: 8 }}><i style={{ width: `${(w.research.progressUsd / techCost(cur, curLv)) * 100}%` }} /></div></div>
@@ -116,6 +118,7 @@ export function Finance() {
     <>
       <Head title="Finance" sub="Leverage buys GPUs; GPUs depreciate faster than you think." />
       <Summary items={Sum.financeSummary(w)} />
+      <div style={{ marginBottom: 16 }}><ManagerCard system="finance" /></div>
       <div className="row" style={{ alignItems: 'flex-start', gap: 28 }}>
         <div className="col" style={{ flex: 1 }}>
           <div className="panel col">

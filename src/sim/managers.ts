@@ -5,7 +5,7 @@
  */
 import { GPUS_PER_SERVER, region } from './data/hardware'
 import { EQUIP } from './data/equipment'
-import { TECHS, techCost } from './data/tech'
+import { BRANCHES, TECHS, techCost, type Branch } from './data/tech'
 import * as A from './actions'
 import { acquire } from './corporate'
 import { trainFlops } from './ai'
@@ -42,6 +42,12 @@ export function setAutopilot(w: World, sys: System, on: boolean, policy?: Record
   const ap = w.autopilot[sys]
   ap.on = on
   ap.policy = { ...DEFAULT_POLICY[sys], ...ap.policy, ...(policy ?? {}) }
+  return ok
+}
+/** Which R&D branch the research director should favour. */
+export function setManagerFocus(w: World, b: Branch): Result {
+  if (!BRANCHES.includes(b)) return fail('Unknown branch')
+  w.managerFocus = b
   return ok
 }
 /** The player just acted on this system: the manager keeps out of it for a week. */

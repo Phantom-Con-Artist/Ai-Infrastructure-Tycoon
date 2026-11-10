@@ -14,6 +14,7 @@ import { CorpLogo } from '../art/Logos'
 import { EmptyFleetArt } from '../art/Illustrations'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
+import { ManagerCard } from '../ManagerCard'
 
 export function Fleet() {
   const w = useWorld(); const go = useGame((s) => s.go)
@@ -23,6 +24,7 @@ export function Fleet() {
     <>
       <div className="page-head"><div><div className="eyebrow">GPU market is {w.market.boom > 1.2 ? 'hot' : w.market.boom < 0.85 ? 'cooling' : 'steady'} · new orders arrive in {leadDays(w)} days</div><h1>Fleet & Cloud</h1></div><Tabs tabs={['buy', 'cloud'] as const} value={tab} onChange={setTab} /></div>
       <Summary items={Sum.fleetSummary(w)} />
+      {tab === 'cloud' && <div style={{ marginBottom: 14 }}><ManagerCard system="sales" /></div>}
       {tab === 'buy' ? <Buy /> : <CloudPools />}
     </>
   )

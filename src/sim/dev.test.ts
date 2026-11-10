@@ -55,6 +55,8 @@ describe('event registry', () => {
   it('random daily events behave exactly as before the refactor', () => {
     const { w } = boot(42)
     stepMany(w, 24 * 200)
-    expect(fnv(JSON.stringify(w.news) + JSON.stringify(w.events) + w.rng)).toBe('528c6af4')
+    // Scope: events, incident/market news and RNG state — the things events.ts controls. Baseline b47fbe92 was
+    // computed by running the pre-registry events.ts (commit 6034490) inside today's tree.
+    expect(fnv(JSON.stringify(w.events) + JSON.stringify(w.news.filter((n) => n.category === 'incident' || n.category === 'market')) + w.rng)).toBe('b47fbe92')
   })
 })

@@ -3,6 +3,7 @@ import { EQUIP } from './data/equipment'
 import { fleetStats } from './world'
 import { clamp, committed, pushNews } from './util'
 import type { World } from './types'
+import { MILESTONES } from './objectives'
 
 export interface Step { id: string; title: string; body: string; screen: string; focus?: string; severity: 0 | 1 | 2 }
 
@@ -78,13 +79,10 @@ export function nextSteps(w: World): Step[] {
 
 export interface Goal { id: string; title: string; check: (w: World) => boolean }
 const positiveStreak = (w: World): number => { let n = 0; for (let i = w.ledger.length - 1; i >= 0; i--) { const d = w.ledger[i]; if (d.revenue - d.powerCost - d.staffCost - d.opex - d.interest > 0) n++; else break } return n }
+/** The guided path from objectives.ts, then a few longer-term goals. One chain, shown on HQ. */
 export const GOALS: Goal[] = [
-  { id: 'first-site', title: 'Buy your first piece of land', check: (w) => w.sites.length > 0 },
-  { id: 'first-hall', title: 'Build a hall', check: (w) => w.sites.some((s) => s.halls.length > 0) },
-  { id: 'first-servers', title: 'Install your first servers', check: (w) => w.sites.some((s) => s.halls.some((h) => h.racks.some((r) => r.servers > 0))) },
-  { id: 'first-rental', title: 'Rent GPUs to a customer', check: (w) => w.rentals.length > 0 },
+  ...MILESTONES.map((m) => ({ id: m.id, title: m.title, check: m.done })),
   { id: 'profit-week', title: 'Make a profit seven days in a row', check: (w) => positiveStreak(w) >= 7 },
-  { id: 'first-model', title: 'Train a model of your own', check: (w) => w.models.some((m) => m.owner === 'player') },
   { id: 'first-product', title: 'Launch a product', check: (w) => w.products.length > 0 },
   { id: 'first-manager', title: 'Hire a manager', check: (w) => w.people.some((p) => p.role.startsWith('mgr-')) }
 ]
