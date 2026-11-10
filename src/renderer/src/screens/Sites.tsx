@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { canAfford } from '@sim/rules'
 import { Plus, MapPin, Thermometer, Zap, Gauge } from 'lucide-react'
 import * as A from '@sim/actions'
 import { COOLING, FABRICS, GENERATORS, REGIONS, region, type CoolingType, type FabricType, type GenKind } from '@sim/data/hardware'
@@ -47,7 +48,7 @@ function RegionPicker({ first, onCancel, onDone }: { first: boolean; onCancel: (
             </div>
             <Meter label="Carbon" v={r.carbon / 0.45} bad />
             <Meter label="Customer proximity" v={(r.demandMult - 0.6) / 0.7} />
-            <button className="btn pri" disabled={w.cash < r.siteCostUsd} onClick={() => { void useGame.getState().confirmAct(`Buy land in ${r.name}?`, PV.previewSpend(w, r.siteCostUsd), 'Buy land', (x) => A.buildSite(x, r.id), { okMsg: 'Site acquired' }).then((res) => { if (res?.ok) onDone(res.value.id) }) }}><MapPin size={14} /> Acquire · {money(r.siteCostUsd)}</button>
+            <button className="btn pri" disabled={!canAfford(w, r.siteCostUsd)} onClick={() => { void useGame.getState().confirmAct(`Buy land in ${r.name}?`, PV.previewSpend(w, r.siteCostUsd), 'Buy land', (x) => A.buildSite(x, r.id), { okMsg: 'Site acquired' }).then((res) => { if (res?.ok) onDone(res.value.id) }) }}><MapPin size={14} /> Acquire · {money(r.siteCostUsd)}</button>
           </div>
         ))}
       </div>

@@ -5,15 +5,16 @@ import * as THREE from 'three'
 import { Box, Fan, MousePointer2, Server, Trash2, Waves, Zap, BatteryCharging } from 'lucide-react'
 import * as A from '@sim/actions'
 import { EQUIP, RACK_COST, TILE, type EquipKind } from '@sim/data/equipment'
-import { COOLING, serverPeakKw } from '@sim/data/hardware'
+import { COOLING, FABRICS, serverPeakKw, type CoolingType, type FabricType } from '@sim/data/hardware'
 import { canPlace, footprint, itemAt, moveError, type Rot } from '@sim/layout'
-import { gpu, hasTech } from '@sim/util'
+import { coolingUnlocked, fabricUnlocked, gpu, hallServers, hasTech } from '@sim/util'
 import type { Hall, Site } from '@sim/types'
 import { useGame, useWorld } from '../store'
 import { money } from '../format'
 import { InstancedGlb, MaterialClock, MODEL, at } from './Instanced'
 import { VENDOR_HEX } from '../vendors'
 import { previewRemove } from '@sim/preview'
+import * as PV from '@sim/preview'
 import { touchSystem } from '@sim/managers'
 
 type Tool = 'select' | 'rack' | EquipKind | 'remove'
@@ -352,5 +353,24 @@ function Inspector({ site, hall, sel, onAuto }: { site: Site; hall: Hall; sel: R
       {stock.map(([id, n]) => <button key={id} className="btn sm pri" onClick={() => { const r = act((x) => A.installServers(x, site.id, hall.id, id, n)); if (r.ok) useGame.getState().flash(`Installed ${r.value} servers`) }}>Install {n}× {gpu(w, id).name}</button>)}
     </div>}
     <button className="btn sm ghost" onClick={onAuto}>Auto-layout empty space</button>
+    <HallUpgrades hall={hall} />
+  </div>
+}
+
+/** Retrofit cooling or re-cable the fabric when research unlocks something better. */
+function HallUpgrades({ hall }: { hall: Hall }) {
+  const w = useWorld()
+  const cool = (Object.keys(COOLING) as CoolingType[]).filter((c) => c !== hall.cooling && coolingUnlocked(w, c) && COOLING[c].maxRackKw > COOLING[hall.cooling].maxRackKw)
+  const fab = (Object.keys(FABRICS) as FabricType[]).filter((f) => f !== hall.fabric && fabricUnlocked(w, f) && FABRICS[f].k < FABRICS[hall.fabric].k)
+  if (!cool.length && !fab.length) return <p className="dim" style={{ fontSize: 12, margin: '8px 0 0' }}>No upgrades yet. Research better cooling or networking to retrofit this hall.</p>
+  const servers = hallServers(hall)
+  return <div className="col" style={{ gap: 6, marginTop: 10 }}>
+    <b style={{ fontSize: 13 }}>Upgrade this hall</b>
+    {cool.map((c) => { const cost = hall.coolKw * COOLING[c].usdPerKw * 1.4
+      return <button key={c} className="btn sm" onClick={() => void useGame.getState().confirmAct(`Retrofit ${hall.name} to ${COOLING[c].name}?`, PV.previewSpend(w, cost), 'Retrofit', (x) => A.retrofitCooling(x, hall.id, c), { okMsg: 'Cooling retrofitted', system: 'facilities' })}>
+        {COOLING[c].name} · {COOLING[c].maxRackKw} kW/rack · {money(cost)}</button> })}
+    {fab.map((f) => { const cost = (servers + hall.racks.length) * FABRICS[f].usdPerServer * 0.8
+      return <button key={f} className="btn sm" onClick={() => void useGame.getState().confirmAct(`Re-cable ${hall.name} with ${FABRICS[f].name}?`, PV.previewSpend(w, cost), 'Upgrade', (x) => A.upgradeFabric(x, hall.id, f), { okMsg: 'Fabric upgraded', system: 'facilities' })}>
+        {FABRICS[f].name} · {money(cost)}</button> })}
   </div>
 }
