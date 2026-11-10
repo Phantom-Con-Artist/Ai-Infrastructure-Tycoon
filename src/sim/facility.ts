@@ -1,3 +1,4 @@
+import { mult } from './rules'
 import { COOLING, GENERATORS, region, serverKw, type GpuSpec } from './data/hardware'
 import { EQUIP } from './data/equipment'
 import { gauss } from './rng'
@@ -70,7 +71,7 @@ export function energyPrice(w: World, site: Site): number {
   const seasonal = 1 + 0.1 * Math.cos(2 * Math.PI * (yearFrac(w.tick) - 0.05))
   let ev = 1
   for (const e of w.events) if (e.kind === 'priceSpike' && (!e.siteId || e.siteId === site.id)) ev *= e.mag
-  return r.basePriceMwh * diurnal * seasonal * Math.exp(site.spotNoise) * ev * (advisorPerk(w, 'cpo') ? 0.94 : 1) * Math.max(0.4, 1 - techSum(w, 'powerCost'))
+  return r.basePriceMwh * diurnal * seasonal * Math.exp(site.spotNoise) * ev * (advisorPerk(w, 'cpo') ? 0.94 : 1) * Math.max(0.4, 1 - techSum(w, 'powerCost')) * mult(w, 'powerPrice')
 }
 
 export interface Dispatch { gridMw: number; powerFactor: number; costPerHour: number; carbonKg: number; flow: NonNullable<Site['flow']> }

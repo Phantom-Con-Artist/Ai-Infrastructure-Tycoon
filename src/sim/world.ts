@@ -16,7 +16,7 @@ import { CLOUD, cloudRate } from './cloud'
 import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric, yearOf } from './util'
 import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
-import { makeRules, type Rules } from './rules'
+import { makeRules, mult, type Rules } from './rules'
 import { SYSTEMS } from './types'
 export const WORLD_VERSION = 9
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
@@ -193,6 +193,7 @@ export function finishRun(w: World, runId: string): void {
 }
 
 function failures(w: World): void {
+  const failMult = mult(w, 'failureRate')
   for (const s of w.sites) {
     for (const h of s.halls) {
       if (!h.online) continue
@@ -203,7 +204,7 @@ function failures(w: World): void {
         if (r.gpuId !== lastId) { g = gpu(w, r.gpuId); lastId = r.gpuId }
         const healthy = r.servers - r.failed
         const local = r.cooled ? (r.throttle < 0.9 ? 2 : 1) : 3
-        const k = poisson(w, (healthy * GPUS_PER_SERVER * hazard * local) / g!.mtbfH)
+        const k = poisson(w, (healthy * GPUS_PER_SERVER * hazard * local * failMult) / g!.mtbfH)
         if (k > 0) {
           r.failed = Math.min(r.servers, r.failed + k)
         }
@@ -261,7 +262,7 @@ function dailyTick(w: World): void {
     const t = tech(rs.current)!
     const lv = rs.levels[t.id] ?? 0
     const cost = techCost(t, lv), days = techDays(t, lv)
-    const speed = (1 + Math.sqrt(w.staff.researchers) * 0.25) * (w.advisor === 'res' ? 1.1 : 1) * labBoost(w, t.branch)
+    const speed = (1 + Math.sqrt(w.staff.researchers) * 0.25) * (w.advisor === 'res' ? 1.1 : 1) * labBoost(w, t.branch) * mult(w, 'researchSpeed')
     const perDay = Math.min((cost / days) * speed, Math.max(0, w.cash), cost - rs.progressUsd)
     rs.progressUsd += perDay; w.cash -= perDay; t2.opex += perDay
     if (rs.progressUsd >= cost - 1) {
@@ -303,7 +304,7 @@ function dailyTick(w: World): void {
     pushNews(w, 'bad', `${c.customer} cancels ${c.modelName}`, 'Deadline blown by more than 20 days. They are "exploring alternatives". The alternatives are Amazoon.')
   }
   // solvency
-  if (w.cash < 0) {
+  if (w.cash < 0 && !w.rules.noBankruptcy && !w.rules.infiniteCash) {
     w.negCashDays++
     if (w.negCashDays === 1) pushNews(w, 'bad', 'Cash balance negative', 'Borrow, sell servers or cut costs. The bank gives you 30 days.')
     if (w.negCashDays >= 30) { w.gameOver = true; pushNews(w, 'bad', 'Bankruptcy', `${w.company} is liquidated. A rival buys the racks for 11 cents on the dollar.`) }

@@ -1,3 +1,4 @@
+import { mult } from './rules'
 import { CUSTOMERS, RIVAL_RELEASES, corp } from './data/lore'
 import { GPUS_PER_SERVER, gpuCatalog, isCpu, serverPriceUsd, type GpuSpec } from './data/hardware'
 import { referencePrice } from './ai'
@@ -15,7 +16,7 @@ export function gpuMarketPrice(w: World, g: GpuSpec): number {
 }
 export const serverMarketPrice = (w: World, g: GpuSpec): number => {
   const p = gpuMarketPrice(w, g)
-  return Math.round(GPUS_PER_SERVER * p * 1.2 + 20000 + 0 * serverPriceUsd(g))
+  return Math.round((GPUS_PER_SERVER * p * 1.2 + 20000 + 0 * serverPriceUsd(g)) * mult(w, 'hardwarePrice'))
 }
 export const leadDays = (w: World): number => Math.round(21 + w.market.supplyTight * 70)
 
@@ -37,10 +38,10 @@ export function rentalPrice(w: World, g: GpuSpec): number {
 export function rentalUtilisation(w: World, g: GpuSpec, priceMult: number): number {
   const p = isCpu(g) ? (w.market.vmPressure ?? 1) : (w.market.gpuPressure[g.id] ?? 1)
   const salesBoost = 1 + Math.min(0.08, Math.log10(1 + w.staff.sales) * 0.04)
-  return clamp(0.8 * p * salesBoost * Math.pow(priceMult, -1.6) * (0.6 + 0.4 * w.reputation / 100) + techSum(w, 'rentUtil'), 0.03, 0.97)
+  return clamp(0.8 * p * mult(w, 'demand') * salesBoost * Math.pow(priceMult, -1.6) * (0.6 + 0.4 * w.reputation / 100) + techSum(w, 'rentUtil'), 0.03, 0.97)
 }
 
-export function marketDemandTokensPerDay(w: World): number { return w.market.tokensPerDay * w.market.boom * (1 + techSum(w, 'demand')) }
+export function marketDemandTokensPerDay(w: World): number { return w.market.tokensPerDay * w.market.boom * (1 + techSum(w, 'demand')) * mult(w, 'demand') }
 
 export function currentCompetitors(w: World): Competitor[] { return w.competitors }
 
@@ -87,13 +88,14 @@ function rivalReleases(w: World): void {
   if (month > 36) {
     for (const c of w.competitors) {
       const key = c.corp
-      if (rivalNext[key] === undefined) rivalNext[key] = month + range(w, 3, 12)
+      const agg = mult(w, 'rivalAggression')
+      if (rivalNext[key] === undefined) rivalNext[key] = month + range(w, 3, 12) / agg
       if (month >= rivalNext[key]) {
         const gain = 70 * Math.pow(0.97, month - 36) * range(w, 0.4, 1.4)
         c.elo += gain
         const ver = Math.floor((month - 36) / 9) + 6
         c.name = `${c.name.replace(/\s\d+(\.\d+)?.*$/, '')} ${ver}`
-        rivalNext[key] = month + range(w, 6, 12)
+        rivalNext[key] = month + range(w, 6, 12) / agg
         pushNews(w, 'event', `${corp(c.corp).name} ships ${c.name}`, `New SOTA at Elo ${Math.round(c.elo)}. The leaderboard is a treadmill.`)
       }
     }
