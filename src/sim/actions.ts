@@ -313,9 +313,10 @@ export function validateTraining(w: World, spec: TrainSpec): string | null {
   return null
 }
 export function startTraining(w: World, spec: TrainSpec, owner = 'player'): Result<string> {
-  const err = validateTraining(w, spec); if (err) return fail(err)
   const method = spec.method ?? 'scratch', base = method === 'scratch' ? undefined : findBase(w, spec.baseId)
+  // a fine-tune or continuation trains the base model's weights, so that is the size that must fit in memory
   if (base && method !== 'distill') spec = { ...spec, paramsB: base.paramsB, activeParamsB: base.activeParamsB, moe: base.moe }
+  const err = validateTraining(w, spec); if (err) return fail(err)
   const moe = !!spec.moe
   const active = moe ? (spec.activeParamsB ?? spec.paramsB / 8) : spec.paramsB
   const dq = Math.min(1.4, (spec.dataQuality ?? 1) + (hasTech(w, 'synth') ? 0.15 : 0))
@@ -413,6 +414,8 @@ export function startResearch(w: World, id: string): Result {
 export function researchNow(w: World, id: string): Result {
   const rs = w.research, q = (rs.queue ??= [])
   const i = q.indexOf(id); if (i < 0) return fail('Queue it first')
+  const missing = TECHS.find((t) => t.id === id)?.requires?.find((r) => !rs.done.includes(r))
+  if (missing) return fail(`Finish ${TECHS.find((t) => t.id === missing)?.name ?? missing} first`)
   q.splice(i, 1)
   if (rs.current) { (rs.partial ??= {})[rs.current] = rs.progressUsd; q.unshift(rs.current) }
   rs.current = id; rs.progressUsd = rs.partial?.[id] ?? 0; if (rs.partial) delete rs.partial[id]

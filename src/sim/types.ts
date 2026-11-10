@@ -59,6 +59,8 @@ export interface AiModel {
   tokensServed: number; revenue: number; share: number; demandTokPerDay: number; capacityTokPerDay: number; releasedByPlayer: boolean
   arch?: ArchSpec; evals?: Record<string, number>; mix?: Partial<Record<Domain, number>>; subsidiary?: string; hype?: number; reservedTokPerDay?: number
   modality?: import('./foundry').Modality; method?: import('./foundry').Method; baseName?: string
+  /** How many fine-tunes deep this model is; each further one gains half as much. */
+  tuned?: number
 }
 export interface Competitor { corp: string; name: string; elo: number; priceMtok: number }
 
@@ -118,5 +120,5 @@ export interface World {
   web: import('./web').WebPresence
   products: import('./store').Product[]
   people: import('./people').Person[]; candidates: import('./people').Person[]; labs: import('./people').ResearchLab[]; chipStaff?: number
-  rules: Rules; editions: Edition[]; inbox: InboxItem[]; autopilot: Record<System, Autopilot>; managerLog: Record<System, string[]>; goalsDone: string[]; managerFocus?: Branch
+  rules: Rules; editions: Edition[]; inbox: InboxItem[]; autopilot: Record<System, Autopilot>; managerLog: Record<System, string[]>; goalsDone: string[]; managerFocus?: Branch; inboxDeclined?: Record<string, number>
 }

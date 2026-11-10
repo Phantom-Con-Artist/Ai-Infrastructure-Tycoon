@@ -72,7 +72,10 @@ const tryAct = (w: World, sys: System, r: { ok: boolean; error?: string }, okTex
   return r.ok
 }
 function ask(w: World, sys: System, title: string, lines: string[], fn: string, args: unknown[]): void {
-  if (w.inbox.some((i) => i.action.fn === fn && JSON.stringify(i.action.args[0]) === JSON.stringify(args[0]))) return
+  // one open loan request at a time (the amount drifts daily); other requests are keyed by what they act on
+  if (w.inbox.some((i) => i.action.fn === fn && (fn === 'borrow' || JSON.stringify(i.action.args[0]) === JSON.stringify(args[0])))) return
+  const key = fn + ':' + (fn === 'borrow' ? '' : JSON.stringify(args[0]))
+  if ((w.inboxDeclined?.[key] ?? -Infinity) > w.tick - 30 * 24) return // you said no: do not ask again for a month
   const item: InboxItem = { id: newId(w, 'ib'), system: sys, tick: w.tick, title, lines, action: { fn, args } }
   w.inbox.push(item)
   log(w, sys, `asked you: ${title}`)
@@ -87,7 +90,7 @@ function facilities(w: World, m: Person): void {
     if ((s.strategy ?? 'cost') !== target) tryAct(w, 'facilities', A.setPowerStrategy(w, s.id, target), `switched ${s.name} to ${target} power`)
     if (hasBattery && !(s.drPct ?? 0)) tryAct(w, 'facilities', A.setDemandResponse(w, s.id, 0.1 * wobble(w, m)), `signed ${s.name} up for demand response`)
     for (const h of s.halls) {
-      if (!h.racks.length && !h.equipment.length && canAfford(w, 5e6)) tryAct(w, 'facilities', A.autoLayout(w, h.id), `laid out ${h.name}`)
+      if (!h.racks.length && !h.equipment.length && w.tick >= h.readyTick && canAfford(w, 5e6)) tryAct(w, 'facilities', A.autoLayout(w, h.id, 24), `laid out a first row in ${h.name}`) // a starter row only: filling a hall is the player's call
       if (h.equipment.some((e) => e.kind === 'pdu' && e.load > EQUIP.pdu.kw)) log(w, 'facilities', `PDU overloaded in ${h.name} — needs another PDU`)
       else if (h.racks.some((r) => r.servers > 0 && !r.cooled)) log(w, 'facilities', `racks in ${h.name} have no cooling`)
     }
@@ -232,6 +235,7 @@ export function approveInbox(w: World, id: string): Result {
 export function rejectInbox(w: World, id: string): Result {
   const item = w.inbox.find((i) => i.id === id); if (!item) return fail('Request is gone')
   w.inbox = w.inbox.filter((i) => i !== item)
+  ;(w.inboxDeclined ??= {})[item.action.fn + ':' + (item.action.fn === 'borrow' ? '' : JSON.stringify(item.action.args[0]))] = w.tick
   log(w, item.system, `you said no: ${item.title}`)
   return ok
 }

@@ -261,3 +261,30 @@ describe('data foundry, organisations and the society loop', () => {
     expect(s.laws).toContain('antitrust')
   })
 })
+
+describe('review fixes', () => {
+  it('making and selling datasets is never free money', () => {
+    for (const [source, t] of [['license', 0.096], ['scrape', 1], ['scrape', 0.0001], ['license', 5]] as const) {
+      const w = createWorld(7); w.cash = 1e10
+      DF.startProject(w, { name: 'X', domain: 'code', source, targetT: t, budgetPerDay: 1e9 })
+      const c0 = w.cash; DF.dailyData(w)
+      const d = w.data!.own[0]; const cost = c0 - w.cash
+      expect(DF.salePrice(w, d)).toBeLessThanOrEqual(Math.max(50_000, cost * 1.5) + 1)
+    }
+  })
+  it('a second licensed dataset on the same subject earns less than the first', () => {
+    const w = createWorld(7); w.cash = 1e10
+    for (const n of ['A', 'B']) DF.startProject(w, { name: n, domain: 'code', source: 'license', targetT: 1, budgetPerDay: 1e9 })
+    DF.dailyData(w)
+    const [a, b] = w.data!.own; const alone = DF.licenceValue(w, a)
+    b.licensed = true
+    expect(DF.licenceValue(w, a)).toBeLessThan(alone)
+  })
+  it('you cannot jump a queued tech ahead of its prerequisite', () => {
+    const w = createWorld(7); w.cash = 1e10
+    expect(A.startResearch(w, 'hotaisle').ok).toBe(true)
+    expect(A.startResearch(w, 'rdhx').ok).toBe(true) // queued behind its prerequisite
+    expect(A.researchNow(w, 'rdhx').ok).toBe(false)
+    expect(w.research.current).toBe('hotaisle')
+  })
+})

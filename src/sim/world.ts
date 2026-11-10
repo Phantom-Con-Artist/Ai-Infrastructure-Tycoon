@@ -184,10 +184,16 @@ export function finishRun(w: World, runId: string): void {
     const baseModel = run.baseId ? w.models.find((m) => m.id === run.baseId) : undefined
     if (baseRef && baseModel?.modality) (baseRef as { modality: string }).modality = baseModel.modality
     elo = foundryElo(method, elo, baseRef, run.tokensT, run.dataQuality, modality)
-    if (w.research.done.includes('distill') && run.paramsB <= 70) elo += 60
-    elo += techSum(w, 'elo') + techSum(w, 'elo-' + modality)
+    // research bonuses are part of a base model's Elo already: only a run from random init earns them again
+    if (method === 'scratch' || !baseRef) {
+      if (w.research.done.includes('distill') && run.paramsB <= 70) elo += 60
+      elo += techSum(w, 'elo') + techSum(w, 'elo-' + modality)
+    } else if (method === 'finetune') {
+      const depth = baseModel?.tuned ?? 0 // each fine-tune of a fine-tune has less left to find
+      elo = run.baseElo! + (elo - run.baseElo!) * Math.pow(0.5, depth)
+    }
     w.models.push({
-      id: newId(w, 'm'), name: run.name, owner: 'player', paramsB: run.paramsB, activeParamsB: run.activeParamsB, tokensT: run.tokensT,
+      id: newId(w, 'm'), name: run.name, owner: 'player', paramsB: run.paramsB, activeParamsB: run.activeParamsB, tokensT: tokens, tuned: method === 'finetune' ? (baseModel?.tuned ?? 0) + 1 : baseModel?.tuned,
       loss, elo, releaseTick: w.tick, priceMtok: 0, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: false,
       modality, method, baseName: baseModel?.name ?? (run.baseId?.startsWith('tpl:') ? run.baseId.slice(4) : undefined),
       arch: run.arch, mix: run.mix, evals: Object.fromEntries(EVALS.map((e) => [e.id, evalScore(e, elo, run.mix ?? RIVAL_MIX, techLevel(w, 'reasoning'))]))
@@ -330,6 +336,7 @@ function dailyTick(w: World): void {
     pushNews(w, 'bad', `${c.customer} cancels ${c.modelName}`, 'Deadline blown by more than 20 days. They are "exploring alternatives". The alternatives are Amazoon.', 'mine', 1)
   }
   // solvency
+  if (w.rules.infiniteCash && w.cash < 0) w.cash = 0 // running costs are debited directly; unlimited cash never shows a debt
   if (w.cash < 0 && !w.rules.noBankruptcy && !w.rules.infiniteCash) {
     w.negCashDays++
     if (w.negCashDays === 1) pushNews(w, 'bad', 'Cash balance negative', 'Borrow, sell servers or cut costs. The bank gives you 30 days.', 'mine', 2)

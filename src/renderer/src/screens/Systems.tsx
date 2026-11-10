@@ -55,7 +55,7 @@ export function DataFoundry() {
               <span><b>{d.name}</b> <span className="dim">· {num(d.tokensT, 2)}T {d.domain} · quality ×{d.quality}{d.earned > 0 ? ` · earned ${money(d.earned)}` : ''}</span></span>
               <span className="row" style={{ gap: 8 }}>
                 <button className={'btn sm ' + (d.licensed ? 'pri' : '')} title="Rivals pay daily to train on it. It makes them slightly better." onClick={() => act((x) => DF.setLicensed(x, d.id, !d.licensed), d.licensed ? 'Licence withdrawn' : 'Now licensed to rivals', { undoable: true })}>{d.licensed ? `Licensed · ${money(v)}/day` : `License out · ${money(v)}/day`}</button>
-                <button className="btn sm danger" onClick={() => void useGame.getState().confirmAct(`Sell ${d.name} outright?`, { tier: 'severe', lines: [`You receive ${money(v * 400)} once`, 'You can no longer train on it, and a rival can'] }, 'Sell', (x) => DF.sellDataset(x, d.id), { okMsg: 'Dataset sold' })}>Sell · {money(v * 400)}</button>
+                <button className="btn sm danger" onClick={() => void useGame.getState().confirmAct(`Sell ${d.name} outright?`, { tier: 'severe', lines: [`You receive ${money(DF.salePrice(w, d))} once`, 'You can no longer train on it, and a rival can'] }, 'Sell', (x) => DF.sellDataset(x, d.id), { okMsg: 'Dataset sold' })}>Sell · {money(DF.salePrice(w, d))}</button>
               </span>
             </div>) })}
       </div>

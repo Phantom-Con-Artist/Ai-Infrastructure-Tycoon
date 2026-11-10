@@ -65,15 +65,19 @@ function finish(w: World, p: DataProject): void {
 /** What rivals pay per day to license a dataset. Clean human data is worth more the sloppier the internet gets. */
 export function licenceValue(w: World, d: OwnDataset): number {
   const slop = w.society?.slop ?? 0
-  return 30_000 * Math.sqrt(d.tokensT) * Math.pow(d.quality, 4) * (d.legalRisk > 0.3 ? 0.3 : 1) * (d.made === 'synthetic' ? 0.5 : 1 + 2 * slop) * (1 + techSum(w, 'dataPrice'))
+  // small sets are worth their size, big ones flatten out; a second set on the same subject competes with your first
+  const rivals = (w.data?.own ?? []).filter((x) => x !== d && x.licensed && x.domain === d.domain).length
+  return 30_000 * Math.min(d.tokensT, Math.sqrt(d.tokensT)) / (1 + 0.6 * rivals) * Math.pow(d.quality, 4) * (d.legalRisk > 0.3 ? 0.3 : 1) * (d.made === 'synthetic' ? 0.5 : 1 + 2 * slop) * (1 + techSum(w, 'dataPrice'))
 }
 export function setLicensed(w: World, id: string, on: boolean): R {
   const d = dataState(w).own.find((x) => x.id === id); if (!d) return { ok: false, error: 'Not one of yours' }
   d.licensed = on; return { ok: true, value: undefined }
 }
+/** An exclusive buyer pays for future licence income, but never much more than it cost you to make. */
+export const salePrice = (w: World, d: OwnDataset): number => Math.round(Math.min(licenceValue(w, { ...d, licensed: false }) * 400, Math.max(50_000, d.usd * 1.5)))
 export function sellDataset(w: World, id: string): R<number> {
   const st = dataState(w); const d = st.own.find((x) => x.id === id); if (!d) return { ok: false, error: 'Not one of yours' }
-  const price = Math.round(licenceValue(w, d) * 400)
+  const price = salePrice(w, d)
   st.own = st.own.filter((x) => x !== d); delete w.datasets[id]
   w.cash += price; w.today.revenue += price
   pushNews(w, 'info', `Sold ${d.name}`, `An exclusive sale for $${(price / 1e6).toFixed(1)}M. You can no longer train on it; somebody else now can.`, 'mine', 1)

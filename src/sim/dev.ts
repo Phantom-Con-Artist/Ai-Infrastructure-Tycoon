@@ -21,7 +21,14 @@ export function devUnlockTech(w: World, id: string | 'all'): R {
     if (!w.research.done.includes(t.id)) w.research.done.push(t.id)
     w.research.levels[t.id] = Math.max(1, w.research.levels[t.id] ?? 0)
   }
-  if (w.research.current && list.some((t) => t.id === w.research.current)) { w.research.current = undefined; w.research.progressUsd = 0 }
+  const got = new Set(list.map((t) => t.id))
+  w.research.queue = (w.research.queue ?? []).filter((q) => !got.has(q) || !!TECHS.find((t) => t.id === q)?.repeatable)
+  for (const q of got) if (w.research.partial) delete w.research.partial[q]
+  if (w.research.current && got.has(w.research.current)) {
+    const next = w.research.queue.shift()
+    w.research.current = next; w.research.progressUsd = next ? w.research.partial?.[next] ?? 0 : 0
+    if (next && w.research.partial) delete w.research.partial[next]
+  }
   recomputeStaff(w)
   return ok
 }

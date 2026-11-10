@@ -66,6 +66,6 @@ export function pushNews(w: World, kind: 'info' | 'good' | 'bad' | 'event', titl
   if (w.news.length > 80) w.news.length = 80
 }
 export function spend(w: World, usd: number, bucket: 'capex' | 'opex' = 'capex'): void {
-  w.cash -= usd
+  if (!w.rules?.infiniteCash) w.cash -= usd // unlimited cash means spending never drives the balance negative
   w.today[bucket] += usd
 }

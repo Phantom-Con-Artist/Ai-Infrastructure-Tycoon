@@ -9,7 +9,7 @@ import { dateOf } from '../format'
 import type { NewsItem } from '@sim/types'
 
 /** Which morning edition a story will run in: the one printed at the next midnight. */
-export const editionDayOf = (n: NewsItem): number => Math.floor(n.tick / 24) + 1
+export const editionDayOf = (n: NewsItem): number => Math.max(1, Math.ceil(n.tick / 24))
 
 export function Ticker() {
   const w = useWorld()
