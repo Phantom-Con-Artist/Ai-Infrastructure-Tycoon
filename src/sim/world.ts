@@ -274,13 +274,20 @@ function dailyTick(w: World): void {
     const lv = rs.levels[t.id] ?? 0
     const cost = techCost(t, lv), days = techDays(t, lv)
     const speed = (1 + Math.sqrt(w.staff.researchers) * 0.25) * (w.advisor === 'res' ? 1.1 : 1) * labBoost(w, t.branch) * mult(w, 'researchSpeed')
-    const perDay = Math.min((cost / days) * speed, Math.max(0, w.cash), cost - rs.progressUsd)
+    const perDay = Math.min((cost / days) * speed, w.rules.infiniteCash ? Infinity : Math.max(0, w.cash), cost - rs.progressUsd)
     rs.progressUsd += perDay; w.cash -= perDay; t2.opex += perDay
     if (rs.progressUsd >= cost - 1) {
       rs.levels[t.id] = lv + 1
       if (!rs.done.includes(t.id)) rs.done.push(t.id)
       rs.current = undefined; rs.progressUsd = 0
       pushNews(w, 'good', `Research complete: ${t.name}${t.repeatable ? ` ${roman(lv + 1)}` : ''}`, t.blurb, 'mine', 1)
+      // next in the queue that is still valid (prereqs met, not maxed / already done)
+      while (rs.queue?.length && !rs.current) {
+        const next = rs.queue.shift()!, nt = tech(next)
+        const nlv = rs.levels[next] ?? 0
+        if (!nt || (nlv > 0 && !nt.repeatable) || (nt.repeatable?.max && nlv >= nt.repeatable.max) || nt.requires?.some((r) => !rs.done.includes(r))) continue
+        rs.current = next; rs.progressUsd = rs.partial?.[next] ?? 0; if (rs.partial) delete rs.partial[next]
+      }
     }
   }
   // roll up

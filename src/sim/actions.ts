@@ -387,15 +387,34 @@ export function hire(w: World, role: keyof World['staff'], n: number): Result {
   }
   recomputeStaff(w); return ok(undefined)
 }
+/**
+ * Research a tech: starts it if the lab is idle, otherwise adds it to the queue. Prerequisites may be researched,
+ * running, or earlier in the queue. Nothing ever loses progress.
+ */
 export function startResearch(w: World, id: string): Result {
+  const rs = w.research, q = (rs.queue ??= [])
   const t = TECHS.find((x) => x.id === id); if (!t) return fail('Unknown tech')
-  const lv = w.research.levels[id] ?? 0
-  if (lv > 0 && !t.repeatable) return fail('Already researched')
+  const pending = [rs.current, ...q].filter(Boolean) as string[]
+  const lv = (rs.levels[id] ?? 0) + pending.filter((x) => x === id).length
+  if (lv > 0 && !t.repeatable) return fail(rs.current === id ? 'Already researching' : pending.includes(id) ? 'Already queued' : 'Already researched')
   if (t.repeatable?.max && lv >= t.repeatable.max) return fail('Maxed out')
-  if (t.requires?.some((r) => !w.research.done.includes(r))) return fail('Prerequisites missing')
-  if (w.research.current && w.research.current !== id) w.research.progressUsd = 0
-  w.research.current = id
+  if (t.requires?.some((r) => !rs.done.includes(r) && !pending.includes(r))) return fail('Prerequisites missing')
+  if (!rs.current) { rs.current = id; rs.progressUsd = rs.partial?.[id] ?? 0; if (rs.partial) delete rs.partial[id] }
+  else q.push(id)
   return ok(undefined)
+}
+/** Switch the lab to `id` now (it must be queued); the running tech goes to the front of the queue, progress kept. */
+export function researchNow(w: World, id: string): Result {
+  const rs = w.research, q = (rs.queue ??= [])
+  const i = q.indexOf(id); if (i < 0) return fail('Queue it first')
+  q.splice(i, 1)
+  if (rs.current) { (rs.partial ??= {})[rs.current] = rs.progressUsd; q.unshift(rs.current) }
+  rs.current = id; rs.progressUsd = rs.partial?.[id] ?? 0; if (rs.partial) delete rs.partial[id]
+  return ok(undefined)
+}
+export function dequeueResearch(w: World, id: string): Result {
+  const q = w.research.queue ?? []; const i = q.lastIndexOf(id); if (i < 0) return fail('Not queued')
+  q.splice(i, 1); return ok(undefined)
 }
 export function borrow(w: World, amount: number): Result {
   if (amount <= 0) return fail('Amount must be positive')

@@ -78,7 +78,12 @@ export const SYSTEMS: System[] = ['facilities', 'sales', 'people', 'finance', 'r
 export interface Autopilot { on: boolean; policy: Record<string, number>; handsOffUntil: number }
 export interface InboxItem { id: string; system: System; tick: number; title: string; lines: string[]; action: { fn: string; args: unknown[] } }
 export interface ActiveEvent { id: string; kind: string; title: string; endTick: number; siteId?: string; mag: number }
-export interface ResearchState { done: string[]; levels: Record<string, number>; current?: string; progressUsd: number; budgetPerDay: number }
+export interface ResearchState { done: string[]; levels: Record<string, number>; current?: string; progressUsd: number; budgetPerDay: number
+  /** Up next, in order. Optional for older saves. */
+  queue?: string[]
+  /** Money already sunk into techs you paused, by id. */
+  partial?: Record<string, number>
+}
 export interface Staff { engineers: number; researchers: number; ops: number; sales: number }
 export interface DayLedger { day: number; revenue: number; powerCost: number; staffCost: number; interest: number; opex: number; capex: number; cash: number; itMw: number; gpus: number; rentalRev: number; inferRev: number; contractRev: number }
 export interface MarketState {

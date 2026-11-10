@@ -69,16 +69,23 @@ export function Research() {
   const maxTier = Math.max(...TECHS.map((t) => t.tier))
   const branches = branch === 'All' ? BRANCHES : [branch]
   const doneCount = Object.values(w.research.levels).reduce((a, b) => a + b, 0)
+  const queue = w.research.queue ?? []
   return (
     <>
-      <div className="page-head"><div><div className="eyebrow">{doneCount} upgrades researched · {w.staff.researchers} researchers</div><h1>Research & Development</h1>
+      <div className="page-head"><div><div className="eyebrow">{doneCount} upgrades researched · {w.staff.researchers.toFixed(1)} researchers</div><h1>Research & Development</h1>
         <p className="sub">Everything in the game unlocks here. Tiers go deeper than you can afford — on purpose. Upgrades marked ∞ can be researched forever.</p></div></div>
       <Summary items={Sum.researchSummary(w)} />
       <div style={{ marginBottom: 16 }}><ManagerCard system="research" /></div>
       {cur && <div className="panel row" style={{ marginBottom: 18, gap: 18 }}>
         <div style={{ flex: 1 }}><div className="eyebrow">Researching</div><h3>{cur.name}{cur.repeatable ? ` ${roman(curLv + 1)}` : ''}</h3>
           <div className="bar" style={{ marginTop: 8 }}><i style={{ width: `${(w.research.progressUsd / techCost(cur, curLv)) * 100}%` }} /></div></div>
-        <div className="dim" style={{ fontSize: 13, textAlign: 'right' }}>{money(w.research.progressUsd)} / {money(techCost(cur, curLv))}<br />spend flows daily while unpaused</div>
+        <div className="dim" style={{ fontSize: 13, textAlign: 'right' }}>{money(w.research.progressUsd)} / {money(techCost(cur, curLv))}<br />{!w.rules.infiniteCash && w.cash <= 0 ? <span className="neg">Paused: out of cash</span> : 'spend flows daily while unpaused'}</div>
+      </div>}
+      {queue.length > 0 && <div className="panel col" style={{ marginBottom: 18, gap: 8 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}><b style={{ fontSize: 13 }}>Up next · {queue.length}</b><span className="dim" style={{ fontSize: 12 }}>Each finished tech starts the next. Nothing loses progress.</span></div>
+        <div className="row wrap" style={{ gap: 6 }}>{queue.map((id, i) => { const t = TECHS.find((x) => x.id === id); return t && <span key={id + i} className="queue-chip"><i>{i + 1}</i>{t.name}
+          <button className="btn sm ghost" onClick={() => act((x) => A.researchNow(x, id), `Now researching ${t.name}`, { system: 'research' })}>Start now</button>
+          <button className="icon" aria-label={`Remove ${t.name}`} onClick={() => act((x) => A.dequeueResearch(x, id), 'Removed from queue', { system: 'research' })}>✕</button></span> })}</div>
       </div>}
       <div className="row wrap" style={{ gap: 6, marginBottom: 16 }}>{(['All', ...BRANCHES] as const).map((b) => <button key={b} className={'btn sm ' + (branch === b ? 'pri' : '')} onClick={() => setBranch(b)}>{b}</button>)}</div>
       <div style={{ overflowX: 'auto', paddingBottom: 12 }}>
@@ -90,14 +97,15 @@ export function Research() {
               {TECHS.filter((t) => t.branch === br && t.tier === i + 1).map((t) => {
                 const lv = w.research.levels[t.id] ?? 0
                 const done = lv > 0 && !t.repeatable, maxed = !!t.repeatable?.max && lv >= t.repeatable.max
-                const locked = !!t.requires?.some((r) => !w.research.done.includes(r))
+                const locked = !!t.requires?.some((r) => !w.research.done.includes(r) && r !== w.research.current && !queue.includes(r))
                 const active = w.research.current === t.id
+                const qpos = queue.indexOf(t.id)
                 return (
-                  <button key={t.id} disabled={locked || done || maxed} onClick={() => act((x) => A.startResearch(x, t.id), 'Research started', { system: 'research' })}
+                  <button key={t.id} disabled={locked || done || maxed} onClick={() => act((x) => A.startResearch(x, t.id), w.research.current ? `Queued ${t.name}` : 'Research started', { system: 'research' })}
                     style={{ textAlign: 'left', border: 0, cursor: locked || done ? 'default' : 'pointer', padding: '11px 12px', borderRadius: 14, display: 'grid', gap: 4,
                       background: done || maxed ? 'var(--accent-soft)' : active ? 'var(--ink)' : 'var(--surface)', color: active ? 'var(--surface)' : undefined,
                       boxShadow: active ? 'var(--sh-2)' : 'var(--sh-1)', opacity: locked ? 0.45 : 1, transition: 'all .25s var(--ease)' }}>
-                    <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}><b style={{ fontSize: 13 }}>{t.name}</b>{t.repeatable ? <span className="tag b">{lv ? roman(lv) : '∞'}</span> : done ? <span className="tag g">✓</span> : null}</div>
+                    <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}><b style={{ fontSize: 13 }}>{t.name}</b>{qpos >= 0 ? <span className="tag">#{qpos + 1} queued</span> : t.repeatable ? <span className="tag b">{lv ? roman(lv) : '∞'}</span> : done ? <span className="tag g">✓</span> : null}</div>
                     <span style={{ fontSize: 11.5, opacity: 0.75, lineHeight: 1.35 }}>{t.blurb}</span>
                     <span style={{ fontSize: 11.5, fontWeight: 600, opacity: 0.8 }}>{locked ? `Needs ${t.requires!.map((r) => TECHS.find((x) => x.id === r)?.name).join(', ')}` : done ? 'Researched' : maxed ? 'Maxed' : `${money(techCost(t, lv))} · ${techDays(t, lv)} d`}</span>
                   </button>)
