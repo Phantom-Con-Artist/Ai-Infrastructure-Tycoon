@@ -18,6 +18,7 @@ import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
 import { makeRules, mult, type Rules } from './rules'
 import { buildEdition } from './newspaper'
+import { checkGoals } from './advisor'
 import { SYSTEMS } from './types'
 export const WORLD_VERSION = 9
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
@@ -292,6 +293,7 @@ function dailyTick(w: World): void {
   dailyStore(w)
   dailyPeople(w)
   checkAchievements(w)
+  checkGoals(w)
   if (Math.floor(w.tick / 24) % 7 === 0 && w.tick > 0) { const d = weeklyDigest(w); pushNews(w, 'event', d.title, d.lines.slice(0, 2).join(' '), 'world', 0) }
   if (webQuality(w) > 0) w.reputation = clamp(w.reputation + webQuality(w) * 0.01, 0, 100)
   if (Math.floor(w.tick / 24) % 7 === 3 && rnd(w) < 0.35) pushNews(w, 'info', 'Chirper is talking', parodyPost(w), 'world', 0)
