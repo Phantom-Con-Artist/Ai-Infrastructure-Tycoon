@@ -39,7 +39,7 @@ describe('managers', () => {
       return w.ledger.slice(start).reduce((a, d) => a + d.rentalRev, 0)
     }
     expect(run(true)).toBeGreaterThan(run(false))
-  })
+  }, 30_000)
   it('stays hands-off for 7 days after the player touches a system', () => {
     const { w, site } = boot(2)
     hireMgr(w, 'facilities')

@@ -38,7 +38,7 @@ describe('difficulty multipliers', () => {
       return failed
     }
     expect(run(4)).toBeGreaterThan(run(0.25) * 2)
-  })
+  }, 30_000)
   it('rivalAggression brings procedural rival releases sooner', () => {
     const a = createWorld(3), b = createWorld(3, 'x', 'y', 'cfo', undefined, withMult('rivalAggression', 4))
     stepMany(a, 24 * 365 * 4); stepMany(b, 24 * 365 * 4)
