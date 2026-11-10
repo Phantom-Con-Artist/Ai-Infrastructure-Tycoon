@@ -5,13 +5,23 @@ import { pick, range, rnd } from './rng'
 import type { World } from './types'
 import { newId, pushNews, spend } from './util'
 
-export type Role = 'engineers' | 'researchers' | 'ops' | 'sales' | 'chip'
+export type IcRole = 'engineers' | 'researchers' | 'ops' | 'sales' | 'chip'
+export type ManagerRole = 'mgr-facilities' | 'mgr-sales' | 'mgr-people' | 'mgr-finance' | 'mgr-research'
+export type Role = IcRole | ManagerRole
+export const IC_ROLES: IcRole[] = ['engineers', 'researchers', 'ops', 'sales', 'chip']
+export const MANAGER_ROLES: ManagerRole[] = ['mgr-facilities', 'mgr-sales', 'mgr-people', 'mgr-finance', 'mgr-research']
+export const isManager = (r: Role): r is ManagerRole => r.startsWith('mgr-')
 export const ROLES: Record<Role, { name: string; base: number; blurb: string }> = {
   engineers: { name: 'ML infra engineer', base: 230_000, blurb: 'MFU, uptime, fewer restarts.' },
   researchers: { name: 'Research scientist', base: 320_000, blurb: 'Research speed; staffs your labs.' },
   ops: { name: 'Data-center technician', base: 110_000, blurb: 'Faster repairs.' },
   sales: { name: 'Enterprise sales', base: 160_000, blurb: 'Rental utilisation, deal flow.' },
-  chip: { name: 'Silicon architect', base: 290_000, blurb: 'Faster tape-outs.' }
+  chip: { name: 'Silicon architect', base: 290_000, blurb: 'Faster tape-outs.' },
+  'mgr-facilities': { name: 'Facilities manager', base: 165_000, blurb: 'Runs power strategy, demand response and hall layouts for you.' },
+  'mgr-sales': { name: 'Sales manager', base: 240_000, blurb: 'Prices rentals against the market and fills idle servers.' },
+  'mgr-people': { name: 'People manager', base: 200_000, blurb: 'Backfills quits and keeps stars from being poached.' },
+  'mgr-finance': { name: 'Finance manager', base: 260_000, blurb: 'Keeps a cash reserve, pays down debt, spots good power deals.' },
+  'mgr-research': { name: 'Research director', base: 480_000, blurb: 'Keeps your labs busy on the branch you care about.' }
 }
 export const TRAITS = [
   { id: '10x', name: '10× engineer', mult: 1.6, blurb: 'Claims to be. Is, annoyingly.' },
@@ -29,7 +39,7 @@ const FIRST = ['Ada', 'Grace', 'Linus', 'Yann', 'Fei', 'Ilya', 'Andrej', 'Demis'
 const LAST = ['Loveless', 'Hopperton', 'Torvaldson', 'LeCant', 'Fei-Fei', 'Sutskeverish', 'Karpathyish', 'Hassabisque', 'Deanish', 'Shazeerio', 'Muratoff', 'Vinyalsky', 'Olahan', 'Kollerman', 'Hintonbury', 'Matrixov', 'Gradientova', 'Tensorson', 'Backpropoulos', 'Overfitz']
 
 export function makeCandidate(w: World): Person {
-  const role = pick(w, Object.keys(ROLES) as Role[])
+  const role: Role = rnd(w) < 0.15 ? pick(w, MANAGER_ROLES) : pick(w, IC_ROLES)
   const skill = Math.round(Math.min(10, Math.max(1, 3 + rnd(w) * 5 + (rnd(w) < 0.12 ? 3 : 0))))
   const traitR = rnd(w)
   const trait = traitR < 0.06 ? '10x' : traitR < 0.18 ? 'ex-big' : traitR < 0.26 ? 'phd' : traitR < 0.34 ? 'burnout' : traitR < 0.38 ? 'celebrity' : traitR < 0.46 ? 'loyal' : 'none'
@@ -43,8 +53,8 @@ export function foundingTeam(w: World): Person[] {
 }
 /** Effective headcount per role (skill 5 = 1 FTE), plus morale effects; writes into w.staff for the rest of the sim. */
 export function recomputeStaff(w: World): void {
-  const eff: Record<Role, number> = { engineers: 0, researchers: 0, ops: 0, sales: 0, chip: 0 }
-  for (const p of w.people) eff[p.role] += (p.skill / 5) * (0.5 + 0.5 * p.morale) * (p.trait === '10x' ? 1.8 : 1)
+  const eff: Record<IcRole, number> = { engineers: 0, researchers: 0, ops: 0, sales: 0, chip: 0 }
+  for (const p of w.people) if (!isManager(p.role)) eff[p.role] += (p.skill / 5) * (0.5 + 0.5 * p.morale) * (p.trait === '10x' ? 1.8 : 1)
   w.staff = { engineers: eff.engineers, researchers: eff.researchers, ops: eff.ops, sales: eff.sales }
   w.chipStaff = eff.chip
 }
