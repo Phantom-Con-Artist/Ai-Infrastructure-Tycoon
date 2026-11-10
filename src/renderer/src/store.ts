@@ -104,7 +104,7 @@ export const useGame = create<UI>((set, get) => ({
   flash: (msg, kind = 'ok') => {
     const id = Date.now()
     set({ toast: { msg, kind, id } })
-    setTimeout(() => { if (get().toast?.id === id) set({ toast: null }) }, 3200)
+    setTimeout(() => { if (get().toast?.id === id) set({ toast: null }) }, get().undo ? UNDO_MS : 3200)
   },
   act: (fn, okMsg, opts) => {
     const w = get().w
