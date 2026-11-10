@@ -62,9 +62,9 @@ function Buy() {
   return (
     <div className="col" style={{ gap: 18 }}>
       <Field label="Deliver to"><select value={siteId} onChange={(e) => setSite(e.target.value)} style={{ maxWidth: 360 }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
-      <Advanced title="Design your own server node" defaultOpen={w.customGpus.every((g) => !g.node)}><NodeDesigner /></Advanced>
       <h2><Server size={16} /> Accelerators · 8 per server</h2>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => !g.vcpus).map(card)}</div>
+      <Advanced title="Design your own server node"><NodeDesigner /></Advanced>
       <Advanced title="CPU servers for virtual-machine clouds">
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => g.vcpus).map(card)}</div>
       </Advanced>
