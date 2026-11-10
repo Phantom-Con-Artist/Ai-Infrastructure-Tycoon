@@ -40,7 +40,7 @@ export function buildSite(w: World, regionId: string, name?: string): Result<Sit
     demandMw: 0, supplyMw: 0, gridMw: 0, powerFactor: 1, costPerHour: 0, carbonKgPerHour: 0
   }
   w.sites.push(site)
-  pushNews(w, 'info', `Broke ground: ${site.name}`, `${r.blurb} Initial 2 MW utility feed energised.`)
+  pushNews(w, 'info', `Broke ground: ${site.name}`, `${r.blurb} Initial 2 MW utility feed energised.`, 'mine', 1)
   return ok(site)
 }
 export const siteGenMw = (s: Site): number => s.gens.filter((g) => g.kind === 'gas' || g.kind === 'nuclear' || g.kind === 'geothermal').reduce((a, g) => a + g.mw, 0)
@@ -68,7 +68,7 @@ export function buildHall(w: World, siteId: string, spec: HallSpec): Result<Hall
     tempC: 22, throttle: 1, itKw: 0, coolPowerKw: 0, pue: 0, online: false, waterL: 0
   }
   s.halls.push(h)
-  pushNews(w, 'info', `${h.name} under construction`, `${z.name}, ${COOLING[spec.cooling].name}. Concrete cures in ~${build} days.`)
+  pushNews(w, 'info', `${h.name} under construction`, `${z.name}, ${COOLING[spec.cooling].name}. Concrete cures in ~${build} days.`, 'mine', 0)
   return ok(h)
 }
 const liquidOk = (h: Hall): boolean => h.cooling === 'dlc' || h.cooling === 'immersion'
@@ -329,7 +329,7 @@ export function launchModel(w: World, modelId: string, priceMtok?: number): Resu
   const m = w.models.find((x) => x.id === modelId); if (!m) return fail('No such model')
   m.releasedByPlayer = true
   m.priceMtok = priceMtok ?? +referencePrice(w.tick / HOURS_PER_YEAR, m.elo).toFixed(2)
-  pushNews(w, 'good', `${m.name} launches`, `Elo ${Math.round(m.elo)} at $${m.priceMtok.toFixed(2)}/Mtok. Hype Marketson has already posted it with a rocket emoji.`)
+  pushNews(w, 'good', `${m.name} launches`, `Elo ${Math.round(m.elo)} at $${m.priceMtok.toFixed(2)}/Mtok. Hype Marketson has already posted it with a rocket emoji.`, 'mine', 2)
   return ok(undefined)
 }
 export function setModelPrice(w: World, modelId: string, p: number): Result {
@@ -397,7 +397,7 @@ export function buyDataset(w: World, id: string): Result {
   if (!canAfford(w, d.usd)) return fail('Not enough cash')
   spend(w, d.usd, 'opex')
   w.datasets[id] = d.tokensT
-  pushNews(w, d.legalRisk > 0.5 ? 'bad' : 'info', `Acquired ${d.name}`, d.legalRisk > 0.5 ? 'Legal is "reviewing". Legal is crying.' : `${d.tokensT}T tokens of ${d.domain}. ${d.source}.`)
+  pushNews(w, d.legalRisk > 0.5 ? 'bad' : 'info', `Acquired ${d.name}`, d.legalRisk > 0.5 ? 'Legal is "reviewing". Legal is crying.' : `${d.tokensT}T tokens of ${d.domain}. ${d.source}.`, 'mine', 0)
   return ok(undefined)
 }
 /** Resolve a dataset mix (tokens per dataset, may exceed ownership via extra epochs) into totals. */
@@ -443,6 +443,6 @@ export function signPpa(w: World, siteId: string, mw: number): Result {
   if (!hasTech(w, 'ppa')) return fail('Research “Power purchase agreements” first')
   if (mw <= 0 || mw > s.utilityMw) return fail(`Contract between 1 and ${s.utilityMw} MW`)
   s.ppa = { mw, price: ppaQuote(w, siteId), untilTick: w.tick + 10 * HOURS_PER_YEAR }
-  pushNews(w, 'good', `PPA signed for ${s.name}`, `${mw} MW at $${s.ppa.price}/MWh for ten years. Your CFO finally smiles.`)
+  pushNews(w, 'good', `PPA signed for ${s.name}`, `${mw} MW at $${s.ppa.price}/MWh for ten years. Your CFO finally smiles.`, 'mine', 1)
   return ok(undefined)
 }

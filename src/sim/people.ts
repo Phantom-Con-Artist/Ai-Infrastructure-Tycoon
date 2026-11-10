@@ -66,7 +66,7 @@ export function hirePerson(w: World, id: string): R {
   w.candidates = w.candidates.filter((x) => x !== c)
   w.people.push({ ...c, hiredTick: w.tick, morale: 0.9 })
   recomputeStaff(w)
-  if (c.trait === 'celebrity') pushNews(w, 'good', `${c.name} joins ${w.company}`, 'Their announcement thread gets 40k likes. Your recruiting inbox explodes.')
+  if (c.trait === 'celebrity') pushNews(w, 'good', `${c.name} joins ${w.company}`, 'Their announcement thread gets 40k likes. Your recruiting inbox explodes.', 'mine', 1)
   return { ok: true, value: undefined }
 }
 export function firePerson(w: World, id: string): R {
@@ -90,7 +90,7 @@ export function createLab(w: World, name: string, focus: Branch): R {
   if (!w.people.some((p) => p.role === 'researchers')) return { ok: false, error: 'Hire a researcher first' }
   spend(w, cost)
   w.labs.push({ id: newId(w, 'lab'), name, focus })
-  pushNews(w, 'good', `${name} opens`, `A new research lab focused on ${focus}. Free kombucha on tap.`)
+  pushNews(w, 'good', `${name} opens`, `A new research lab focused on ${focus}. Free kombucha on tap.`, 'mine', 1)
   return { ok: true, value: undefined }
 }
 export function setLabFocus(w: World, id: string, focus: Branch): R {
@@ -117,7 +117,7 @@ export function dailyPeople(w: World): void {
     if (rnd(w) < quitP + poachP) {
       w.people = w.people.filter((x) => x !== p)
       const who = pick(w, CORPS.filter((c) => c.kind !== 'chip'))
-      pushNews(w, 'bad', `${p.name} leaves`, quitP > poachP ? `Morale was ${(p.morale * 100).toFixed(0)}%. The exit interview was one word long.` : `Poached by ${who.name}. ${who.ceo} reportedly offered "a lot of GPUs".`)
+      pushNews(w, 'bad', `${p.name} leaves`, quitP > poachP ? `Morale was ${(p.morale * 100).toFixed(0)}%. The exit interview was one word long.` : `Poached by ${who.name}. ${who.ceo} reportedly offered "a lot of GPUs".`, 'mine', 1)
     }
   }
   recomputeStaff(w)

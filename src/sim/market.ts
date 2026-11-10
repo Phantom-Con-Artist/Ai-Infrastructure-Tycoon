@@ -81,7 +81,7 @@ function rivalReleases(w: World): void {
       const existing = w.competitors.find((c) => c.corp === r.corp)
       if (existing) { existing.name = r.name; existing.elo = Math.max(existing.elo, r.elo) }
       else w.competitors.push({ corp: r.corp, name: r.name, elo: r.elo, priceMtok: referencePrice(month / 12, r.elo) })
-      pushNews(w, 'event', `${corp(r.corp).name} launches ${r.name}`, `${corp(r.corp).ceo}: "${corp(r.corp).quip}" Leaderboard Elo ${r.elo}.`)
+      pushNews(w, 'event', `${corp(r.corp).name} launches ${r.name}`, `${corp(r.corp).ceo}: "${corp(r.corp).quip}" Leaderboard Elo ${r.elo}.`, 'rivals', 2)
     }
   }
   // Beyond the scripted table: procedural releases, ~every 9 months per lab with diminishing gains.
@@ -96,7 +96,7 @@ function rivalReleases(w: World): void {
         const ver = Math.floor((month - 36) / 9) + 6
         c.name = `${c.name.replace(/\s\d+(\.\d+)?.*$/, '')} ${ver}`
         rivalNext[key] = month + range(w, 6, 12) / agg
-        pushNews(w, 'event', `${corp(c.corp).name} ships ${c.name}`, `New SOTA at Elo ${Math.round(c.elo)}. The leaderboard is a treadmill.`)
+        pushNews(w, 'event', `${corp(c.corp).name} ships ${c.name}`, `New SOTA at Elo ${Math.round(c.elo)}. The leaderboard is a treadmill.`, 'rivals', 1)
       }
     }
   }

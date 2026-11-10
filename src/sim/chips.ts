@@ -48,7 +48,7 @@ export function startDesign(w: World, s: ChipSpec): Result<ChipDesign> {
     nrePaid: upfront, nreTotal: e.nreUsd, wafersPerMonth: 0, source: 'foundry', salePrice: Math.round(e.unitCost * 2.2), sold: 0, revenue: 0, made: 0
   }
   w.silicon.designs.push(d)
-  pushNews(w, 'info', `Tape-out begins: ${s.name}`, `${node(s.nodeId).name}, ${e.transistorsB.toFixed(0)}B transistors (~${e.atoms.toExponential(1)} atoms). First silicon in ~${months.toFixed(0)} months.`)
+  pushNews(w, 'info', `Tape-out begins: ${s.name}`, `${node(s.nodeId).name}, ${e.transistorsB.toFixed(0)}B transistors (~${e.atoms.toExponential(1)} atoms). First silicon in ~${months.toFixed(0)} months.`, 'mine', 1)
   return ok(d)
 }
 
@@ -119,7 +119,7 @@ export function buildFab(w: World): Result {
   if (!canAfford(w, cost)) return fail('A fab module costs $3.0B')
   spend(w, cost)
   w.silicon.fab = { modules: 1, readyTick: w.tick + 540 * 24, tools: { duv: 0, euv: 0, highna: 0, hyperna: 0 }, toolsPending: [] }
-  pushNews(w, 'good', 'Fab construction begins', 'Eighteen months of concrete, ultrapure water and vibration isolation. The neighbours are asking about the cranes.')
+  pushNews(w, 'good', 'Fab construction begins', 'Eighteen months of concrete, ultrapure water and vibration isolation. The neighbours are asking about the cranes.', 'mine', 1)
   return ok(undefined)
 }
 export function buyLitho(w: World, kind: LithoKind): Result {
@@ -188,7 +188,7 @@ export function dailySilicon(w: World): void {
         d.status = 'ready'
         registerGpu(w, d)
         d.salePrice = Math.max(Math.round(evaluateChip(d.spec, yearOf(w.tick)).unitCost * 1.3), parityPrice(w, d))
-        pushNews(w, 'good', `First silicon: ${d.spec.name}`, 'It boots. Mostly. Set up production and decide: keep the chips, or sell them to the highest bidder.')
+        pushNews(w, 'good', `First silicon: ${d.spec.name}`, 'It boots. Mostly. Set up production and decide: keep the chips, or sell them to the highest bidder.', 'mine', 2)
       }
       continue
     }

@@ -17,6 +17,7 @@ import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric,
 import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
 import { makeRules, mult, type Rules } from './rules'
+import { buildEdition } from './newspaper'
 import { SYSTEMS } from './types'
 export const WORLD_VERSION = 9
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
@@ -149,7 +150,7 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
     if (rnd(w) < 0.00004 * Math.sqrt(run.paramsB) && run.flopsDone > 0) {
       const lost = run.flopsDone * (0.01 + rnd(w) * 0.03)
       run.flopsDone -= lost; run.restarts++
-      if (run.restarts % 3 === 1) pushNews(w, 'bad', `Loss spike in ${run.name}`, `Rolled back to the last checkpoint. ${(lost / 1e21).toFixed(2)} ZFLOP evaporated. The grad-norm graph is not a vibe.`)
+      if (run.restarts % 3 === 1) pushNews(w, 'bad', `Loss spike in ${run.name}`, `Rolled back to the last checkpoint. ${(lost / 1e21).toFixed(2)} ZFLOP evaporated. The grad-norm graph is not a vibe.`, 'mine', 0)
     }
     if (run.flopsDone >= run.flopsTotal) finishRun(w, run.id)
   }
@@ -178,7 +179,7 @@ export function finishRun(w: World, runId: string): void {
       loss, elo, releaseTick: w.tick, priceMtok: 0, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: false,
       arch: run.arch, mix: run.mix, evals: Object.fromEntries(EVALS.map((e) => [e.id, evalScore(e, elo, run.mix ?? RIVAL_MIX, techLevel(w, 'reasoning'))]))
     })
-    pushNews(w, 'good', `${run.name} finished training`, `Final loss ${loss.toFixed(3)} → Elo ${Math.round(elo)}. Post-train it and ship it before a rival does.`)
+    pushNews(w, 'good', `${run.name} finished training`, `Final loss ${loss.toFixed(3)} → Elo ${Math.round(elo)}. Post-train it and ship it before a rival does.`, 'mine', 2)
   } else {
     const c = w.contracts.find((x) => x.id === run.owner)
     if (c) {
@@ -187,7 +188,7 @@ export function finishRun(w: World, runId: string): void {
       const pay = c.payUsd * clamp(1 - late * 0.05, 0.2, 1)
       w.cash += pay; w.today.revenue += pay; w.today.contractRev += pay
       w.reputation = clamp(w.reputation + (late > 0 ? 0.5 : 2), 0, 100)
-      pushNews(w, 'good', `${c.customer} pays $${(pay / 1e6).toFixed(2)}M`, late > 0 ? `Delivered ${late.toFixed(1)} days late; penalty applied.` : `Delivered on time. They want to talk about "a strategic partnership".`)
+      pushNews(w, 'good', `${c.customer} pays $${(pay / 1e6).toFixed(2)}M`, late > 0 ? `Delivered ${late.toFixed(1)} days late; penalty applied.` : `Delivered on time. They want to talk about "a strategic partnership".`, 'mine', 1)
     }
   }
 }
@@ -269,7 +270,7 @@ function dailyTick(w: World): void {
       rs.levels[t.id] = lv + 1
       if (!rs.done.includes(t.id)) rs.done.push(t.id)
       rs.current = undefined; rs.progressUsd = 0
-      pushNews(w, 'good', `Research complete: ${t.name}${t.repeatable ? ` ${roman(lv + 1)}` : ''}`, t.blurb)
+      pushNews(w, 'good', `Research complete: ${t.name}${t.repeatable ? ` ${roman(lv + 1)}` : ''}`, t.blurb, 'mine', 1)
     }
   }
   // roll up
@@ -282,7 +283,7 @@ function dailyTick(w: World): void {
   w.today = emptyDay(Math.floor(w.tick / 24))
   if (Math.floor(w.tick / 24) % 91 === 0 && w.tick > 0) {
     const tax = Math.max(0, w.quarterProfit) * 0.21
-    if (tax > 0) { w.cash -= tax; pushNews(w, 'info', 'Quarterly taxes paid', `$${(tax / 1e6).toFixed(2)}M to the taxman on $${(w.quarterProfit / 1e6).toFixed(1)}M profit.`) }
+    if (tax > 0) { w.cash -= tax; pushNews(w, 'info', 'Quarterly taxes paid', `$${(tax / 1e6).toFixed(2)}M to the taxman on $${(w.quarterProfit / 1e6).toFixed(1)}M profit.`, 'mine', 0) }
     w.quarterProfit = 0
   }
   dailyMarket(w)
@@ -291,9 +292,9 @@ function dailyTick(w: World): void {
   dailyStore(w)
   dailyPeople(w)
   checkAchievements(w)
-  if (Math.floor(w.tick / 24) % 7 === 0 && w.tick > 0) { const d = weeklyDigest(w); pushNews(w, 'event', d.title, d.lines.slice(0, 2).join(' ')) }
+  if (Math.floor(w.tick / 24) % 7 === 0 && w.tick > 0) { const d = weeklyDigest(w); pushNews(w, 'event', d.title, d.lines.slice(0, 2).join(' '), 'world', 0) }
   if (webQuality(w) > 0) w.reputation = clamp(w.reputation + webQuality(w) * 0.01, 0, 100)
-  if (Math.floor(w.tick / 24) % 7 === 3 && rnd(w) < 0.35) pushNews(w, 'info', 'Chirper is talking', parodyPost(w))
+  if (Math.floor(w.tick / 24) % 7 === 3 && rnd(w) < 0.35) pushNews(w, 'info', 'Chirper is talking', parodyPost(w), 'world', 0)
   rollDailyEvents(w)
   // expire contracts whose runs never started or are late
   for (const c of w.contracts) if (c.accepted && !c.done && w.tick > c.deadlineTick + 24 * 20) {
@@ -301,14 +302,15 @@ function dailyTick(w: World): void {
     const run = w.runs.find((r) => r.id === c.runId)
     if (run && run.status === 'running') run.status = 'failed'
     w.reputation = clamp(w.reputation - 6, 0, 100)
-    pushNews(w, 'bad', `${c.customer} cancels ${c.modelName}`, 'Deadline blown by more than 20 days. They are "exploring alternatives". The alternatives are Amazoon.')
+    pushNews(w, 'bad', `${c.customer} cancels ${c.modelName}`, 'Deadline blown by more than 20 days. They are "exploring alternatives". The alternatives are Amazoon.', 'mine', 1)
   }
   // solvency
   if (w.cash < 0 && !w.rules.noBankruptcy && !w.rules.infiniteCash) {
     w.negCashDays++
-    if (w.negCashDays === 1) pushNews(w, 'bad', 'Cash balance negative', 'Borrow, sell servers or cut costs. The bank gives you 30 days.')
-    if (w.negCashDays >= 30) { w.gameOver = true; pushNews(w, 'bad', 'Bankruptcy', `${w.company} is liquidated. A rival buys the racks for 11 cents on the dollar.`) }
+    if (w.negCashDays === 1) pushNews(w, 'bad', 'Cash balance negative', 'Borrow, sell servers or cut costs. The bank gives you 30 days.', 'mine', 2)
+    if (w.negCashDays >= 30) { w.gameOver = true; pushNews(w, 'bad', 'Bankruptcy', `${w.company} is liquidated. A rival buys the racks for 11 cents on the dollar.`, 'mine', 2) }
   } else w.negCashDays = 0
+  buildEdition(w)
 }
 
 /** Advance the simulation by exactly one hour. */
@@ -319,7 +321,7 @@ export function step(w: World): void {
   for (const s of w.sites) {
     // deliveries
     s.orders = s.orders.filter((o) => {
-      if (w.tick >= o.arriveTick) { s.stock[o.gpuId] = (s.stock[o.gpuId] ?? 0) + o.servers; pushNews(w, 'info', `Delivery at ${s.name}`, `${o.servers} × ${gpu(w, o.gpuId).name} servers have arrived on pallets. Install them before someone trips on them.`); return false }
+      if (w.tick >= o.arriveTick) { s.stock[o.gpuId] = (s.stock[o.gpuId] ?? 0) + o.servers; pushNews(w, 'info', `Delivery at ${s.name}`, `${o.servers} × ${gpu(w, o.gpuId).name} servers have arrived on pallets. Install them before someone trips on them.`, 'mine', 0); return false }
       return true
     })
     const r = stepSite(w, s, busy[s.id] ?? {})

@@ -59,7 +59,7 @@ export function createProduct(w: World, o: { name: string; category: Category; m
     api: o.category === 'api' ? { tiers: DEFAULT_TIERS.map((t) => ({ ...t })), signupCredit: 5, keys: [], devs: 0 } : undefined
   }
   w.products.push(p)
-  pushNews(w, 'good', `${p.name} launches`, `${CATEGORIES[o.category].name} powered by ${m.name}. ProductHunt-ish #1 of the day, narrowly beating a to-do app.`)
+  pushNews(w, 'good', `${p.name} launches`, `${CATEGORIES[o.category].name} powered by ${m.name}. ProductHunt-ish #1 of the day, narrowly beating a to-do app.`, 'mine', 2)
   return { ok: true, value: p }
 }
 export function updatePlan(w: World, productId: string, planId: string, patch: Partial<Plan>): R {
@@ -176,7 +176,7 @@ export function dailyStore(w: World): void {
     const paidUsers = paid.reduce((a, pl) => a + pl.subs, 0)
     p.history.push({ day: Math.floor(w.tick / 24), users: p.freeUsers + paidUsers, paid: paidUsers, mrr: paid.reduce((a, pl) => a + pl.subs * pl.price, 0), tokens: demand, served, churned, revenue: rev })
     if (p.history.length > 180) p.history.shift()
-    if (p.servedFrac < 0.6 && rnd(w) < 0.05) pushNews(w, 'bad', `${p.name} is down for many users`, '"We are experiencing unprecedented demand." Translation: buy more GPUs.')
+    if (p.servedFrac < 0.6 && rnd(w) < 0.05) pushNews(w, 'bad', `${p.name} is down for many users`, '"We are experiencing unprecedented demand." Translation: buy more GPUs.', 'incident', 1)
   }
 }
 /** Bonus applied to API market share when you run a developer platform with generous credits/limits. */

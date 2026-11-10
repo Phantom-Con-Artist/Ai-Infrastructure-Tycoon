@@ -80,7 +80,7 @@ export function acquire(w: World, id: string): Result {
   if (roll < blockP) {
     const fee = price * 0.04
     spend(w, fee, 'opex')
-    pushNews(w, 'bad', `Regulators block your bid for ${c.name}`, `The FTC-ish, the EU-ish and one very online senator object. You pay a $${(fee / 1e9).toFixed(1)}B break fee.`)
+    pushNews(w, 'bad', `Regulators block your bid for ${c.name}`, `The FTC-ish, the EU-ish and one very online senator object. You pay a $${(fee / 1e9).toFixed(1)}B break fee.`, 'mine', 2)
     return { ok: true, value: 'blocked' }
   }
   spend(w, price)
@@ -92,7 +92,7 @@ export function acquire(w: World, id: string): Result {
     w.models.push({ id: 'sub-' + id, name: comp.name, owner: 'player', paramsB: 0, activeParamsB: 0, tokensT: 0, loss: 0, elo: comp.elo, releaseTick: w.tick, priceMtok: comp.priceMtok, posttrain: 3,
       tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: true, subsidiary: id })
   }
-  pushNews(w, 'good', `${w.company} acquires ${c.name}`, `$${(price / 1e9).toFixed(1)}B. ${c.ceo} gets a "Chief Visionary" title and a very large boat.`)
+  pushNews(w, 'good', `${w.company} acquires ${c.name}`, `$${(price / 1e9).toFixed(1)}B. ${c.ceo} gets a "Chief Visionary" title and a very large boat.`, 'mine', 2)
   return { ok: true, value: 'acquired' }
 }
 export const ownsCorp = (w: World, id: string): boolean => !!w.rivals?.find((r) => r.id === id && r.owned)
@@ -188,7 +188,7 @@ export function ipo(w: World): { ok: true; value: number } | { ok: false; error:
   if (v < 1e9) return { ok: false, error: 'Bankers want at least a $1B valuation' }
   const raise = v * 0.2
   w.cash += raise; w.founderStake *= 0.8; w.public = true
-  pushNews(w, 'good', `${w.company} rings the opening bell`, `IPO raises $${(raise / 1e9).toFixed(1)}B. Retail investors buy the ticker because it has "AI" in the prospectus 400 times.`)
+  pushNews(w, 'good', `${w.company} rings the opening bell`, `IPO raises $${(raise / 1e9).toFixed(1)}B. Retail investors buy the ticker because it has "AI" in the prospectus 400 times.`, 'mine', 2)
   return { ok: true, value: raise }
 }
 
@@ -208,6 +208,6 @@ export function holdKeynote(w: World, kind: 'model' | 'chip', id: string): { ok:
   spend(w, cost, 'opex')
   w.keynotes = (w.keynotes ?? 0) + 1
   w.reputation = Math.min(100, w.reputation + 1.5 * fatigue)
-  pushNews(w, 'good', `${w.ceo} takes the stage`, pick(w, ['The crowd gasps at a bar chart with no y-axis.', 'Standing ovation for slide 47: "It\'s faster".', 'A demo works on the first try. Analysts weep.', 'The leather jacket industry reports record sales.']))
+  pushNews(w, 'good', `${w.ceo} takes the stage`, pick(w, ['The crowd gasps at a bar chart with no y-axis.', 'Standing ovation for slide 47: "It\'s faster".', 'A demo works on the first try. Analysts weep.', 'The leather jacket industry reports record sales.']), 'mine', 1)
   return { ok: true, value: cost }
 }
