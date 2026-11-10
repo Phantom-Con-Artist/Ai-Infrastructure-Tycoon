@@ -37,7 +37,7 @@ function registerWindowIpc(): void {
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1680, height: 960, minWidth: 1180, minHeight: 700, backgroundColor: '#f7f5f0', title: 'AI Infrastructure Tycoon',
-    frame: false, autoHideMenuBar: true,
+    frame: false, autoHideMenuBar: true, icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: false }
   })
   const send = (): void => win?.webContents.send('win:state', { maximized: win.isMaximized(), fullscreen: win.isFullScreen() })

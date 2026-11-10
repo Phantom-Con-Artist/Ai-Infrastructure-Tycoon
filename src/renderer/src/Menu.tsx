@@ -26,7 +26,7 @@ export function Menu() {
           <div className="eyebrow">A management game about watts, silicon and hubris</div>
           <h1>Build the<br /><em>machine</em><br />that thinks.</h1>
           <HeroCampus className="illo" />
-          <div className="dim" style={{ fontSize: 13, position: 'relative' }}>One tick is one hour. Every watt, every FLOP, every failed GPU is simulated.</div>
+          <div className="dim" style={{ fontSize: 13, position: 'relative' }}>One tick is one hour. Every watt, every FLOP, every failed GPU is simulated. <span className="tag" style={{ marginLeft: 8 }}>v0.1.0 Beta</span> <span style={{ marginLeft: 6 }}>A community parody game by Phantom-Con Artist</span></div>
         </div>
         <div className="side">
           {view === 'home' && <>

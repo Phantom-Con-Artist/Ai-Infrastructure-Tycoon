@@ -137,3 +137,12 @@ describe('VM cloud', () => {
     expect(A.validateTraining(w, { name: 'x', paramsB: 1, tokensT: 0.01, siteId: site.id, gpuId: 'cpu-turin', servers: 1 })).toMatch(/CPU/)
   })
 })
+
+describe('rival releases', () => {
+  it('each scripted release is announced exactly once', () => {
+    const w = createWorld(5)
+    stepMany(w, 24 * 365 * 2)
+    const titles = w.news.filter((n) => n.title.includes(' launches ')).map((n) => n.title)
+    expect(new Set(titles).size).toBe(titles.length)
+  })
+})

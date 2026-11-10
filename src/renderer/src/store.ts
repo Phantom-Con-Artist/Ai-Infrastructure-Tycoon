@@ -88,4 +88,8 @@ export const useWorld = (): World => {
   return useGame.getState().w as World
 }
 // Dev-only handle for live UI testing and debugging from the console.
-if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __game: typeof useGame }).__game = useGame
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  const g = window as unknown as Record<string, unknown>
+  g.__game = useGame
+  void Promise.all([import('@sim/actions'), import('@sim/chips'), import('@sim/store'), import('@sim/world')]).then(([A, C, S, W]) => { g.__sim = { A, C, S, W } })
+}

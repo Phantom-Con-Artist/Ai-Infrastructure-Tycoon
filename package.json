@@ -1,9 +1,30 @@
 {
   "name": "ai-infrastructure-tycoon",
-  "version": "0.1.0",
-  "description": "AI Infrastructure Tycoon - build datacenters, power grids and GPU clusters, train and sell AI.",
-  "main": "out/main/index.js",
+  "productName": "AI Infrastructure Tycoon",
+  "version": "0.1.0-beta",
+  "description": "A light 3D management game about building data centers, wrangling power and cooling, designing chips and training models. Parody universe, real physics.",
+  "author": "Phantom-Con Artist",
+  "license": "MIT",
+  "homepage": "https://github.com/Phantom-Con-Artist/Ai-Infrastructure-Tycoon#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Phantom-Con-Artist/Ai-Infrastructure-Tycoon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Phantom-Con-Artist/Ai-Infrastructure-Tycoon/issues"
+  },
+  "keywords": [
+    "game",
+    "tycoon",
+    "electron",
+    "threejs",
+    "simulation",
+    "data-center",
+    "gpu",
+    "management-game"
+  ],
   "private": true,
+  "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -46,5 +67,34 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.7",
     "vitest": "^5.1.0"
+  },
+  "build": {
+    "appId": "com.phantomconartist.aiinfratycoon",
+    "productName": "AI Infrastructure Tycoon",
+    "icon": "resources/icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**",
+      "resources/**"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.simulation-games"
+    }
   }
 }

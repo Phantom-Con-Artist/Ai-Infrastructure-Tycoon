@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and chit-chat
+    url: https://github.com/Phantom-Con-Artist/Ai-Infrastructure-Tycoon/discussions
+    about: Ask anything, share your worst data center

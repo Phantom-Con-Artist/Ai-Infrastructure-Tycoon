@@ -94,7 +94,7 @@ export interface World {
   achievements: string[]
   silicon: Silicon; customGpus: GpuSpec[]
   datasets: Record<string, number>
-  rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean; keynotes?: number
+  rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean; keynotes?: number; releasedNames?: string[]; rivalNext?: Record<string, number>
   web: import('./web').WebPresence
   products: import('./store').Product[]
   people: import('./people').Person[]; candidates: import('./people').Person[]; labs: import('./people').ResearchLab[]; chipStaff?: number

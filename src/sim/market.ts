@@ -70,11 +70,13 @@ export function dailyMarket(w: World): void {
   rollContracts(w)
 }
 
-const rivalNext: Record<string, number> = {}
 function rivalReleases(w: World): void {
   const month = (w.tick / HOURS_PER_YEAR) * 12
+  const released = (w.releasedNames ??= [])
+  const rivalNext = (w.rivalNext ??= {})
   for (const r of RIVAL_RELEASES) {
-    if (month >= r.month && !w.competitors.some((c) => c.name === r.name) && r.month > 0) {
+    if (month >= r.month && !released.includes(r.name) && r.month > 0) {
+      released.push(r.name)
       const existing = w.competitors.find((c) => c.corp === r.corp)
       if (existing) { existing.name = r.name; existing.elo = Math.max(existing.elo, r.elo) }
       else w.competitors.push({ corp: r.corp, name: r.name, elo: r.elo, priceMtok: referencePrice(month / 12, r.elo) })
