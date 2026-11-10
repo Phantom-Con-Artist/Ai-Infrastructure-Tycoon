@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { ShoppingBag, Globe, Clapperboard, Trophy, Microchip, BookOpen, Building2, FlaskConical, Handshake, Home, LogOut, Save, Server, Lightbulb, Pause, Play, FastForward, ChevronsRight } from 'lucide-react'
 import { totalItMw, valuation } from '@sim/world'
 import { totalGpus } from '@sim/util'
@@ -16,6 +16,7 @@ import { Store } from './screens/Store'
 import { Contracts, Finance, Research } from './screens/Business'
 import { TitleBar } from './TitleBar'
 import { Menu } from './Menu'
+import { Splash } from './Splash'
 
 const NAV: [Screen, string, React.ReactNode][] = [
   ['overview', 'HQ', <Home size={20} key="h" />], ['sites', 'Sites', <Building2 size={20} key="s" />], ['fleet', 'Fleet', <Server size={20} key="f" />], ['silicon', 'Silicon', <Microchip size={20} key="c" />],
@@ -49,7 +50,8 @@ export function App() {
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [])
-  return (<>{hasGame ? <Game /> : <Menu />}<Toast /></>)
+  const [intro, setIntro] = useState(() => !settings.skipIntro)
+  return (<>{hasGame ? <Game /> : <Menu />}<Toast />{intro && <Splash onDone={() => setIntro(false)} />}</>)
 }
 
 function Toast() {
