@@ -4,6 +4,7 @@ import { GPUS_PER_SERVER } from '@sim/data/hardware'
 import { eloFromLoss, goodput, modelLoss, referencePrice, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
 import { DATASETS, EVALS, RIVAL_MIX, TEMPLATES, archLossDelta, archStats, evalScore, type ArchSpec } from '@sim/models'
 import { NetFlow, type NetNode } from '../art/NetFlow'
+import { CLOUD, cloudCapacity, cloudGpus, cloudRate } from '@sim/cloud'
 import { CorpLogo } from '../art/Logos'
 import { committed, gpu, hallServers, hasTech, techLevel, techSum, worstFabric, yearOf } from '@sim/util'
 import { dateOf, dur, flops, money, num, params } from '../format'
@@ -35,12 +36,13 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
   const [name, setName] = useState(() => A.randomModelName(w) + '-1')
   const owned = DATASETS.filter((d) => (w.datasets[d.id] ?? 0) > 0)
   const [mix, setMix] = useState<Record<string, number>>(() => Object.fromEntries(owned.map((d) => [d.id, Math.min(d.tokensT, 2)])))
-  const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
+  const [siteId, setSite] = useState(w.sites.find((s) => s.halls.some((h) => h.racks.some((r) => r.servers > 0)))?.id ?? CLOUD)
+  const cloud = siteId === CLOUD
   const site = w.sites.find((s) => s.id === siteId)
-  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
+  const gpuIds = cloud ? cloudGpus(w).map((g) => g.id) : site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
   const [gpuId, setGpu] = useState('')
-  const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[0] ?? ''
-  const free = site && gid ? site.halls.reduce((acc, h) => acc + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0
+  const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[gpuIds.length - 1] ?? ''
+  const free = cloud && gid ? cloudCapacity(w, gid) : site && gid ? site.halls.reduce((acc, h) => acc + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0
   const [servers, setServers] = useState(16)
   const n = Math.max(1, Math.min(servers, Math.max(1, free)))
   const up = (p: Partial<ArchSpec>): void => { setArch((x) => ({ ...x, ...p })); setTpl('custom') }
@@ -50,7 +52,8 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
   const elo = eloFromLoss(loss) + techSum(w, 'elo')
   const F = trainFlops(st.activeB, m.tokensT)
   const g = gid ? gpu(w, gid) : null
-  const mfu = site && gid ? trainingMfu(w, n, worstFabric(site, gid)) : 0
+  const mfu = (site || cloud) && gid ? trainingMfu(w, n, cloud ? 'ib400' : worstFabric(site!, gid)) : 0
+  const bill = cloud && g ? cloudRate(w, g) * n * 8 : 0
   const rate = g ? n * 8 * g.tflops * 1e12 * mfu * goodput(w, n, g) : 0
   const memNeed = trainMemoryGB(st.totalB), memHave = g ? 0.75 * n * 8 * g.memGB : 0
   const evals = EVALS.map((e) => ({ e, v: evalScore(e, elo, m.tokensT ? m.shares : RIVAL_MIX, techLevel(w, 'reasoning')) }))
@@ -103,10 +106,10 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
       </div>
       <div className="panel row wrap" style={{ gap: 14, alignItems: 'end' }}>
         <Field label="Model name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Site"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+        <Field label="Compute"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></select></Field>
         <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
         <Field label={`Servers ${n}/${free} · ${num(n * 8)} GPUs`}><input type="range" min={1} max={Math.max(1, free)} value={n} onChange={(e) => setServers(+e.target.value)} /></Field>
-        <div className="dim" style={{ fontSize: 12.5 }}>MFU {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
+        <div className="dim" style={{ fontSize: 12.5 }}>MFU {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}{cloud ? ` · ${money(bill)}/h ≈ ${money(bill * (rate > 0 ? F / rate / 3600 : 0))} total` : ''}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
         <button className="btn pri" onClick={() => { const r = act((x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n }), 'Training started'); if (r.ok) onStart() }}>Start training</button>
       </div>
     </div>
@@ -158,7 +161,7 @@ function Runs() {
           <div key={r.id} className="panel col">
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <div><h3>{r.name} <span className={'tag ' + (r.status === 'running' ? 'g' : r.status === 'done' ? '' : 'a')}>{r.status}</span> {r.owner !== 'player' && <span className="tag a">contract</span>}</h3>
-                <div className="dim" style={{ fontSize: 12 }}>{num(r.paramsB)}B{r.moe ? ' MoE' : ''} · {r.tokensT}T tokens · {r.servers * 8} × {gpu(w, r.gpuId).name} @ {site?.name} · started {dateOf(r.startTick)}</div></div>
+                <div className="dim" style={{ fontSize: 12 }}>{num(r.paramsB)}B{r.moe ? ' MoE' : ''} · {r.tokensT}T tokens · {r.servers * 8} × {gpu(w, r.gpuId).name} @ {r.siteId === CLOUD ? '☁ cloud' : site?.name} · started {dateOf(r.startTick)}</div></div>
               <div className="row">
                 {r.status === 'running' && <button className="btn sm" onClick={() => act((x) => A.setRunStatus(x, r.id, 'paused'))}>Pause</button>}
                 {r.status === 'paused' && <button className="btn sm" onClick={() => act((x) => A.setRunStatus(x, r.id, 'running'))}>Resume</button>}
@@ -191,12 +194,13 @@ function ModelCard({ id }: { id: string }) {
   const w = useWorld(); const act = useGame((s) => s.act)
   const m = w.models.find((x) => x.id === id)!
   const deps = w.deployments.filter((d) => d.modelId === id)
-  const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
+  const [siteId, setSite] = useState(w.sites[0]?.id ?? CLOUD)
+  const cloud = siteId === CLOUD
   const site = w.sites.find((s) => s.id === siteId)
-  const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
+  const gpuIds = cloud ? cloudGpus(w).map((g) => g.id) : site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
   const [gpuId, setGpu] = useState(gpuIds[0] ?? '')
-  const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[0] ?? ''
-  const free = site && gid ? site.halls.reduce((a, h) => a + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0
+  const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[gpuIds.length - 1] ?? ''
+  const free = cloud && gid ? cloudCapacity(w, gid) : site && gid ? site.halls.reduce((a, h) => a + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0
   const [servers, setServers] = useState(8)
   const [price, setPrice] = useState(() => +referencePrice(w.tick / 8766, m.elo).toFixed(2))
   const existing = deps.reduce((a, d) => a + d.servers, 0)
@@ -218,12 +222,12 @@ function ModelCard({ id }: { id: string }) {
           </div>
           <div className="row wrap">
             <Field label="Price $/Mtok"><Num value={m.priceMtok} step={0.1} min={0.01} onChange={(p) => act((x) => A.setModelPrice(x, id, p))} /></Field>
-            <Field label="Site"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+            <Field label="Compute"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Amazoon cloud{gid ? ` · ${money(cloudRate(w, gpu(w, gid)) * 8)}/server·h` : ''}</option></select></Field>
             <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((i) => <option key={i} value={i}>{gpu(w, i).name}</option>)}</select></Field>
             <Field label={`Serve on ${servers}/${free + (deps.find((d) => d.siteId === siteId && d.gpuId === gid)?.servers ?? 0)} servers`}><input type="range" min={0} max={Math.max(1, free + (deps.find((d) => d.siteId === siteId && d.gpuId === gid)?.servers ?? 0))} value={servers} onChange={(e) => setServers(+e.target.value)} /></Field>
             <button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => act((x) => A.deployModel(x, id, siteId, gid, servers), 'Deployment updated')}>Deploy</button>
           </div>
-          <div className="dim" style={{ fontSize: 12 }}>{existing} servers serving: {deps.map((d) => `${d.servers}×${gpu(w, d.gpuId).name}@${w.sites.find((s) => s.id === d.siteId)?.name}`).join(', ') || 'none — you are earning nothing'}</div>
+          <div className="dim" style={{ fontSize: 12 }}>{existing} servers serving: {deps.map((d) => `${d.servers}×${gpu(w, d.gpuId).name}@${d.siteId === CLOUD ? 'cloud' : w.sites.find((s) => s.id === d.siteId)?.name}`).join(', ') || 'none — you are earning nothing'}</div>
         </>
       )}
     </div>

@@ -5,6 +5,8 @@ import { creditLimit, debt, finishRun, statKey } from './world'
 import { EQUIP, HALL_SIZES, RACK_COST, hallShellCost, type EquipKind, type HallSize } from './data/equipment'
 import { canPlace, footprint, itemAt, relayout, type Rot } from './layout'
 import { leadDays, serverMarketPrice } from './market'
+import { vendorDiscount } from './corporate'
+import { CLOUD, cloudCapacity, cloudGpus } from './cloud'
 import { pick } from './rng'
 import { HOURS_PER_YEAR, type Equip, type Hall, type Rack, type Site, type World } from './types'
 import {
@@ -184,7 +186,7 @@ export function orderServers(w: World, siteId: string, gpuId: string, count: num
   const g = gpuCatalog(yearOf(w.tick)).find((x) => x.id === gpuId)
   if (!g) return fail('That GPU is not on sale yet')
   if (count < 1) return fail('Order at least one server')
-  const price = serverMarketPrice(w, g)
+  const price = serverMarketPrice(w, g) * (1 - vendorDiscount(w, g.vendor))
   const discount = count >= 1000 ? 0.88 : count >= 250 ? 0.93 : count >= 50 ? 0.97 : 1
   const cost = Math.round(price * count * discount)
   if (w.cash < cost) return fail(`Need $${(cost / 1e6).toFixed(2)}M`)
@@ -262,11 +264,12 @@ const hallTotal = (w: World, siteId: string, gpuId: string): number => findSite(
 
 export interface TrainSpec { name: string; paramsB: number; activeParamsB?: number; tokensT: number; moe?: boolean; dataQuality?: number; siteId: string; gpuId: string; servers: number }
 export function validateTraining(w: World, spec: TrainSpec): string | null {
-  const s = w.sites.find((x) => x.id === spec.siteId); if (!s) return 'Pick a site'
-  const g = gpuCatalog(yearOf(w.tick) + 50).find((x) => x.id === spec.gpuId); if (!g) return 'Pick a GPU'
+  const cloud = spec.siteId === CLOUD
+  const s = w.sites.find((x) => x.id === spec.siteId); if (!s && !cloud) return 'Pick a site'
+  const g = cloud ? cloudGpus(w).find((x) => x.id === spec.gpuId) : (w.customGpus.find((x) => x.id === spec.gpuId) ?? gpuCatalog(yearOf(w.tick) + 50).find((x) => x.id === spec.gpuId)); if (!g) return 'Pick a GPU'
   if (spec.moe && !hasTech(w, 'moe')) return 'Mixture-of-Experts not researched'
   if (spec.servers < 1) return 'Allocate servers'
-  const free = hallTotal(w, spec.siteId, spec.gpuId) - committed(w, spec.siteId, spec.gpuId)
+  const free = cloud ? cloudCapacity(w, spec.gpuId) : hallTotal(w, spec.siteId, spec.gpuId) - committed(w, spec.siteId, spec.gpuId)
   if (spec.servers > free) return `Only ${free} free servers of that type at the site`
   if (trainMemoryGB(spec.paramsB) > 0.75 * spec.servers * GPUS_PER_SERVER * g.memGB) return `Model doesn't fit: needs ~${Math.ceil(trainMemoryGB(spec.paramsB))} GB of GPU memory for weights + optimizer state`
   return null
@@ -288,7 +291,7 @@ export function setRunStatus(w: World, runId: string, status: 'running' | 'pause
   const r = w.runs.find((x) => x.id === runId); if (!r) return fail('No such run')
   if (r.status === 'done') return fail('Already finished')
   if (status === 'running') {
-    const free = hallTotal(w, r.siteId, r.gpuId) - committed(w, r.siteId, r.gpuId, r.id)
+    const free = r.siteId === CLOUD ? cloudCapacity(w, r.gpuId) + r.servers : hallTotal(w, r.siteId, r.gpuId) - committed(w, r.siteId, r.gpuId, r.id)
     if (r.servers > free) return fail('Servers are now in use elsewhere')
   }
   r.status = status
@@ -331,7 +334,7 @@ export function deployModel(w: World, modelId: string, siteId: string, gpuId: st
   const g = gpu(w, gpuId)
   if (serveMemoryGB(m.paramsB) > 0.8 * servers * GPUS_PER_SERVER * g.memGB) return fail(`Weights need ~${Math.ceil(serveMemoryGB(m.paramsB))} GB; allocate more servers`)
   const existing = w.deployments.find((d) => d.modelId === modelId && d.siteId === siteId && d.gpuId === gpuId)
-  const room = hallTotal(w, siteId, gpuId) - committed(w, siteId, gpuId, existing?.id)
+  const room = siteId === CLOUD ? cloudCapacity(w, gpuId) + (existing?.servers ?? 0) : hallTotal(w, siteId, gpuId) - committed(w, siteId, gpuId, existing?.id)
   if (servers > room) return fail(`Only ${room} free servers there`)
   if (existing) { existing.servers = servers; if (servers <= 0) w.deployments = w.deployments.filter((d) => d !== existing) }
   else if (servers > 0) w.deployments.push({ id: newId(w, 'd'), modelId, siteId, gpuId, servers })

@@ -5,13 +5,15 @@ import { eloFromLoss, goodput, modelLoss, serveMemoryGB, serveTokPerSecPerServer
 import { stepSite } from './facility'
 import { rollDailyEvents } from './events'
 import { dailySilicon } from './chips'
+import { checkAchievements, dailyCorporate, initRivals, parodyPost } from './corporate'
 import { dailyMarket, initCompetitors, marketDemandTokensPerDay, modelShare, rentalPrice, rentalUtilisation, serverMarketPrice } from './market'
 import { poisson, rnd } from './rng'
 import { HOURS_PER_YEAR, type DayLedger, type World } from './types'
+import { CLOUD, cloudRate } from './cloud'
 import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric, yearOf } from './util'
 import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
-export const WORLD_VERSION = 4
+export const WORLD_VERSION = 5
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
 
 export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }): World {
@@ -26,7 +28,7 @@ export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo
     staff: { engineers: 3, researchers: 1, ops: 2, sales: 1 },
     events: [], news: [{ tick: 0, kind: 'info', title: `${company} is founded`, body: `${ADVISORS.find((a) => a.id === advisor)?.name ?? 'Your advisor'} slides a term sheet across the table. $40M seed. No pressure.` }],
     ledger: [], today: emptyDay(0), quarterProfit: 0, totalTco2: 0, totalWaterL: 0, achievements: [],
-    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}
+    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}, rivals: initRivals(), founderStake: 0.6
   }
 }
 
@@ -77,7 +79,7 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
   const shares = modelShare(w)
   const regionMult = (siteIds: string[]): number => {
     if (!siteIds.length) return 1
-    return siteIds.reduce((a, id) => a + region(findSite(w, id).regionId).demandMult, 0) / siteIds.length
+    return siteIds.reduce((a, id) => a + (id === CLOUD ? 1 : region(findSite(w, id).regionId).demandMult), 0) / siteIds.length
   }
   const demandPerHour = marketDemandTokensPerDay(w) / 24
   for (const m of w.models) {
@@ -86,16 +88,19 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
     let capPerHour = 0
     for (const d of deps) {
       const k = statKey(d.siteId, d.gpuId)
-      const st = stats.get(k)
+      const cloud = d.siteId === CLOUD
+      const st = cloud ? { healthy: d.servers, total: d.servers, throttle: 1, busy: 1 } : stats.get(k)
       if (!st) continue
       const g = gpu(w, d.gpuId)
-      const eff = d.servers * frac(k)
+      const eff = cloud ? d.servers : d.servers * frac(k)
+      if (cloud) { const bill = cloudRate(w, g) * d.servers * GPUS_PER_SERVER; w.cash -= bill; w.today.opex += bill }
       if (serveMemoryGB(m.paramsB) > 0.8 * eff * GPUS_PER_SERVER * g.memGB) continue
       capPerHour += eff * st.throttle * serveTokPerSecPerServer(w, g, m.activeParamsB) * 3600
     }
     const share = shares.get(m.id) ?? 0
     m.share = share
     const demand = demandPerHour * share * regionMult(deps.map((d) => d.siteId))
+    if (m.subsidiary) capPerHour = demand
     const served = Math.min(demand, capPerHour)
     const rev = (served / 1e6) * m.priceMtok
     m.demandTokPerDay = demand * 24
@@ -112,12 +117,14 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
   for (const run of w.runs) {
     if (run.status !== 'running') continue
     const k = statKey(run.siteId, run.gpuId)
-    const st = stats.get(k)
+    const cloud = run.siteId === CLOUD
+    const st = cloud ? { healthy: run.servers, total: run.servers, throttle: 1, busy: 1 } : stats.get(k)
     const site = w.sites.find((s) => s.id === run.siteId)
-    if (!st || !site) continue
+    if (!st || (!site && !cloud)) continue
     const g = gpu(w, run.gpuId)
-    const eff = run.servers * frac(k)
-    run.mfu = trainingMfu(w, run.servers, worstFabric(site, run.gpuId))
+    const eff = cloud ? run.servers : run.servers * frac(k)
+    if (cloud) { const bill = cloudRate(w, g) * run.servers * GPUS_PER_SERVER; w.cash -= bill; w.today.opex += bill; run.spentUsd += bill }
+    run.mfu = trainingMfu(w, run.servers, cloud ? 'ib400' : worstFabric(site!, run.gpuId))
     const flops = eff * GPUS_PER_SERVER * g.tflops * 1e12 * 3600 * run.mfu * goodput(w, run.servers, g) * st.throttle
     run.flopsDone += flops
     run.etaH = flops > 0 ? (run.flopsTotal - run.flopsDone) / flops : Infinity
@@ -214,7 +221,7 @@ export function trailingRevenue(w: World, days = 90): number {
   if (!l.length) return w.today.revenue * 365
   return (l.reduce((a, d) => a + d.revenue, 0) / l.length) * 365
 }
-export const valuation = (w: World): number => Math.max(0, 8 * trailingRevenue(w) + fleetValue(w) + w.cash - debt(w))
+export const valuation = (w: World): number => Math.max(0, 8 * trailingRevenue(w) + fleetValue(w) + w.cash - debt(w) + (w.rivals ?? []).reduce((a, r) => a + (r.owned ? r.valuation : 0), 0))
 export function creditLimit(w: World): number { return Math.max(20_000_000, 2.5 * trailingRevenue(w) + 0.5 * fleetValue(w)) }
 export const totalItMw = (w: World): number => w.sites.reduce((a, s) => a + s.halls.reduce((b, h) => b + h.itKw, 0), 0) / 1000
 export const SALARY: Record<keyof World['staff'], number> = { engineers: 230_000, researchers: 320_000, ops: 110_000, sales: 160_000 }
@@ -262,6 +269,9 @@ function dailyTick(w: World): void {
   }
   dailyMarket(w)
   dailySilicon(w)
+  dailyCorporate(w)
+  checkAchievements(w)
+  if (Math.floor(w.tick / 24) % 7 === 0 && rnd(w) < 0.35) pushNews(w, 'info', 'Chirper is talking', parodyPost(w))
   rollDailyEvents(w)
   // expire contracts whose runs never started or are late
   for (const c of w.contracts) if (c.accepted && !c.done && w.tick > c.deadlineTick + 24 * 20) {

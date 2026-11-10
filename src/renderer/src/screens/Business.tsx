@@ -3,8 +3,9 @@ import * as A from '@sim/actions'
 import { ADVISORS } from '@sim/data/lore'
 import { BRANCHES, TECHS, techCost, techDays, type Branch } from '@sim/data/tech'
 import { roman } from '@sim/world'
-import { committed, gpu, hallServers } from '@sim/util'
+import { committed, gpu, hallServers, hasTech } from '@sim/util'
 import { creditLimit, debt, SALARY } from '@sim/world'
+import { ipo } from '@sim/corporate'
 import { dateOf, dur, money, num } from '../format'
 import { useGame, useWorld } from '../store'
 import { Bar, Field, Head, Num, Spark } from '../ui'
@@ -116,6 +117,7 @@ export function Finance() {
             <h2>Debt</h2>
             <div className="mono">Credit line used: {money(debt(w))} / {money(creditLimit(w))}</div>
             {w.loans.map((l) => <div key={l.id} className="row" style={{ justifyContent: 'space-between' }}><span className="mono">{money(l.principal)} @ {(l.rate * 100).toFixed(1)}%</span><button className="btn sm" onClick={() => act((x) => A.repay(x, l.id), 'Loan repaid')}>Repay</button></div>)}
+            {!w.public && <div className="row" style={{ justifyContent: 'space-between' }}><span className="dim" style={{ fontSize: 13 }}>Founder stake {(w.founderStake * 100).toFixed(0)}% · IPO sells 20% of the company</span><button className="btn sm" disabled={!hasTech(w, 'ipo')} onClick={() => act((x) => ipo(x), 'Listed!')}>IPO</button></div>}
             <div className="row"><Field label="Borrow ($M)"><Num value={amt} onChange={setAmt} min={1} /></Field><button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => act((x) => A.borrow(x, amt * 1e6), 'Funds wired')}>Borrow</button></div>
           </div>
           <div className="panel col">

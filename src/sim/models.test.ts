@@ -34,3 +34,20 @@ describe('architecture training', () => {
     expect(m.evals?.humaneval).toBeGreaterThan(0)
   })
 })
+
+import { CLOUD, cloudCapacity } from './cloud'
+describe('renting cloud compute', () => {
+  it('trains a model on rented GPUs with no own sites, and pays for it', () => {
+    const w = createWorld(12)
+    Act.buyDataset(w, 'crawl')
+    const cap = cloudCapacity(w, 'nv-h1000')
+    expect(cap).toBeGreaterThan(32)
+    const cash0 = w.cash
+    const r = Act.startArchTraining(w, { name: 'Rented-1', arch: TEMPLATES.find((t) => t.id === 'gptea2')!.arch, mix: { crawl: 0.05 }, siteId: CLOUD, gpuId: 'nv-h1000', servers: 32 })
+    expect(r.ok).toBe(true)
+    for (let i = 0; i < 24 * 30 && !w.models.length; i++) step(w)
+    expect(w.models.length).toBe(1)
+    expect(w.runs[0].spentUsd).toBeGreaterThan(0)
+    expect(w.cash).toBeLessThan(cash0)
+  })
+})
