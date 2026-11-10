@@ -6,6 +6,7 @@ import { money } from '../format'
 import { useGame, useWorld } from '../store'
 import { Field, Tabs } from '../ui'
 import { Portrait } from '../art/People'
+import * as PV from '@sim/preview'
 
 export function Team() {
   const [tab, setTab] = useState<'team' | 'hiring' | 'labs'>('team')
@@ -48,7 +49,7 @@ function Org() {
           {ps.length === 0 ? <p className="dim" style={{ fontSize: 13 }}>Nobody yet. Check the hiring board.</p> :
             <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 10 }}>{ps.sort((a, b) => b.skill - a.skill).map((p) => <PersonCard key={p.id} p={p} actions={<>
               <button className="btn sm" onClick={() => act((x) => giveRaise(x, p.id), `${p.name} got a raise`)}>Raise +15%</button>
-              <button className="btn sm danger" onClick={() => act((x) => firePerson(x, p.id), `${p.name} was let go`)}>Let go</button></>} />)}</div>}
+              <button className="btn sm danger" onClick={() => void useGame.getState().confirmAct(`Let ${p.name} go?`, PV.previewFire(w, p.id), 'Let go', (x) => firePerson(x, p.id), { okMsg: `${p.name} was let go`, system: 'people' })}>Let go</button></>} />)}</div>}
         </div>) })}
     </div>
   )
@@ -60,7 +61,7 @@ function Hiring() {
     <>
       <p className="dim" style={{ marginBottom: 14 }}>The board refreshes weekly. Stars cost more, and rivals will try to poach them unless they're happy (or loyal). Signing bonus is 25% of salary.</p>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 10 }}>
-        {w.candidates.map((p) => <PersonCard key={p.id} p={p} actions={<button className="btn sm pri" onClick={() => act((x) => hirePerson(x, p.id), `${p.name} hired`)}><UserPlus size={13} /> Hire · {money(p.salary * 0.25)}</button>} />)}
+        {w.candidates.map((p) => <PersonCard key={p.id} p={p} actions={<button className="btn sm pri" onClick={() => void useGame.getState().confirmAct(`Hire ${p.name}?`, PV.previewSpend(w, p.salary * 0.25), 'Hire', (x) => hirePerson(x, p.id), { okMsg: `${p.name} hired`, system: 'people' })}><UserPlus size={13} /> Hire · {money(p.salary * 0.25)}</button>} />)}
       </div>
     </>
   )
@@ -76,7 +77,7 @@ function Labs() {
         <FlaskRound size={22} />
         <Field label="Lab name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Focus"><select value={focus} onChange={(e) => setFocus(e.target.value as Branch)}>{BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}</select></Field>
-        <button className="btn pri" onClick={() => act((x) => createLab(x, name, focus), 'Lab opened')}>Open lab · {money(20e6 * (1 + w.labs.length))}</button>
+        <button className="btn pri" onClick={() => void useGame.getState().confirmAct('Open a new research lab?', PV.previewSpend(w, 20e6 * (1 + w.labs.length)), 'Open lab', (x) => createLab(x, name, focus), { okMsg: 'Lab opened' })}>Open lab · {money(20e6 * (1 + w.labs.length))}</button>
       </div>
       {w.labs.length === 0 ? <p className="dim">No labs yet. A lab focuses your researchers on one R&D branch and speeds it up.</p> :
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>

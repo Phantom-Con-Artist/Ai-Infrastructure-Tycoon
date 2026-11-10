@@ -27,7 +27,8 @@ export function usd(n: number): string {
   return `${s}$${a.toFixed(0)}`
 }
 const isExpensive = (w: World, cost: number): boolean => !w.rules?.infiniteCash && cost > EXPENSIVE_SHARE * Math.max(0, w.cash)
-const cashAfter = (w: World, cost: number): string => w.rules?.infiniteCash ? 'Cash: unlimited (sandbox)' : `Cash after: ${usd(w.cash - cost)}`
+const cashAfter = (w: World, cost: number): string => w.rules?.infiniteCash ? 'Cash: unlimited (sandbox)'
+  : cost > w.cash ? `You're ${usd(cost - w.cash)} short — borrow or sell something first` : `Cash after: ${usd(w.cash - cost)}`
 
 /** Any plain purchase: expensive above 25% of cash, otherwise cheap. */
 export function previewSpend(w: World, cost: number): Preview {

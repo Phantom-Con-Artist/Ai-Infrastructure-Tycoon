@@ -10,6 +10,7 @@ import { useGame, useWorld } from '../store'
 import { Tabs } from '../ui'
 import { CorpLogo, WordMark, type LogoGlyph } from '../art/Logos'
 import { Portrait } from '../art/People'
+import * as PV from '@sim/preview'
 
 const TABS = ['models', 'labs', 'evals', 'companies', 'rich list'] as const
 
@@ -89,7 +90,7 @@ function Companies() {
       {rows.map((r, i) => <tr key={r.id} style={r.you ? { background: 'var(--accent-soft)' } : undefined}><td><Rank i={i} /></td>
         <td><span className="row" style={{ gap: 10 }}>{r.you ? <Me /> : <CorpLogo id={r.id} />}<b style={{ fontWeight: 600 }}>{r.name}</b>{r.owned && <span className="tag g">subsidiary</span>}</span></td>
         <td className="dim" style={{ textTransform: 'capitalize' }}>{r.kind}</td><td className="r"><b>{money(r.valuation)}</b></td><td className="r dim">{r.you ? '' : money(r.revenue)}</td>
-        <td className="r">{!r.you && !r.owned && <button className="btn sm" disabled={!canBuy} onClick={() => act((x) => acquire(x, r.id))}>Acquire · {money(acquisitionPrice(w, r.id))}</button>}</td></tr>)}
+        <td className="r">{!r.you && !r.owned && <button className="btn sm" disabled={!canBuy} onClick={() => void useGame.getState().confirmAct(`Acquire ${r.name}?`, PV.previewAcquire(w, r.id), 'Acquire', (x) => acquire(x, r.id))}>Acquire · {money(acquisitionPrice(w, r.id))}</button>}</td></tr>)}
     </tbody></table></div>
   </>
 }

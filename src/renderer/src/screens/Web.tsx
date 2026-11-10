@@ -10,6 +10,7 @@ import { useGame, useWorld } from '../store'
 import { Field } from '../ui'
 import { Glyph, WordMark, type LogoGlyph } from '../art/Logos'
 import { Portrait } from '../art/People'
+import * as PV from '@sim/preview'
 
 type Url = 'home' | 'registrar' | 'builder' | 'vergence' | 'noose' | 'chirper' | 'digest'
 const BOOKMARKS: { id: Url; label: string; host: string }[] = [
@@ -85,7 +86,7 @@ function Registrar() {
       <div className="col" style={{ marginTop: 20, gap: 8, maxWidth: 720 }}>
         {TLDS.map((t) => { const name = `${label}.${t}`; const p = domainPrice(name); const owned = w.web.domains.includes(name); return (
           <div key={t} className="saverow"><span className="grow"><b>{label}</b><span className="dim">.{t}</span>{p > 1e6 && <span className="tag a" style={{ marginLeft: 8 }}>premium</span>}</span><b>{Number.isFinite(p) ? money(p) : '—'}</b>
-            <button className={'btn sm ' + (owned ? 'ghost' : 'pri')} disabled={owned || !Number.isFinite(p)} onClick={() => act((x) => buyDomain(x, name), 'Domain registered')}>{owned ? 'Owned' : 'Buy'}</button></div>) })}
+            <button className={'btn sm ' + (owned ? 'ghost' : 'pri')} disabled={owned || !Number.isFinite(p)} onClick={() => void useGame.getState().confirmAct(`Register ${name}?`, PV.previewSpend(w, p), 'Register', (x) => buyDomain(x, name), { okMsg: 'Domain registered' })}>{owned ? 'Owned' : 'Buy'}</button></div>) })}
       </div>
       {w.web.domains.length > 0 && <p className="dim" style={{ marginTop: 18 }}>Your domains: {w.web.domains.join(', ')}</p>}
     </div>
@@ -106,7 +107,7 @@ function Builder({ onDone }: { onDone: () => void }) {
       <Field label="Headline"><input type="text" value={headline} onChange={(e) => setH(e.target.value)} /></Field>
       <Field label="Tagline"><input type="text" value={tagline} onChange={(e) => setTag(e.target.value)} /></Field>
       <div className="row wrap" style={{ gap: 8 }}>{SECTIONS.map((x) => <button key={x} className={'btn sm ' + (sections.includes(x) ? 'pri' : '')} onClick={() => setS(sections.includes(x) ? sections.filter((y) => y !== x) : [...sections, x])}>{x}</button>)}</div>
-      <div><button className="btn pri" onClick={() => { const r = act((x) => publishSite(x, { template, headline, tagline, sections }), 'Site published'); if (r.ok) onDone() }}>Publish · {money(TEMPLATES_WEB[template].cost)}</button></div>
+      <div><button className="btn pri" onClick={() => { void useGame.getState().confirmAct('Publish your website?', PV.previewSpend(w, TEMPLATES_WEB[template].cost), 'Publish', (x) => publishSite(x, { template, headline, tagline, sections }), { okMsg: 'Site published' }).then((r) => { if (r?.ok) onDone() }) }}>Publish · {money(TEMPLATES_WEB[template].cost)}</button></div>
     </div>
   )
 }

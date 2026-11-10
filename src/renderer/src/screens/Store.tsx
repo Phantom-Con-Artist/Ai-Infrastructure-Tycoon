@@ -5,6 +5,7 @@ import { dateOf, money, num } from '../format'
 import { useGame, useWorld } from '../store'
 import { EmptyState, Field, Num } from '../ui'
 import { EmptyLabArt } from '../art/Illustrations'
+import * as PV from '@sim/preview'
 
 const CAT_ICON: Record<S.Category, string> = { chat: '💬', coding: '⌨️', creative: '🎨', companion: '🫶', enterprise: '🏢', api: '🔑' }
 
@@ -45,7 +46,7 @@ function NewProduct({ onDone }: { onDone: (id: string) => void }) {
         <Field label="Powered by"><select value={modelId} onChange={(e) => setModel(e.target.value)}>{models.map((m) => <option key={m.id} value={m.id}>{m.name} · Elo {Math.round(m.elo)}</option>)}</select></Field>
       </div>
       <div className="dim" style={{ fontSize: 13 }}>Market: {num(S.CATEGORIES[cat].tam0)} people · willingness to pay ≈ ${S.CATEGORIES[cat].wtp}/mo · churn ≈ {(S.CATEGORIES[cat].churnMonthly * 100).toFixed(1)}%/mo. Traffic is served by {models.find((m) => m.id === modelId)?.name}'s deployments, so make sure it has GPUs.</div>
-      <div><button className="btn pri" onClick={() => { const r = act((x) => S.createProduct(x, { name, category: cat, modelId }), 'Product launched'); if (r.ok) onDone(r.value.id) }}><ShoppingBag size={14} /> Launch · {money(cat === 'enterprise' ? 5e6 : 1e6)}</button></div>
+      <div><button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Launch ${name}?`, PV.previewSpend(w, cat === 'enterprise' ? 5e6 : 1e6), 'Launch', (x) => S.createProduct(x, { name, category: cat, modelId }), { okMsg: 'Product launched' }).then((r) => { if (r?.ok) onDone(r.value.id) }) }}><ShoppingBag size={14} /> Launch · {money(cat === 'enterprise' ? 5e6 : 1e6)}</button></div>
     </div>
   )
 }
@@ -93,7 +94,7 @@ function Dashboard({ id }: { id: string }) {
     <div className="col" style={{ gap: 14 }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div><div className="eyebrow">{CAT_ICON[p.category]} {C.name} · powered by {m?.name} · since {dateOf(p.launched)}</div><h1 style={{ fontSize: 38 }}>{p.name}</h1></div>
-        <Field label={`Marketing ${money(p.marketingPerDay)}/day`}><input type="range" min={0} max={2_000_000} step={10_000} value={p.marketingPerDay} onChange={(e) => act((x) => S.setMarketing(x, id, +e.target.value))} style={{ width: 240 }} /></Field>
+        <Field label={`Marketing ${money(p.marketingPerDay)}/day`}><input type="range" min={0} max={2_000_000} step={10_000} value={p.marketingPerDay} onChange={(e) => act((x) => S.setMarketing(x, id, +e.target.value), undefined, { system: 'sales' })} style={{ width: 240 }} /></Field>
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         <Kpi k={C.seatBased ? 'Seats' : 'Users'} v={num(users)} sub={`${num(p.freeUsers)} free`} />
@@ -112,14 +113,14 @@ function Dashboard({ id }: { id: string }) {
       <div className="grid" style={{ gridTemplateColumns: `repeat(${Math.min(4, p.plans.length)}, 1fr)`, gap: 12 }}>
         {p.plans.map((pl) => (
           <div key={pl.id} className="panel col" style={{ gap: 8, outline: pl.price === 0 ? undefined : '1px solid var(--line-2)' }}>
-            <div className="row" style={{ justifyContent: 'space-between' }}><input type="text" value={pl.name} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { name: e.target.value }))} style={{ fontWeight: 700, fontSize: 16, background: 'transparent', padding: 4 }} />
-              <button className="btn sm danger" aria-label="Remove plan" onClick={() => act((x) => S.removePlan(x, id, pl.id))}><Trash2 size={12} /></button></div>
+            <div className="row" style={{ justifyContent: 'space-between' }}><input type="text" value={pl.name} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { name: e.target.value }), undefined, { system: 'sales' })} style={{ fontWeight: 700, fontSize: 16, background: 'transparent', padding: 4 }} />
+              <button className="btn sm danger" aria-label="Remove plan" onClick={() => act((x) => S.removePlan(x, id, pl.id), 'Plan removed', { undoable: true, system: 'sales' })}><Trash2 size={12} /></button></div>
             <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-.03em' }}>{pl.price === 0 ? 'Free' : `$${pl.price}`}<span className="dim" style={{ fontSize: 13, fontWeight: 500 }}>{pl.price ? (C.seatBased ? '/seat/mo' : '/mo') : ''}</span></div>
-            <Field label="Price $/mo"><Num value={pl.price} step={1} onChange={(v) => act((x) => S.updatePlan(x, id, pl.id, { price: v }))} /></Field>
-            <Field label={`Token limit/day ${num(pl.tokPerDay)}`}><input type="range" min={Math.log10(500)} max={Math.log10(5e7)} step={0.01} value={Math.log10(pl.tokPerDay)} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { tokPerDay: Math.round(10 ** +e.target.value) }))} /></Field>
-            {C.seatBased && <Field label="Minimum seats"><Num value={pl.seatsMin} min={1} onChange={(v) => act((x) => S.updatePlan(x, id, pl.id, { seatsMin: v }))} /></Field>}
-            <label className="row" style={{ fontSize: 13 }}><input type="checkbox" checked={pl.ads} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { ads: e.target.checked }))} /> Show ads</label>
-            <label className="row" style={{ fontSize: 13 }}><input type="checkbox" checked={pl.priority} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { priority: e.target.checked }))} /> Priority access</label>
+            <Field label="Price $/mo"><Num value={pl.price} step={1} onChange={(v) => act((x) => S.updatePlan(x, id, pl.id, { price: v }), undefined, { system: 'sales' })} /></Field>
+            <Field label={`Token limit/day ${num(pl.tokPerDay)}`}><input type="range" min={Math.log10(500)} max={Math.log10(5e7)} step={0.01} value={Math.log10(pl.tokPerDay)} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { tokPerDay: Math.round(10 ** +e.target.value) }), undefined, { system: 'sales' })} /></Field>
+            {C.seatBased && <Field label="Minimum seats"><Num value={pl.seatsMin} min={1} onChange={(v) => act((x) => S.updatePlan(x, id, pl.id, { seatsMin: v }), undefined, { system: 'sales' })} /></Field>}
+            <label className="row" style={{ fontSize: 13 }}><input type="checkbox" checked={pl.ads} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { ads: e.target.checked }), undefined, { system: 'sales' })} /> Show ads</label>
+            <label className="row" style={{ fontSize: 13 }}><input type="checkbox" checked={pl.priority} onChange={(e) => act((x) => S.updatePlan(x, id, pl.id, { priority: e.target.checked }), undefined, { system: 'sales' })} /> Priority access</label>
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, fontSize: 13 }}><b>{num(pl.price === 0 ? p.freeUsers : pl.subs)}</b> <span className="dim">{pl.price === 0 ? 'users' : 'subscribers'} · {money(pl.subs * pl.price)}/mo</span></div>
           </div>))}
       </div>

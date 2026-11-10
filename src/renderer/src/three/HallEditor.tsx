@@ -12,6 +12,8 @@ import type { Hall, Site } from '@sim/types'
 import { useGame, useWorld } from '../store'
 import { money } from '../format'
 import { InstancedGlb, MODEL, at } from './Instanced'
+import { previewRemove } from '@sim/preview'
+import { touchSystem } from '@sim/managers'
 
 type Tool = 'select' | 'rack' | EquipKind | 'remove'
 const TOOLS: { id: Tool; name: string; sub: string; icon: React.ReactNode }[] = [
@@ -39,6 +41,7 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
   const [sel, setSel] = useState<[number, number] | null>(null)
   const painting = useRef(false)
   const lastPaint = useRef('')
+  const strokeSnap = useRef<typeof w | null>(null)
 
   useEffect(() => {
     const k = (e: KeyboardEvent): void => {
@@ -57,13 +60,20 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
     const key = `${tool}:${x},${y}`
     if (key === lastPaint.current) return
     lastPaint.current = key
+    const st = useGame.getState()
     const run = (fn: (ww: typeof w) => A.Result<unknown>): void => {
-      const st = useGame.getState()
+      const before = strokeSnap.current ?? structuredClone(st.w!)
       const r = fn(st.w!)
       if (!r.ok && !silent) st.flash(r.error, 'err')
+      if (r.ok) { strokeSnap.current = before; st.armUndo(before); touchSystem(st.w!, 'facilities') }
       useGame.setState((s) => ({ rev: s.rev + 1 }))
     }
-    if (tool === 'remove') run((ww) => A.removeAt(ww, hall.id, x, y))
+    if (tool === 'remove') {
+      const pv = previewRemove(st.w!, hall.id, x, y)
+      // Removing something racks depend on is never done mid-drag; a single click asks first.
+      if (pv.tier === 'severe') { if (!silent) void st.confirmAct('Remove this unit?', pv, 'Remove', (ww) => A.removeAt(ww, hall.id, x, y), { system: 'facilities' }); return }
+      run((ww) => A.removeAt(ww, hall.id, x, y))
+    }
     else if (tool === 'rack') run((ww) => A.placeRack(ww, hall.id, x, y, rot))
     else run((ww) => A.placeEquipment(ww, hall.id, tool, x, y, rot))
   }
@@ -84,7 +94,7 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
         <Suspense fallback={null}>
           <Floor hall={hall} built={built}
             onMove={(x, y) => { setHover([x, y]); if (painting.current && (tool === 'rack' || tool === 'remove')) apply(x, y, true) }}
-            onDown={(x, y, e) => { if (e.button !== 0) return; painting.current = true; lastPaint.current = ''; apply(x, y) }}
+            onDown={(x, y, e) => { if (e.button !== 0) return; painting.current = true; lastPaint.current = ''; strokeSnap.current = null; apply(x, y) }}
             onUp={() => { painting.current = false }}
             onLeave={() => setHover(null)} />
           <HallContents hall={hall} />
@@ -107,7 +117,7 @@ export function HallEditor({ site, hall }: { site: Site; hall: Hall }) {
         })}
       </div>
 
-      <Inspector site={site} hall={hall} sel={selected} onAuto={() => act((x) => A.autoLayout(x, hall.id), 'Auto-layout placed')} />
+      <Inspector site={site} hall={hall} sel={selected} onAuto={() => act((x) => A.autoLayout(x, hall.id), 'Auto-layout placed', { undoable: true, system: 'facilities' })} />
 
       <div className="hint">
         <span><span className="kbd">LMB</span> {tool === 'select' ? 'inspect' : tool === 'remove' ? 'remove' : 'place'}</span>

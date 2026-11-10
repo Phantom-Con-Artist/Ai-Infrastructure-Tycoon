@@ -10,6 +10,7 @@ import { useGame, useWorld } from '../store'
 import { EmptyState, Field, Num, Tabs } from '../ui'
 import { Floorplan, WaferMap } from '../art/ChipArt'
 import { GpuArt } from '../art/GpuArt'
+import * as PV from '@sim/preview'
 
 const NAMES = ['Dreamchip', 'Hyperion', 'Thunderdie', 'Overclockasaurus', 'Gigabrain', 'Siliconthesizer', 'MegaMatmul', 'Tensorus Rex', 'Chonk']
 
@@ -102,7 +103,7 @@ function Designer({ onDone }: { onDone: () => void }) {
           {stat('Wafer price', money(n.waferUsd), `${n.litho.toUpperCase()} critical layers`)}
         </div>
         <div className="row">
-          <button className="btn pri" disabled={!!err} onClick={() => { const r = act((x) => C.startDesign(x, s), 'Tape-out started'); if (r.ok) onDone() }}>Start tape-out · {money(e.nreUsd * 0.3)} now</button>
+          <button className="btn pri" disabled={!!err} onClick={() => { void useGame.getState().confirmAct(`Tape out ${s.name}?`, PV.previewTapeout(w, s), 'Tape out', (x) => C.startDesign(x, s), { okMsg: 'Tape-out started' }).then((r) => { if (r?.ok) onDone() }) }}>Start tape-out · {money(e.nreUsd * 0.3)} now</button>
           {err && <span className="neg" style={{ fontSize: 13 }}>{err}</span>}
         </div>
       </div>
@@ -153,7 +154,7 @@ function FabView() {
       <div className="panel row" style={{ justifyContent: 'space-between' }}>
         <div className="row" style={{ gap: 14 }}><Factory size={28} /><div><h3>{fab ? `Fab · ${fab.modules} cleanroom module${fab.modules > 1 ? 's' : ''}` : 'No fab yet'}</h3>
           <div className="dim" style={{ fontSize: 13 }}>{fab ? (w.tick < fab.readyTick ? `Construction completes ${dateOf(fab.readyTick)}` : `${Object.values(fab.tools).reduce((a, b) => a + b, 0)} scanners online · ${fab.toolsPending.length} being installed · 20 per module`) : 'Each module: $3.0B, 18 months, $1M/day to operate.'}</div></div></div>
-        <button className="btn pri" onClick={() => act((x) => C.buildFab(x), fab ? 'Expansion started' : 'Fab construction started')}>{fab ? 'Add module · $3.0B' : 'Build fab · $3.0B'}</button>
+        <button className="btn pri" onClick={() => void useGame.getState().confirmAct(fab ? 'Add a cleanroom module?' : 'Build your own fab?', PV.previewSpend(w, 3e9), 'Build', (x) => C.buildFab(x), { okMsg: fab ? 'Expansion started' : 'Fab construction started' })}>{fab ? 'Add module · $3.0B' : 'Build fab · $3.0B'}</button>
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {(Object.keys(LITHO) as LithoKind[]).map((k) => { const L = LITHO[k]; const locked = k !== 'duv' && !hasTech(w, L.tech); return (
@@ -162,7 +163,7 @@ function FabView() {
             <div className="dim" style={{ fontSize: 12.5, minHeight: 50 }}>{L.blurb}</div>
             <div style={{ fontSize: 13 }}>λ {L.wavelengthNm} nm · NA {L.na} · {L.wph} wafers/h</div>
             <div style={{ fontSize: 22, fontWeight: 650 }}>{fab ? fab.tools[k] : 0}<span className="dim" style={{ fontSize: 13, fontWeight: 500 }}> installed</span></div>
-            <button className="btn sm pri" disabled={!fab || locked} onClick={() => act((x) => C.buyLitho(x, k), 'Scanner ordered')}>{locked ? 'Locked' : `Buy · ${money(L.usd)}`}</button>
+            <button className="btn sm pri" disabled={!fab || locked} onClick={() => void useGame.getState().confirmAct(`Buy a ${L.name}?`, PV.previewSpend(w, L.usd), 'Buy', (x) => C.buyLitho(x, k), { okMsg: 'Scanner ordered' })}>{locked ? 'Locked' : `Buy · ${money(L.usd)}`}</button>
           </div>) })}
       </div>
     </div>

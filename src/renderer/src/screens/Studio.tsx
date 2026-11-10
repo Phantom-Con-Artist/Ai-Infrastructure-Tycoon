@@ -13,6 +13,7 @@ import { EmptyState, Tabs } from '../ui'
 import { Keynote, KEYNOTE_FRAMES, type KeynoteProps } from '../video/Keynote'
 import { Trailer, trailerFrames, type TrailerProps, type TrailerStyle } from '../video/Trailer'
 import { EmptyDealsArt } from '../art/Illustrations'
+import * as PV from '@sim/preview'
 
 export function Studio() {
   const [tab, setTab] = useState<'keynotes' | 'trailers'>('keynotes')
@@ -57,7 +58,7 @@ function Keynotes() {
       <div className="col" style={{ gap: 10 }}>
         <h3>Products</h3>
         {products.map((x) => <button key={x.key} className={'adv' + (x.key === p.key ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => setSel(x.key)}><b>{x.name}</b><span>{x.kind === 'model' ? 'AI model' : 'Chip'} · hype +{(x.hype * 100).toFixed(0)}%</span></button>)}
-        <button className="btn pri" onClick={() => act((ww) => holdKeynote(ww, p.kind, p.id), 'Keynote delivered — hype rising')}><Mic2 size={14} /> Hold keynote · {money(keynoteCost(w))}</button>
+        <button className="btn pri" onClick={() => void useGame.getState().confirmAct('Hold a keynote?', PV.previewSpend(w, keynoteCost(w)), 'Go on stage', (ww) => holdKeynote(ww, p.kind, p.id), { okMsg: 'Keynote delivered — hype rising' })}><Mic2 size={14} /> Hold keynote · {money(keynoteCost(w))}</button>
         <p className="dim" style={{ fontSize: 12.5 }}>Each keynote adds demand hype that decays ~2.5% per day. The audience gets a little more tired every time.</p>
       </div>
     </div>

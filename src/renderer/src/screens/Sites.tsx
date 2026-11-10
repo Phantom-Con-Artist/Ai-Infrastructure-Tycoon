@@ -12,6 +12,7 @@ import { EmptyHallArt, EmptyLand } from '../art/Illustrations'
 import { PowerFlow } from '../art/PowerFlow'
 import { WorldMap } from '../art/WorldMap'
 import { LineChart } from './Store'
+import * as PV from '@sim/preview'
 
 export function Sites() {
   const w = useWorld()
@@ -45,7 +46,7 @@ function RegionPicker({ first, onCancel, onDone }: { first: boolean; onCancel: (
             </div>
             <Meter label="Carbon" v={r.carbon / 0.45} bad />
             <Meter label="Customer proximity" v={(r.demandMult - 0.6) / 0.7} />
-            <button className="btn pri" disabled={w.cash < r.siteCostUsd} onClick={() => { const res = act((x) => A.buildSite(x, r.id), 'Site acquired'); if (res.ok) onDone(res.value.id) }}><MapPin size={14} /> Acquire · {money(r.siteCostUsd)}</button>
+            <button className="btn pri" disabled={w.cash < r.siteCostUsd} onClick={() => { void useGame.getState().confirmAct(`Buy land in ${r.name}?`, PV.previewSpend(w, r.siteCostUsd), 'Buy land', (x) => A.buildSite(x, r.id), { okMsg: 'Site acquired' }).then((res) => { if (res?.ok) onDone(res.value.id) }) }}><MapPin size={14} /> Acquire · {money(r.siteCostUsd)}</button>
           </div>
         ))}
       </div>
@@ -113,7 +114,7 @@ function NewHall({ siteId, first, onDone }: { siteId: string; first: boolean; on
         <Field label="Cooling"><select value={cooling} onChange={(e) => setCooling(e.target.value as CoolingType)}>{(Object.keys(COOLING) as CoolingType[]).map((c) => <option key={c} value={c} disabled={!coolingUnlocked(w, c)}>{COOLING[c].name} · {COOLING[c].maxRackKw} kW/rack{coolingUnlocked(w, c) ? '' : ' (research)'}</option>)}</select></Field>
         <Field label="Network fabric"><select value={fabric} onChange={(e) => setFabric(e.target.value as FabricType)}>{(Object.keys(FABRICS) as FabricType[]).map((f) => <option key={f} value={f} disabled={!fabricUnlocked(w, f)}>{FABRICS[f].name}{fabricUnlocked(w, f) ? '' : ' (research)'}</option>)}</select></Field>
       </div>
-      <div><button className="btn pri" onClick={() => { const r = act((x) => A.buildHall(x, siteId, { size, cooling, fabric }), 'Groundbreaking!'); if (r.ok) onDone(r.value.id) }}>Break ground · {money(cost)}</button></div>
+      <div><button className="btn pri" onClick={() => { void useGame.getState().confirmAct('Break ground on a new hall?', PV.previewSpend(w, cost), 'Build', (x) => A.buildHall(x, siteId, { size, cooling, fabric }), { okMsg: 'Groundbreaking!' }).then((r) => { if (r?.ok) onDone(r.value.id) }) }}>Break ground · {money(cost)}</button></div>
     </div>
   )
   return first
@@ -141,9 +142,9 @@ function PowerTab({ siteId }: { siteId: string }) {
         <h2>Dispatch strategy</h2>
         <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {([['cost', 'Lowest cost', 'Cheapest source first. Gas when it beats the grid.'], ['green', 'Green', 'Renewables + batteries first, buys certificates, gas only in emergencies.'], ['resilient', 'Resilient', 'Keeps batteries 80% charged for outages.'], ['arbitrage', 'Arbitrage', 'Cycles batteries aggressively on price swings.']] as const).map(([k, n, b]) =>
-            <button key={k} className={'adv' + (strat === k ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => act((x) => A.setPowerStrategy(x, siteId, k))}><b>{n}</b><span>{b}</span></button>)}
+            <button key={k} className={'adv' + (strat === k ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => act((x) => A.setPowerStrategy(x, siteId, k), undefined, { system: 'facilities' })}><b>{n}</b><span>{b}</span></button>)}
         </div>
-        <Field label={`Demand response: shed ${((site.drPct ?? 0) * 100).toFixed(0)}% of load during price spikes (paid 80% of spot)`}><input type="range" min={0} max={0.5} step={0.05} value={site.drPct ?? 0} onChange={(e) => act((x) => A.setDemandResponse(x, siteId, +e.target.value))} /></Field>
+        <Field label={`Demand response: shed ${((site.drPct ?? 0) * 100).toFixed(0)}% of load during price spikes (paid 80% of spot)`}><input type="range" min={0} max={0.5} step={0.05} value={site.drPct ?? 0} onChange={(e) => act((x) => A.setDemandResponse(x, siteId, +e.target.value), undefined, { system: 'facilities' })} /></Field>
         {site.flow && site.flow.drCredit > 0 && <span className="tag g">earning {money(site.flow.drCredit)}/h from the grid right now</span>}
       </div>
     </div>
@@ -152,7 +153,7 @@ function PowerTab({ siteId }: { siteId: string }) {
       <div className="panel col" style={{ flex: 1 }}>
         <h2>Power purchase agreement</h2>
         {site.ppa && site.ppa.untilTick > w.tick ? <div>Hedged <b>{site.ppa.mw} MW</b> at <b>${site.ppa.price}/MWh</b> until {dateOf(site.ppa.untilTick)}</div> : <div className="dim" style={{ fontSize: 13 }}>Lock grid energy at <b>${A.ppaQuote(w, siteId)}/MWh</b> for 10 years. Protects you from spikes, costs you on cheap days.</div>}
-        <div className="row"><Field label="MW to hedge"><Num value={ppaMw} min={1} max={site.utilityMw} onChange={setPpaMw} /></Field><button className="btn" style={{ alignSelf: 'end' }} disabled={!hasTech(w, 'ppa')} onClick={() => act((x) => A.signPpa(x, siteId, ppaMw))}>{hasTech(w, 'ppa') ? 'Sign PPA' : 'Research PPAs'}</button></div>
+        <div className="row"><Field label="MW to hedge"><Num value={ppaMw} min={1} max={site.utilityMw} onChange={setPpaMw} /></Field><button className="btn" style={{ alignSelf: 'end' }} disabled={!hasTech(w, 'ppa')} onClick={() => void useGame.getState().confirmAct('Sign a 10-year power deal?', PV.previewPpa(w, siteId, ppaMw), 'Sign', (x) => A.signPpa(x, siteId, ppaMw), { system: 'finance' })}>{hasTech(w, 'ppa') ? 'Sign PPA' : 'Research PPAs'}</button></div>
       </div>
       <div className="panel col" style={{ flex: 1 }}>
         <h2>Utility connection</h2>
@@ -160,7 +161,7 @@ function PowerTab({ siteId }: { siteId: string }) {
         <div className="bar"><i style={{ width: `${Math.min(100, (prov / Math.max(cap, 0.01)) * 100)}%` }} /></div>
         <div className="dim" style={{ fontSize: 12.5 }}>{prov.toFixed(1)} MW of PDUs provisioned against {cap.toFixed(1)} MW supply</div>
         {site.pendingUtility.map((p, i) => <div key={i} className="tag a">+{p.mw} MW energises {dateOf(p.readyTick)}</div>)}
-        <div className="row"><Field label="Request MW ($1.3M/MW)"><Num value={mw} min={1} onChange={setMw} /></Field><button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => act((x) => A.buyUtility(x, siteId, mw), 'Substation upgrade ordered')}>Order {money(mw * 1_300_000)}</button></div>
+        <div className="row"><Field label="Request MW ($1.3M/MW)"><Num value={mw} min={1} onChange={setMw} /></Field><button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => void useGame.getState().confirmAct(`Upgrade the grid feed by ${mw} MW?`, PV.previewSpend(w, mw * 1_300_000), 'Order', (x) => A.buyUtility(x, siteId, mw), { okMsg: 'Substation upgrade ordered', system: 'facilities' })}>Order {money(mw * 1_300_000)}</button></div>
       </div>
       <div className="panel col" style={{ flex: 1.3 }}>
         <h2>On-site generation & storage</h2>
@@ -171,7 +172,7 @@ function PowerTab({ siteId }: { siteId: string }) {
           <Field label="MW"><Num value={gmw} min={1} onChange={setGmw} /></Field>
           {kind === 'battery' && <Field label="MWh"><Num value={gmwh} min={1} onChange={setGmwh} /></Field>}
         </div>
-        <div><button className="btn pri" onClick={() => act((x) => A.buildGenerator(x, siteId, kind, gmw, gmwh), 'Construction started')}>Build · {money(gmw * GENERATORS[kind].usdPerMw + (kind === 'battery' ? gmwh * 280_000 : 0))}</button></div>
+        <div><button className="btn pri" onClick={() => void useGame.getState().confirmAct(`Build ${GENERATORS[kind].name}?`, PV.previewSpend(w, gmw * GENERATORS[kind].usdPerMw + (kind === 'battery' ? gmwh * 280_000 : 0)), 'Build', (x) => A.buildGenerator(x, siteId, kind, gmw, gmwh), { okMsg: 'Construction started', system: 'facilities' })}>Build · {money(gmw * GENERATORS[kind].usdPerMw + (kind === 'battery' ? gmwh * 280_000 : 0))}</button></div>
       </div>
     </div>
     </div>

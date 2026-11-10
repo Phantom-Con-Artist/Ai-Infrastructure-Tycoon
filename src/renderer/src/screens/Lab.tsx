@@ -10,6 +10,7 @@ import { committed, gpu, hallServers, hasTech, techLevel, techSum, worstFabric, 
 import { dateOf, dur, flops, money, num, params } from '../format'
 import { useGame, useWorld } from '../store'
 import { Bar, Field, Num, Tabs } from '../ui'
+import * as PV from '@sim/preview'
 
 const TABS = ['design', 'data', 'runs', 'models', 'evals'] as const
 
@@ -110,7 +111,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
         <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
         <Field label={`Servers ${n}/${free} · ${num(n * 8)} GPUs`}><input type="range" min={1} max={Math.max(1, free)} value={n} onChange={(e) => setServers(+e.target.value)} /></Field>
         <div className="dim" style={{ fontSize: 12.5 }}>MFU {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}{cloud ? ` · ${money(bill)}/h ≈ ${money(bill * (rate > 0 ? F / rate / 3600 : 0))} total` : ''}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
-        <button className="btn pri" onClick={() => { const r = act((x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n }), 'Training started'); if (r.ok) onStart() }}>Start training</button>
+        <button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Start training ${name}?`, PV.previewTraining(w, cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0), 'Train', (x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n }), { okMsg: 'Training started' }).then((r) => { if (r?.ok) onStart() }) }}>Start training</button>
       </div>
     </div>
   )
@@ -125,7 +126,7 @@ function DataMarket() {
           <div className="row" style={{ justifyContent: 'space-between' }}><span className="tag b">{d.domain}</span>{d.legalRisk > 0.4 ? <span className="tag r">legal risk {(d.legalRisk * 100).toFixed(0)}%</span> : d.legalRisk > 0.1 ? <span className="tag a">some risk</span> : <span className="tag g">clean</span>}</div>
           <h3>{d.name}</h3><div className="dim" style={{ fontSize: 12.5 }}>{d.source}</div>
           <div className="row" style={{ gap: 18, fontSize: 13 }}><span><b>{num(d.tokensT)}T</b> tokens</span><span>quality <b>×{d.quality}</b></span></div>
-          <button className={'btn sm ' + (own ? 'ghost' : 'pri')} disabled={own || !!locked} onClick={() => act((x) => A.buyDataset(x, d.id))}>{own ? 'Owned' : locked ? 'Locked' : d.usd === 0 ? 'Download free' : `Buy · ${money(d.usd)}`}</button>
+          <button className={'btn sm ' + (own ? 'ghost' : 'pri')} disabled={own || !!locked} onClick={() => void useGame.getState().confirmAct(`Buy ${d.name}?`, PV.previewSpend(w, d.usd), 'Buy', (x) => A.buyDataset(x, d.id))}>{own ? 'Owned' : locked ? 'Locked' : d.usd === 0 ? 'Download free' : `Buy · ${money(d.usd)}`}</button>
         </div>) })}
     </div>
   )
@@ -165,7 +166,7 @@ function Runs() {
               <div className="row">
                 {r.status === 'running' && <button className="btn sm" onClick={() => act((x) => A.setRunStatus(x, r.id, 'paused'))}>Pause</button>}
                 {r.status === 'paused' && <button className="btn sm" onClick={() => act((x) => A.setRunStatus(x, r.id, 'running'))}>Resume</button>}
-                {(r.status === 'running' || r.status === 'paused') && <button className="btn sm danger" onClick={() => act((x) => A.setRunStatus(x, r.id, 'failed'), 'Run aborted')}>Abort</button>}
+                {(r.status === 'running' || r.status === 'paused') && <button className="btn sm danger" onClick={() => void useGame.getState().confirmAct(`Abort ${r.name}?`, { tier: 'severe', lines: [`${money(r.spentUsd)} of compute already spent is lost`, `${Math.round(100 * r.flopsDone / r.flopsTotal)}% of training thrown away`] }, 'Abort', (x) => A.setRunStatus(x, r.id, 'failed'), { okMsg: 'Run aborted' })}>Abort</button>}
               </div>
             </div>
             <Bar v={p} max={1} warnAt={2} badAt={2} />

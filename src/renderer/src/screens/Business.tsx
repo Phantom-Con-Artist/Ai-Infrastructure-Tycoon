@@ -9,6 +9,7 @@ import { ipo } from '@sim/corporate'
 import { dateOf, dur, money, num } from '../format'
 import { useGame, useWorld } from '../store'
 import { Bar, Field, Head, Num, Spark } from '../ui'
+import * as PV from '@sim/preview'
 
 export function Contracts() {
   const w = useWorld(); const act = useGame((s) => s.act)
@@ -87,7 +88,7 @@ export function Research() {
                 const locked = !!t.requires?.some((r) => !w.research.done.includes(r))
                 const active = w.research.current === t.id
                 return (
-                  <button key={t.id} disabled={locked || done || maxed} onClick={() => act((x) => A.startResearch(x, t.id), 'Research started')}
+                  <button key={t.id} disabled={locked || done || maxed} onClick={() => act((x) => A.startResearch(x, t.id), 'Research started', { system: 'research' })}
                     style={{ textAlign: 'left', border: 0, cursor: locked || done ? 'default' : 'pointer', padding: '11px 12px', borderRadius: 14, display: 'grid', gap: 4,
                       background: done || maxed ? 'var(--accent-soft)' : active ? 'var(--ink)' : 'var(--surface)', color: active ? 'var(--surface)' : undefined,
                       boxShadow: active ? 'var(--sh-2)' : 'var(--sh-1)', opacity: locked ? 0.45 : 1, transition: 'all .25s var(--ease)' }}>
@@ -116,9 +117,9 @@ export function Finance() {
           <div className="panel col">
             <h2>Debt</h2>
             <div className="mono">Credit line used: {money(debt(w))} / {money(creditLimit(w))}</div>
-            {w.loans.map((l) => <div key={l.id} className="row" style={{ justifyContent: 'space-between' }}><span className="mono">{money(l.principal)} @ {(l.rate * 100).toFixed(1)}%</span><button className="btn sm" onClick={() => act((x) => A.repay(x, l.id), 'Loan repaid')}>Repay</button></div>)}
-            {!w.public && <div className="row" style={{ justifyContent: 'space-between' }}><span className="dim" style={{ fontSize: 13 }}>Founder stake {(w.founderStake * 100).toFixed(0)}% · IPO sells 20% of the company</span><button className="btn sm" disabled={!hasTech(w, 'ipo')} onClick={() => act((x) => ipo(x), 'Listed!')}>IPO</button></div>}
-            <div className="row"><Field label="Borrow ($M)"><Num value={amt} onChange={setAmt} min={1} /></Field><button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => act((x) => A.borrow(x, amt * 1e6), 'Funds wired')}>Borrow</button></div>
+            {w.loans.map((l) => <div key={l.id} className="row" style={{ justifyContent: 'space-between' }}><span className="mono">{money(l.principal)} @ {(l.rate * 100).toFixed(1)}%</span><button className="btn sm" onClick={() => void useGame.getState().confirmAct('Repay this loan?', PV.previewSpend(w, l.principal), 'Repay', (x) => A.repay(x, l.id), { okMsg: 'Loan repaid', system: 'finance' })}>Repay</button></div>)}
+            {!w.public && <div className="row" style={{ justifyContent: 'space-between' }}><span className="dim" style={{ fontSize: 13 }}>Founder stake {(w.founderStake * 100).toFixed(0)}% · IPO sells 20% of the company</span><button className="btn sm" disabled={!hasTech(w, 'ipo')} onClick={() => void useGame.getState().confirmAct('Take the company public?', PV.previewIpo(w), 'Go public', (x) => ipo(x), { okMsg: 'Listed!' })}>IPO</button></div>}
+            <div className="row"><Field label="Borrow ($M)"><Num value={amt} onChange={setAmt} min={1} /></Field><button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => void useGame.getState().confirmAct(`Borrow $${amt}M?`, PV.previewLoan(w, amt * 1e6), 'Borrow', (x) => A.borrow(x, amt * 1e6), { okMsg: 'Funds wired', system: 'finance' })}>Borrow</button></div>
           </div>
           <div className="panel row" style={{ justifyContent: 'space-between' }}><span>Hiring, morale and research labs live on the <b>Team</b> screen.</span><button className="btn sm" onClick={() => useGame.getState().go('team')}>Open Team</button></div>
           <div className="panel col">

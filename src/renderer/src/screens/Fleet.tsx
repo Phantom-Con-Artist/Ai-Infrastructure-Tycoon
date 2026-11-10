@@ -12,6 +12,7 @@ import { EmptyState, Field, Num, Tabs } from '../ui'
 import { GpuArt } from '../art/GpuArt'
 import { CorpLogo } from '../art/Logos'
 import { EmptyFleetArt } from '../art/Illustrations'
+import * as PV from '@sim/preview'
 
 export function Fleet() {
   const w = useWorld(); const go = useGame((s) => s.go)
@@ -45,7 +46,7 @@ function Buy() {
         <div className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}><span className="dim">Server</span><b>{money(price)}</b></div>
         <div className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}><span className="dim">Rents for</span><b>${(rentalPrice(w, g) * (g.vcpus ? 8 : 1)).toFixed(2)}/{g.vcpus ? 'server' : 'GPU'}·h</b></div>
         <div className="row" style={{ gap: 6 }}><div style={{ width: 80 }}><Num value={n} min={1} onChange={(v) => setQty({ ...qty, [g.id]: v })} /></div>
-          <button className="btn sm pri" style={{ flex: 1, justifyContent: 'center' }} onClick={() => act((x) => A.orderServers(x, siteId, g.id, n), 'Order placed')}>Buy · {money(price * n)}</button></div>
+          <button className="btn sm pri" style={{ flex: 1, justifyContent: 'center' }} onClick={() => void useGame.getState().confirmAct(`Buy ${n} ${g.name} server${n === 1 ? '' : 's'}?`, PV.previewSpend(w, price * n), 'Buy', (x) => A.orderServers(x, siteId, g.id, n), { okMsg: 'Order placed' })}>Buy · {money(price * n)}</button></div>
       </div>
     )
   }
@@ -63,9 +64,23 @@ function Buy() {
 function CloudPools() {
   const w = useWorld(); const act = useGame((s) => s.act)
   const pools = w.sites.flatMap((s) => [...new Set(s.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))].map((id) => ({ s, id })))
-  if (!pools.length) return <p className="dim">Install some servers first (Sites → hall → loading dock).</p>
+  const spares = w.sites.flatMap((s) => Object.entries(s.stock).filter(([, n]) => n > 0).map(([id, n]) => ({ s, id, n })))
+  const sparesPanel = spares.length > 0 && (
+    <div className="panel col" style={{ gap: 8 }}>
+      <b>Spare servers on the loading dock</b>
+      <p className="dim" style={{ fontSize: 12.5 }}>Spares swap in automatically when servers fail. Sell them if you need cash.</p>
+      {spares.map(({ s, id, n }) => (
+        <div key={s.id + id} className="row" style={{ justifyContent: 'space-between' }}>
+          <span>{n} × {gpu(w, id).name} <span className="dim">· {s.name}</span></span>
+          <button className="btn sm danger" onClick={() => void useGame.getState().confirmAct(`Sell ${n} spare servers?`, PV.previewSellServers(w, s.id, id, n), 'Sell', (x) => A.sellServers(x, s.id, id, n), { okMsg: 'Servers sold' })}>Sell for {money(A.sellRefund(w, id, n))}</button>
+        </div>
+      ))}
+    </div>
+  )
+  if (!pools.length) return <div className="col" style={{ gap: 12 }}>{sparesPanel}<p className="dim">Install some servers first (Sites → hall → loading dock).</p></div>
   return (
     <div className="col" style={{ gap: 12 }}>
+      {sparesPanel}
       <p className="dim">Rent your servers to the world. On-demand follows the market. Reserved locks a year of steady income at a discount. Spot is always full but cheap.</p>
       {pools.map(({ s, id }) => {
         const g = gpu(w, id)
@@ -82,10 +97,10 @@ function CloudPools() {
           <div key={s.id + id} className="panel" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 180px', gap: 22, alignItems: 'center' }}>
             <div><b>{g.name}</b><div className="dim" style={{ fontSize: 12.5 }}>{s.name} · {total} servers · {free} free{g.vcpus ? ` · ${num(total * 8 * g.vcpus)} vCPU` : ''}</div></div>
             <div className="col" style={{ gap: 8 }}>
-              <div className="tabs" style={{ marginBottom: 0 }}>{(Object.keys(RENTAL_KIND) as RentalKind[]).map((k) => <button key={k} className={kind === k ? 'on' : ''} title={RENTAL_KIND[k].blurb} onClick={() => act((x) => A.setRental(x, s.id, id, r?.servers ?? 0, mult, k))}>{RENTAL_KIND[k].name}</button>)}</div>
+              <div className="tabs" style={{ marginBottom: 0 }}>{(Object.keys(RENTAL_KIND) as RentalKind[]).map((k) => <button key={k} className={kind === k ? 'on' : ''} title={RENTAL_KIND[k].blurb} onClick={() => k === 'reserved' && kind !== 'reserved' ? void useGame.getState().confirmAct('Lock in a reserved contract?', { tier: 'severe', lines: ['Customers rent these servers for a full year at a discount', 'You cannot pull them back early', 'Steady income, no price changes'] }, 'Reserve', (x) => A.setRental(x, s.id, id, r?.servers ?? 0, mult, k), { system: 'sales' }) : act((x) => A.setRental(x, s.id, id, r?.servers ?? 0, mult, k), undefined, { system: 'sales' })}>{RENTAL_KIND[k].name}</button>)}</div>
               <div className="row" style={{ gap: 16 }}>
-                <Field label={`Servers rented ${r?.servers ?? 0} / ${free}`}><input type="range" min={0} max={free} value={r?.servers ?? 0} onChange={(e) => act((x) => A.setRental(x, s.id, id, +e.target.value, mult, kind))} /></Field>
-                {kind === 'ondemand' && <Field label={`Price ×${mult.toFixed(2)}`}><input type="range" min={0.5} max={1.8} step={0.05} value={mult} onChange={(e) => act((x) => A.setRental(x, s.id, id, r?.servers ?? 0, +e.target.value, kind))} /></Field>}
+                <Field label={`Servers rented ${r?.servers ?? 0} / ${free}`}><input type="range" min={0} max={free} value={r?.servers ?? 0} onChange={(e) => act((x) => A.setRental(x, s.id, id, +e.target.value, mult, kind), undefined, { system: 'sales' })} /></Field>
+                {kind === 'ondemand' && <Field label={`Price ×${mult.toFixed(2)}`}><input type="range" min={0.5} max={1.8} step={0.05} value={mult} onChange={(e) => act((x) => A.setRental(x, s.id, id, r?.servers ?? 0, +e.target.value, kind), undefined, { system: 'sales' })} /></Field>}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>

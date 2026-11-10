@@ -48,6 +48,7 @@ describe('previews never mutate and always explain', () => {
     const w = createWorld(3)
     expect(P.previewSpend(w, w.cash * 0.3).tier).toBe('expensive')
     expect(P.previewSpend(w, w.cash * 0.1).tier).toBe('cheap')
+    expect(P.previewSpend(w, w.cash * 3).lines.join(' ')).toMatch(/short/i)
     w.rules.infiniteCash = true
     expect(P.previewSpend(w, w.cash * 10).tier).toBe('cheap')
   })

@@ -31,6 +31,8 @@ interface UI {
   /** confirm, then act. null when the player backs out. */
   confirmAct: <T>(title: string, preview: Preview, verb: string, fn: (w: World) => A.Result<T>, opts?: ActOpts & { okMsg?: string }) => Promise<A.Result<T> | null>
   doUndo: () => void
+  /** Offer Undo back to a snapshot taken before a multi-step edit (e.g. a paint stroke in the hall editor). */
+  armUndo: (snap: World) => void
   setSettings: (p: Partial<Settings>) => void
   toast: { msg: string; kind: 'ok' | 'err'; id: number } | null
   newGame: (o: { company: string; ceo: string; advisor: string; seed: number; logo: { glyph: string; color: string }; rules?: Partial<Rules> }) => void
@@ -94,6 +96,12 @@ export const useGame = create<UI>((set, get) => ({
   confirmAct: async (title, preview, verb, fn, opts) => {
     if (!(await get().confirm(title, preview, verb))) return null
     return get().act(fn, opts?.okMsg, opts)
+  },
+  armUndo: (snap) => {
+    const w = get().w; if (!w) return
+    const at = Date.now()
+    set({ undo: { snap, tick: w.tick, at } })
+    setTimeout(() => { if (get().undo?.at === at) set({ undo: null }) }, UNDO_MS)
   },
   doUndo: () => {
     const { undo, w } = get()
