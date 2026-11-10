@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { FINETUNE_MAX_T, MODALITIES, baseOptions, foundryElo, methodOk, modalityOk, type Method, type Modality } from '@sim/foundry'
+import { AudioLines, Clapperboard, Code2, Image as ImageIcon, MessageSquare, Sparkles } from 'lucide-react'
 import * as A from '@sim/actions'
 import { GPUS_PER_SERVER } from '@sim/data/hardware'
 import { eloFromLoss, goodput, modelLoss, referencePrice, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
@@ -31,12 +33,24 @@ export function Lab() {
   )
 }
 
+const METHOD_LABEL: Record<Method, string> = { scratch: 'From scratch', finetune: 'Fine-tune', distill: 'Distil', continue: 'Continue pre-training' }
+const METHOD_BLURB: Record<Method, string> = {
+  scratch: 'Random init. Full price, full freedom.', finetune: 'Start from a base. Cheap, fast, small capped gain.',
+  distill: 'A smaller student copies a stronger teacher: most of the gap, never past it.', continue: 'Keep pre-training a base on new tokens. Tokens add up.'
+}
+const MOD_ICON: Record<Modality, React.ReactNode> = { text: <MessageSquare size={18} />, code: <Code2 size={18} />, image: <ImageIcon size={18} />, speech: <AudioLines size={18} />, video: <Clapperboard size={18} />, omni: <Sparkles size={18} /> }
+
 function Design({ onStart, onData }: { onStart: () => void; onData: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
   const [tpl, setTpl] = useState('llamma8')
   const [arch, setArch] = useState<ArchSpec>(() => ({ ...TEMPLATES.find((t) => t.id === 'llamma8')!.arch }))
   const [sel, setSel] = useState<NetNode | null>('block')
   const [name, setName] = useState(() => A.randomModelName(w) + '-1')
+  const [modality, setModality] = useState<Modality>('text')
+  const [method, setMethod] = useState<Method>('scratch')
+  const bases = baseOptions(w)
+  const [baseId, setBaseId] = useState(bases[0]?.id ?? '')
+  const base = method === 'scratch' ? undefined : bases.find((b) => b.id === baseId) ?? bases[0]
   const owned = DATASETS.filter((d) => (w.datasets[d.id] ?? 0) > 0)
   const [mix, setMix] = useState<Record<string, number>>(() => Object.fromEntries(owned.map((d) => [d.id, Math.min(d.tokensT, 2)])))
   const [siteId, setSite] = useState(w.sites.find((s) => s.halls.some((h) => h.racks.some((r) => r.servers > 0)))?.id ?? CLOUD)
@@ -52,19 +66,36 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
   const st = archStats(arch)
   const m = A.mixSummary(w, mix)
   const loss = modelLoss(st.totalB, st.activeB, Math.max(m.tokensT, 0.001), arch.experts > 1, m.quality || 1) + archLossDelta(arch)
-  const elo = eloFromLoss(loss) + techSum(w, 'elo')
-  const F = trainFlops(st.activeB, m.tokensT)
+  const scratchElo = eloFromLoss(method === 'continue' && base ? modelLoss(base.paramsB, base.activeParamsB, m.tokensT + base.tokensT, base.moe, m.quality || 1) : loss) + techSum(w, 'elo')
+  const elo = foundryElo(method, scratchElo, base, m.tokensT, m.quality || 1, modality)
+  const usesBase = !!base && method !== 'distill'
+  const F = trainFlops(usesBase ? base!.activeParamsB : st.activeB, m.tokensT)
   const g = gid ? gpu(w, gid) : null
   const mfu = (site || cloud) && gid ? trainingMfu(w, n, cloud ? 'ib400' : worstFabric(site!, gid)) : 0
   const bill = cloud && g ? cloudRate(w, g) * n * 8 : 0
   const rate = g ? n * 8 * g.tflops * 1e12 * mfu * goodput(w, n, g) : 0
-  const memNeed = trainMemoryGB(st.totalB), memHave = g ? 0.75 * n * 8 * g.memGB : 0
+  const memNeed = trainMemoryGB(usesBase ? base!.paramsB : st.totalB), memHave = g ? 0.75 * n * 8 * g.memGB : 0
   const evals = EVALS.map((e) => ({ e, v: evalScore(e, elo, m.tokensT ? m.shares : RIVAL_MIX, techLevel(w, 'reasoning')) }))
   const field = (label: string, v: number, min: number, max: number, step: number, k: keyof ArchSpec, log = false) => (
     <Field label={`${label}: ${num(v)}`}><input type="range" min={log ? Math.log2(min) : min} max={log ? Math.log2(max) : max} step={log ? 0.01 : step} value={log ? Math.log2(v) : v}
       onChange={(ev) => { let x = +ev.target.value; if (log) x = Math.round(2 ** x / step) * step; up({ [k]: x } as Partial<ArchSpec>) }} /></Field>)
   return (
     <div className="col" style={{ gap: 16 }}>
+      <div className="panel col foundry" style={{ gap: 14 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}><h3>Model foundry</h3><span className="dim" style={{ fontSize: 12.5 }}>Each modality is its own business line: own price, own demand.</span></div>
+        <div className="modality-grid">{(Object.keys(MODALITIES) as Modality[]).map((k, i) => {
+          const md = MODALITIES[k], ok = modalityOk(w, k)
+          return <button key={k} className={'modality' + (modality === k ? ' on' : '') + (ok ? '' : ' locked')} style={{ animationDelay: `${i * 40}ms` }} onClick={() => ok ? setModality(k) : useGame.getState().go('research')}>
+            <span className="mi">{MOD_ICON[k]}</span><b>{md.name}</b><span>{ok ? md.blurb : 'Locked · research in R&D → Modalities'}</span>
+            <em>price ×{md.price} · demand ×{md.demand}</em></button>
+        })}</div>
+        <div className="row wrap" style={{ gap: 14, alignItems: 'center' }}>
+          <div className="seg">{(['scratch', 'finetune', 'distill', 'continue'] as Method[]).map((k) => <button key={k} className={method === k ? 'on' : ''} disabled={!methodOk(w, k)} title={methodOk(w, k) ? METHOD_BLURB[k] : 'Needs research'} onClick={() => setMethod(k)}>{METHOD_LABEL[k]}</button>)}</div>
+          {method !== 'scratch' && <select value={base?.id ?? ''} onChange={(e) => setBaseId(e.target.value)} style={{ maxWidth: 360 }}>{bases.map((b) => <option key={b.id} value={b.id}>{b.kind === 'own' ? '★ ' : ''}{b.name} · {params(b.paramsB)} · Elo {Math.round(b.elo)}</option>)}</select>}
+          <span className="dim" style={{ fontSize: 12.5 }}>{METHOD_BLURB[method]}{method === 'finetune' ? ` Max ${FINETUNE_MAX_T * 1000}B tokens.` : ''}{base && base.modality !== modality ? ' Cross-modal: −60 Elo while it adapts.' : ''}</span>
+        </div>
+        {usesBase && <div className="dim" style={{ fontSize: 12.5 }}>Architecture comes from <b>{base!.name}</b> ({params(base!.paramsB)}). The editor below is ignored for this run.</div>}
+      </div>
       <div className="row" style={{ gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
         {TEMPLATES.map((t) => { const s2 = archStats(t.arch); return (
           <button key={t.id} className={'adv' + (tpl === t.id ? ' on' : '')} style={{ gridTemplateColumns: '30px 1fr', minWidth: 200 }} onClick={() => { setTpl(t.id); setArch({ ...t.arch }); setName(t.name.replace(/[^A-Za-z0-9]+/g, '-') + '-remix') }}>
@@ -113,7 +144,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
         <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
         <Field label={`Servers ${n}/${free} · ${num(n * 8)} GPUs`}><input type="range" min={1} max={Math.max(1, free)} value={n} onChange={(e) => setServers(+e.target.value)} /></Field>
         <div className="dim" style={{ fontSize: 12.5 }}><Term k="mfu">MFU</Term> {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}{cloud ? ` · ${money(bill)}/h ≈ ${money(bill * (rate > 0 ? F / rate / 3600 : 0))} total` : ''}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
-        <button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Start training ${name}?`, PV.previewTraining(w, cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0), 'Train', (x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n }), { okMsg: 'Training started' }).then((r) => { if (r?.ok) onStart() }) }}>Start training</button>
+        <button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Start training ${name}?`, PV.previewTraining(w, cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0), 'Train', (x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n, modality, method, baseId: base?.id }), { okMsg: 'Training started' }).then((r) => { if (r?.ok) onStart() }) }}>Start training</button>
       </div>
     </div>
   )
@@ -211,7 +242,7 @@ function ModelCard({ id }: { id: string }) {
     <div className="panel col">
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div><h3>{m.name} <span className={'tag ' + (m.releasedByPlayer ? 'g' : 'a')}>{m.releasedByPlayer ? 'live' : 'unreleased'}</span></h3>
-          <div className="dim mono" style={{ fontSize: 12 }}>{num(m.paramsB)}B · loss {m.loss.toFixed(3)} · Elo {Math.round(m.elo)} · post-train {m.posttrain}/3</div></div>
+          <div className="dim mono" style={{ fontSize: 12 }}>{MODALITIES[m.modality ?? 'text'].name} · {num(m.paramsB)}B · loss {m.loss.toFixed(3)} · Elo {Math.round(m.elo)} · post-train {m.posttrain}/3{m.method && m.method !== 'scratch' ? ` · ${m.method}${m.baseName ? ` of ${m.baseName}` : ''}` : ''}</div></div>
         <div className="row">
           <button className="btn sm" onClick={() => act((x) => A.postTrain(x, id), 'Post-training done: +45 Elo')} disabled={m.posttrain >= 3}>Post-train (+45 Elo)</button>
         </div>

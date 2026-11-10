@@ -1,4 +1,5 @@
 import { ADVISORS } from './data/lore'
+import { MODALITIES, foundryElo } from './foundry'
 import { GPUS_PER_SERVER, gpuCatalog, region, residual } from './data/hardware'
 import { tech, techCost, techDays } from './data/tech'
 import { eloFromLoss, goodput, modelLoss, serveMemoryGB, serveTokPerSecPerServer, trainingMfu } from './ai'
@@ -116,12 +117,12 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
     }
     const share = shares.get(m.id) ?? 0
     m.share = share
-    const demand = demandPerHour * share * regionMult(deps.map((d) => d.siteId))
+    const demand = demandPerHour * share * regionMult(deps.map((d) => d.siteId)) * MODALITIES[m.modality ?? 'text'].demand
     if (m.subsidiary) capPerHour = demand
     const totalCap = capPerHour
     capPerHour = Math.max(0, capPerHour - (m.reservedTokPerDay ?? 0) / 24) // consumer products are served first
     const served = Math.min(demand, capPerHour)
-    const rev = (served / 1e6) * m.priceMtok
+    const rev = (served / 1e6) * m.priceMtok * MODALITIES[m.modality ?? 'text'].price
     m.demandTokPerDay = demand * 24
     m.capacityTokPerDay = totalCap * 24
     m.tokensServed += served
@@ -172,13 +173,20 @@ export function finishRun(w: World, runId: string): void {
   run.status = 'done'
   run.flopsDone = run.flopsTotal
   if (run.owner === 'player') {
-    const loss = modelLoss(run.paramsB, run.activeParamsB, run.tokensT, run.moe, run.dataQuality) + (run.arch ? archLossDelta(run.arch) : 0)
+    const method = run.method ?? 'scratch', modality = run.modality ?? 'text'
+    const tokens = method === 'continue' ? run.tokensT + (run.baseTokensT ?? 0) : run.tokensT
+    const loss = modelLoss(run.paramsB, run.activeParamsB, tokens, run.moe, run.dataQuality) + (run.arch ? archLossDelta(run.arch) : 0)
     let elo = eloFromLoss(loss)
+    const baseRef = run.baseElo !== undefined ? { elo: run.baseElo, modality: 'text' as const, paramsB: run.paramsB, tokensT: run.baseTokensT ?? 0 } : undefined
+    const baseModel = run.baseId ? w.models.find((m) => m.id === run.baseId) : undefined
+    if (baseRef && baseModel?.modality) (baseRef as { modality: string }).modality = baseModel.modality
+    elo = foundryElo(method, elo, baseRef, run.tokensT, run.dataQuality, modality)
     if (w.research.done.includes('distill') && run.paramsB <= 70) elo += 60
     elo += techSum(w, 'elo')
     w.models.push({
       id: newId(w, 'm'), name: run.name, owner: 'player', paramsB: run.paramsB, activeParamsB: run.activeParamsB, tokensT: run.tokensT,
       loss, elo, releaseTick: w.tick, priceMtok: 0, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: false,
+      modality, method, baseName: baseModel?.name ?? (run.baseId?.startsWith('tpl:') ? run.baseId.slice(4) : undefined),
       arch: run.arch, mix: run.mix, evals: Object.fromEntries(EVALS.map((e) => [e.id, evalScore(e, elo, run.mix ?? RIVAL_MIX, techLevel(w, 'reasoning'))]))
     })
     pushNews(w, 'good', `${run.name} finished training`, `Final loss ${loss.toFixed(3)} → Elo ${Math.round(elo)}. Post-train it and ship it before a rival does.`, 'mine', 2)

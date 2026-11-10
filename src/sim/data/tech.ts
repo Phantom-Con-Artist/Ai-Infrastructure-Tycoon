@@ -4,13 +4,13 @@
  *
  * Effects are strings: `unlock:<flag>` or `<stat>:<value>` (summed across researched techs).
  */
-export type Branch = 'Facilities' | 'Power' | 'Network' | 'Training' | 'Models' | 'Silicon' | 'Memory' | 'Fab' | 'Cloud' | 'Business' | 'Moonshots'
+export type Branch = 'Facilities' | 'Power' | 'Network' | 'Training' | 'Models' | 'Modalities' | 'Silicon' | 'Memory' | 'Fab' | 'Cloud' | 'Business' | 'Moonshots'
 export interface TechSpec {
   id: string; name: string; blurb: string; branch: Branch; tier: number
   costUsd: number; days: number; requires?: string[]; effect: string
   repeatable?: { growth: number; max?: number }
 }
-export const BRANCHES: Branch[] = ['Facilities', 'Power', 'Network', 'Training', 'Models', 'Silicon', 'Memory', 'Fab', 'Cloud', 'Business', 'Moonshots']
+export const BRANCHES: Branch[] = ['Facilities', 'Power', 'Network', 'Training', 'Models', 'Modalities', 'Silicon', 'Memory', 'Fab', 'Cloud', 'Business', 'Moonshots']
 
 const T = (id: string, branch: Branch, tier: number, name: string, costM: number, days: number, effect: string, blurb: string, requires?: string[], repeatable?: TechSpec['repeatable']): TechSpec =>
   ({ id, branch, tier, name, costUsd: costM * 1e6, days, effect, blurb, requires, repeatable })
@@ -43,6 +43,13 @@ export const TECHS: TechSpec[] = [
   T('fp4', 'Training', 4, 'FP4 microscaling', 40, 200, 'mfu:0.12', 'Four bits ought to be enough for anybody.', ['fp8']),
   T('compiler-mk', 'Training', 2, 'Compiler autotuning Mk', 5, 60, 'mfu:0.02', '+2% MFU per level.', ['flash'], { growth: 1.6, max: 25 }),
   // ── Models
+  // ── Modalities: each one is a separate business line (sim/foundry.ts)
+  T('finetune', 'Modalities', 1, 'Fine-tuning & LoRA', 3, 30, 'unlock:finetune', 'Start from any base model. A few billion tokens, a few days, a better model.'),
+  T('mod-code', 'Modalities', 1, 'Code models', 6, 60, 'unlock:mod-code', 'Coding models: smaller market, 1.6× the price per token.'),
+  T('mod-image', 'Modalities', 2, 'Diffusion image models', 14, 90, 'unlock:mod-image', 'Image generation. Mind the hands.', ['finetune']),
+  T('mod-speech', 'Modalities', 2, 'Speech & voice', 12, 90, 'unlock:mod-speech', 'Text-to-speech and speech-to-text. Your nan will never know.', ['finetune']),
+  T('mod-video', 'Modalities', 3, 'Video generation', 40, 150, 'unlock:mod-video', 'Seconds of video for the price of a car. Viral by default.', ['mod-image']),
+  T('mod-omni', 'Modalities', 4, 'Omni models', 80, 200, 'unlock:mod-omni', 'One model to see, hear, speak and code.', ['mod-video', 'mod-speech', 'mod-code']),
   T('moe', 'Models', 2, 'Mixture-of-Experts', 15, 150, 'unlock:moe', 'Active params ≪ total params.'),
   T('distill', 'Models', 2, 'Distillation pipeline', 10, 120, 'distill:60', 'Small models punch up (+60 Elo ≤70B).'),
   T('synth', 'Models', 3, 'Synthetic data engine', 18, 180, 'dq:0.15', '+0.15 data quality.', ['distill']),

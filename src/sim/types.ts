@@ -51,12 +51,14 @@ export interface TrainingRun {
   flopsTotal: number; flopsDone: number; status: RunStatus
   startTick: number; mfu: number; etaH: number; spentUsd: number; restarts: number; note: string
   arch?: ArchSpec; mix?: Partial<Record<Domain, number>>
+  modality?: import('./foundry').Modality; method?: import('./foundry').Method; baseId?: string; baseElo?: number; baseTokensT?: number
 }
 export interface AiModel {
   id: string; name: string; owner: string; paramsB: number; activeParamsB: number; tokensT: number
   loss: number; elo: number; releaseTick: number; priceMtok: number; posttrain: number
   tokensServed: number; revenue: number; share: number; demandTokPerDay: number; capacityTokPerDay: number; releasedByPlayer: boolean
   arch?: ArchSpec; evals?: Record<string, number>; mix?: Partial<Record<Domain, number>>; subsidiary?: string; hype?: number; reservedTokPerDay?: number
+  modality?: import('./foundry').Modality; method?: import('./foundry').Method; baseName?: string
 }
 export interface Competitor { corp: string; name: string; elo: number; priceMtok: number }
 

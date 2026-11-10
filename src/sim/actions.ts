@@ -1,4 +1,5 @@
 import { ADVISORS, AI_NAME_PARTS } from './data/lore'
+import { FINETUNE_MAX_T, MODALITIES, findBase, methodOk, modalityOk, type Method, type Modality } from './foundry'
 import { orderableNodes } from './nodes'
 import { canAfford } from './rules'
 import { COOLING, FABRICS, GENERATORS, GPUS_PER_SERVER, REGIONS, TECHS, gpuCatalog, region, serverPeakKw, residual, type CoolingType, type FabricType, type GenKind } from './data/hardware'
@@ -284,12 +285,20 @@ export function setRental(w: World, siteId: string, gpuId: string, servers: numb
 }
 const hallTotal = (w: World, siteId: string, gpuId: string): number => findSite(w, siteId).halls.reduce((a, h) => a + hallServers(h, gpuId), 0)
 
-export interface TrainSpec { name: string; paramsB: number; activeParamsB?: number; tokensT: number; moe?: boolean; dataQuality?: number; siteId: string; gpuId: string; servers: number }
+export interface TrainSpec { name: string; paramsB: number; activeParamsB?: number; tokensT: number; moe?: boolean; dataQuality?: number; siteId: string; gpuId: string; servers: number; modality?: Modality; method?: Method; baseId?: string }
 export function validateTraining(w: World, spec: TrainSpec): string | null {
   const cloud = spec.siteId === CLOUD
   const s = w.sites.find((x) => x.id === spec.siteId); if (!s && !cloud) return 'Pick a site'
   const g = cloud ? cloudGpus(w).find((x) => x.id === spec.gpuId) : (w.customGpus.find((x) => x.id === spec.gpuId) ?? gpuCatalog(yearOf(w.tick) + 50).find((x) => x.id === spec.gpuId)); if (!g) return 'Pick a GPU'
   if (spec.moe && !hasTech(w, 'moe')) return 'Mixture-of-Experts not researched'
+  const modality = spec.modality ?? 'text', method = spec.method ?? 'scratch'
+  if (!modalityOk(w, modality)) return `${MODALITIES[modality].name} models need research first (R&D → Modalities)`
+  if (!methodOk(w, method)) return method === 'finetune' ? 'Research “Fine-tuning & LoRA” first' : 'Research “Distillation pipeline” first'
+  if (method !== 'scratch') {
+    const base = findBase(w, spec.baseId); if (!base) return 'Pick a base model'
+    if (method === 'finetune' && spec.tokensT > FINETUNE_MAX_T) return `A fine-tune uses at most ${FINETUNE_MAX_T * 1000}B tokens — pick continued pre-training for more`
+    if (method === 'distill' && spec.paramsB >= base.paramsB) return 'A distilled student must be smaller than its teacher'
+  }
   if (g.vcpus) return 'CPU servers cannot train neural networks at any useful speed. Use GPUs.'
   if (spec.servers < 1) return 'Allocate servers'
   const free = cloud ? cloudCapacity(w, spec.gpuId) : hallTotal(w, spec.siteId, spec.gpuId) - committed(w, spec.siteId, spec.gpuId)
@@ -299,6 +308,8 @@ export function validateTraining(w: World, spec: TrainSpec): string | null {
 }
 export function startTraining(w: World, spec: TrainSpec, owner = 'player'): Result<string> {
   const err = validateTraining(w, spec); if (err) return fail(err)
+  const method = spec.method ?? 'scratch', base = method === 'scratch' ? undefined : findBase(w, spec.baseId)
+  if (base && method !== 'distill') spec = { ...spec, paramsB: base.paramsB, activeParamsB: base.activeParamsB, moe: base.moe }
   const moe = !!spec.moe
   const active = moe ? (spec.activeParamsB ?? spec.paramsB / 8) : spec.paramsB
   const dq = Math.min(1.4, (spec.dataQuality ?? 1) + (hasTech(w, 'synth') ? 0.15 : 0))
@@ -306,7 +317,8 @@ export function startTraining(w: World, spec: TrainSpec, owner = 'player'): Resu
   w.runs.push({
     id, name: spec.name, owner, paramsB: spec.paramsB, activeParamsB: active, tokensT: spec.tokensT, moe, dataQuality: dq,
     siteId: spec.siteId, gpuId: spec.gpuId, servers: spec.servers, flopsTotal: trainFlops(active, spec.tokensT), flopsDone: 0,
-    status: 'running', startTick: w.tick, mfu: 0, etaH: Infinity, spentUsd: 0, restarts: 0, note: ''
+    status: 'running', startTick: w.tick, mfu: 0, etaH: Infinity, spentUsd: 0, restarts: 0, note: '',
+    modality: spec.modality ?? 'text', method, baseId: base?.id, baseElo: base?.elo, baseTokensT: base?.tokensT
   })
   return ok(id)
 }
@@ -435,17 +447,17 @@ export function mixSummary(w: World, mix: Record<string, number>): { tokensT: nu
   for (const k of Object.keys(byDomain) as Domain[]) shares[k] = byDomain[k]! / Math.max(tok, 1e-9)
   return { tokensT: tok, quality: tok > 0 ? q / tok : 0, shares, maxEpochs, error: maxEpochs > 16 ? 'More than 16 epochs over a dataset: the model would memorise it' : undefined }
 }
-export function startArchTraining(w: World, o: { name: string; arch: ArchSpec; mix: Record<string, number>; siteId: string; gpuId: string; servers: number }): Result<string> {
+export function startArchTraining(w: World, o: { name: string; arch: ArchSpec; mix: Record<string, number>; siteId: string; gpuId: string; servers: number; modality?: Modality; method?: Method; baseId?: string }): Result<string> {
   const st = archStats(o.arch)
   if (o.arch.experts > 1 && !hasTech(w, 'moe')) return fail('Mixture-of-Experts not researched')
   if (o.arch.attn === 'mla' && !hasTech(w, 'moe')) return fail('Latent attention needs the MoE research')
   const m = mixSummary(w, o.mix)
   if (m.error) return fail(m.error)
   if (m.tokensT <= 0) return fail('Pick some training data')
-  const r = startTraining(w, { name: o.name, paramsB: st.totalB, activeParamsB: st.activeB, tokensT: m.tokensT, moe: o.arch.experts > 1, dataQuality: m.quality, siteId: o.siteId, gpuId: o.gpuId, servers: o.servers })
+  const r = startTraining(w, { name: o.name, paramsB: st.totalB, activeParamsB: st.activeB, tokensT: m.tokensT, moe: o.arch.experts > 1, dataQuality: m.quality, siteId: o.siteId, gpuId: o.gpuId, servers: o.servers, modality: o.modality, method: o.method, baseId: o.baseId })
   if (!r.ok) return r
   const run = w.runs.find((x) => x.id === r.value)!
-  run.arch = { ...o.arch }; run.mix = m.shares
+  run.arch = o.method && o.method !== 'scratch' && o.method !== 'distill' ? undefined : { ...o.arch }; run.mix = m.shares
   return r
 }
 
