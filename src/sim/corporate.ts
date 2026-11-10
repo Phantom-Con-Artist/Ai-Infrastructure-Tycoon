@@ -28,6 +28,8 @@ export const OLD_MONEY = [
 ]
 
 export function dailyCorporate(w: World): void {
+  for (const m of w.models) if (m.hype) m.hype *= 0.975
+  for (const d of w.silicon.designs) if (d.hype) d.hype *= 0.975
   const years = w.tick / HOURS_PER_YEAR
   for (const r of w.rivals) {
     if (r.owned) {
@@ -183,4 +185,24 @@ export function ipo(w: World): { ok: true; value: number } | { ok: false; error:
   w.cash += raise; w.founderStake *= 0.8; w.public = true
   pushNews(w, 'good', `${w.company} rings the opening bell`, `IPO raises $${(raise / 1e9).toFixed(1)}B. Retail investors buy the ticker because it has "AI" in the prospectus 400 times.`)
   return { ok: true, value: raise }
+}
+
+/** A public keynote: costs money, buys hype (demand boost that decays ~2.5%/day). */
+export const keynoteCost = (w: World): number => Math.max(2e6, valuation(w) * 0.0004)
+export function holdKeynote(w: World, kind: 'model' | 'chip', id: string): { ok: true; value: number } | { ok: false; error: string } {
+  const cost = keynoteCost(w)
+  if (w.cash < cost) return { ok: false, error: 'Not enough cash for the stage, lasers and fog machine' }
+  const fatigue = 1 / (1 + (w.keynotes ?? 0) * 0.05)
+  if (kind === 'model') {
+    const m = w.models.find((x) => x.id === id); if (!m || !m.releasedByPlayer) return { ok: false, error: 'Launch the model first' }
+    m.hype = (m.hype ?? 0) + 0.6 * fatigue
+  } else {
+    const d = w.silicon.designs.find((x) => x.id === id); if (!d || d.status !== 'ready') return { ok: false, error: 'No first silicon yet' }
+    d.hype = (d.hype ?? 0) + 0.8 * fatigue
+  }
+  spend(w, cost, 'opex')
+  w.keynotes = (w.keynotes ?? 0) + 1
+  w.reputation = Math.min(100, w.reputation + 1.5 * fatigue)
+  pushNews(w, 'good', `${w.ceo} takes the stage`, pick(w, ['The crowd gasps at a bar chart with no y-axis.', 'Standing ovation for slide 47: "It\'s faster".', 'A demo works on the first try. Analysts weep.', 'The leather jacket industry reports record sales.']))
+  return { ok: true, value: cost }
 }

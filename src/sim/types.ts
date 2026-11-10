@@ -50,7 +50,7 @@ export interface AiModel {
   id: string; name: string; owner: string; paramsB: number; activeParamsB: number; tokensT: number
   loss: number; elo: number; releaseTick: number; priceMtok: number; posttrain: number
   tokensServed: number; revenue: number; share: number; demandTokPerDay: number; capacityTokPerDay: number; releasedByPlayer: boolean
-  arch?: ArchSpec; evals?: Record<string, number>; mix?: Partial<Record<Domain, number>>; subsidiary?: string
+  arch?: ArchSpec; evals?: Record<string, number>; mix?: Partial<Record<Domain, number>>; subsidiary?: string; hype?: number
 }
 export interface Competitor { corp: string; name: string; elo: number; priceMtok: number }
 
@@ -72,7 +72,7 @@ export interface MarketState {
 export interface ChipDesign {
   id: string; spec: ChipSpec; status: 'designing' | 'ready'; startTick: number; readyTick: number
   nrePaid: number; nreTotal: number; wafersPerMonth: number; source: 'foundry' | 'fab'
-  salePrice: number; sold: number; revenue: number; made: number; gpuId?: string
+  salePrice: number; sold: number; revenue: number; made: number; gpuId?: string; hype?: number
 }
 export interface Fab { modules: number; readyTick: number; tools: Record<LithoKind, number>; toolsPending: { kind: LithoKind; readyTick: number }[] }
 export interface Silicon { designs: ChipDesign[]; fab: Fab | null; chipStock: Record<string, number> }
@@ -90,5 +90,5 @@ export interface World {
   achievements: string[]
   silicon: Silicon; customGpus: GpuSpec[]
   datasets: Record<string, number>
-  rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean
+  rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean; keynotes?: number
 }

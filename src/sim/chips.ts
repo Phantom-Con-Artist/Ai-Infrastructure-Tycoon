@@ -158,7 +158,7 @@ export function chipDemandPerDay(w: World, d: ChipDesign): number {
   const memRatio = e.memGB / Math.max(...cat.map((g) => g.memGB))
   const global = 9_000 * Math.pow(1.35, Math.min(years, 8)) * w.market.boom
   const share = Math.min(0.6, 0.12 * Math.pow(ratio, 2) * Math.pow(memRatio, 0.5))
-  return global * share * (0.4 + 0.8 * w.reputation / 100) * ecosystem(w)
+  return global * share * (0.4 + 0.8 * w.reputation / 100) * ecosystem(w) * (1 + (d.hype ?? 0))
 }
 
 export function dailySilicon(w: World): void {

@@ -106,7 +106,7 @@ export function modelShare(w: World): Map<string, number> {
   for (const m of w.models) {
     if (m.owner !== 'player' || !m.releasedByPlayer) continue
     const hype = 1 + (w.advisor === 'pr' ? 0.06 : 0)
-    entries.push({ id: m.id, u: (m.elo - 1500) / 110 - Math.log(Math.max(0.01, m.priceMtok)) + Math.log(hype) + (w.reputation - 50) / 120 })
+    entries.push({ id: m.id, u: (m.elo - 1500) / 110 - Math.log(Math.max(0.01, m.priceMtok)) + Math.log(hype) + Math.log(1 + (m.hype ?? 0)) + (w.reputation - 50) / 120 })
   }
   void years
   const mx = Math.max(...entries.map((e) => e.u))
