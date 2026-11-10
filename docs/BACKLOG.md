@@ -18,11 +18,14 @@ Status: ✅ done · 🟡 partial · ⬜ todo
 - ✅ Achievements (32) + world domination index (Garage startup → Earth conquered → Kardashev)
 - ✅ Rent cloud compute for training/serving (buy vs build)
 
-## Next
-- ⬜ Cloud VMs: CPU servers, vCPU instances (on-demand/reserved/spot)
-- ⬜ Teams & hiring: named candidates with skills, labs, team effects
-- ⬜ Weekly news digest + parody social posts (Chirper/X-ish), CEO quotes
-- ⬜ Simulated web browser: company website builder, domains (buy .ai etc), The Vergence, HackerNoose
-- ⬜ Remotion: keynote presentations + one-click templated trailers (in-app Player, optional export)
-- ⬜ Power management / grid optimisation (dispatch strategy controls, demand response, PPAs), world map of locations
-- ⬜ Scale polish (zoom UI sizes, number formats, huge fleets performance)
+- ✅ Remotion keynotes + one-click templated trailers (hype feeds demand)
+- ✅ Simulated web: browser, domains, site builder, The Vergence, HackerNoose, Chirper, weekly digest
+- ✅ Store: consumer/business products, player-designed plans, calibrated conversion/churn, API platform with tiers & keys, charts
+- ✅ Startup splash (Phantom-Con Artist tesseract, made-with credits, real loading) — light & minimal
+- ✅ Cloud VMs: CPU servers, vCPU pricing, on-demand / reserved / spot contracts
+- ✅ Team: named candidates, morale, poaching, raises, research labs
+- ✅ Power management: dispatch strategies, demand response, PPAs, live power-flow Sankey, 48h chart; world map
+- ✅ Scale: 34× faster sim at 20k GPUs, perf regression test, huge-number formatting
+
+## Ideas for later
+- Multi-site training (tech exists), orbital data centers / Dyson swarm gameplay, export trailers to MP4, sound design
