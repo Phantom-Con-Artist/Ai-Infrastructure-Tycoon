@@ -3,6 +3,7 @@ import type { EquipKind } from './data/equipment'
 import type { GpuSpec } from './data/hardware'
 import type { LithoKind } from './data/silicon'
 import type { ChipSpec } from './silicon'
+import type { ArchSpec, Domain } from './models'
 
 export const HOURS_PER_YEAR = 8766
 export const START_YEAR = 2023
@@ -43,11 +44,13 @@ export interface TrainingRun {
   siteId: string; gpuId: string; servers: number
   flopsTotal: number; flopsDone: number; status: RunStatus
   startTick: number; mfu: number; etaH: number; spentUsd: number; restarts: number; note: string
+  arch?: ArchSpec; mix?: Partial<Record<Domain, number>>
 }
 export interface AiModel {
   id: string; name: string; owner: string; paramsB: number; activeParamsB: number; tokensT: number
   loss: number; elo: number; releaseTick: number; priceMtok: number; posttrain: number
   tokensServed: number; revenue: number; share: number; demandTokPerDay: number; capacityTokPerDay: number; releasedByPlayer: boolean
+  arch?: ArchSpec; evals?: Record<string, number>; mix?: Partial<Record<Domain, number>>
 }
 export interface Competitor { corp: string; name: string; elo: number; priceMtok: number }
 
@@ -86,4 +89,5 @@ export interface World {
   today: DayLedger; quarterProfit: number; totalTco2: number; totalWaterL: number
   achievements: string[]
   silicon: Silicon; customGpus: GpuSpec[]
+  datasets: Record<string, number>
 }

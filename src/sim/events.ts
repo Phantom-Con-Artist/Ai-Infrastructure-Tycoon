@@ -1,4 +1,5 @@
 import { region } from './data/hardware'
+import { DATASETS } from './models'
 import { pick, rnd, range } from './rng'
 import type { World } from './types'
 import { newId, pushNews } from './util'
@@ -45,8 +46,9 @@ export function rollDailyEvents(w: World): void {
     m.supplyTight = Math.min(2.5, m.supplyTight + range(w, 0.3, 0.8))
     pushNews(w, 'event', 'GPU supply crunch', pick(w, ['A fab in Taiwan-ish Co. hiccups.', 'HBM memory is sold out through next year.', 'New export controls snarl shipments.', 'CoWoS packaging capacity maxed out.']))
   }
-  if (rnd(w) < 0.003 && w.models.some((x) => x.releasedByPlayer)) {
-    const fine = Math.round(range(w, 0.3, 2.5) * 1e6)
+  const risk = Object.keys(w.datasets ?? {}).reduce((a, id) => a + (DATASETS.find((d) => d.id === id)?.legalRisk ?? 0), 0)
+  if (risk > 0 && rnd(w) < risk * 0.0025 && w.models.some((x) => x.releasedByPlayer)) {
+    const fine = Math.round(range(w, 0.3, 2.5) * 1e6 * (1 + risk * 3))
     w.cash -= fine
     pushNews(w, 'bad', 'Copyright lawsuit settled', `A coalition of authors, illustrators and one very litigious cat settle for $${(fine / 1e6).toFixed(1)}M.`)
   }

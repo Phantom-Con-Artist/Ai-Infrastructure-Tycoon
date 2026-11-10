@@ -282,7 +282,6 @@ export function startTraining(w: World, spec: TrainSpec, owner = 'player'): Resu
     siteId: spec.siteId, gpuId: spec.gpuId, servers: spec.servers, flopsTotal: trainFlops(active, spec.tokensT), flopsDone: 0,
     status: 'running', startTick: w.tick, mfu: 0, etaH: Infinity, spentUsd: 0, restarts: 0, note: ''
   })
-  if (owner === 'player') spend(w, spec.tokensT * 1e6 * 20, 'opex') // dataset licensing: $20/Mtok
   return ok(id)
 }
 export function setRunStatus(w: World, runId: string, status: 'running' | 'paused' | 'failed'): Result {
@@ -372,3 +371,49 @@ export function setAdvisor(w: World, id: string): Result {
   w.advisor = id; return ok(undefined)
 }
 export { statKey, eloFromLoss }
+
+// ---------------------------------------------------------------- data & architectures
+import { DATASETS, archStats, type ArchSpec, type Domain } from './models'
+export function buyDataset(w: World, id: string): Result {
+  const d = DATASETS.find((x) => x.id === id); if (!d) return fail('Unknown dataset')
+  if (d.needsTech && !hasTech(w, d.needsTech)) return fail('Locked behind research')
+  if (d.year > yearOf(w.tick) + 0.5) return fail('Not available yet')
+  if ((w.datasets[id] ?? 0) > 0) return fail('Already owned')
+  if (w.cash < d.usd) return fail('Not enough cash')
+  spend(w, d.usd, 'opex')
+  w.datasets[id] = d.tokensT
+  pushNews(w, d.legalRisk > 0.5 ? 'bad' : 'info', `Acquired ${d.name}`, d.legalRisk > 0.5 ? 'Legal is "reviewing". Legal is crying.' : `${d.tokensT}T tokens of ${d.domain}. ${d.source}.`)
+  return ok(undefined)
+}
+/** Resolve a dataset mix (tokens per dataset, may exceed ownership via extra epochs) into totals. */
+export function mixSummary(w: World, mix: Record<string, number>): { tokensT: number; quality: number; shares: Partial<Record<Domain, number>>; maxEpochs: number; error?: string } {
+  let tok = 0, q = 0, maxEpochs = 0
+  const byDomain: Partial<Record<Domain, number>> = {}
+  for (const [id, t] of Object.entries(mix)) {
+    if (t <= 0) continue
+    const d = DATASETS.find((x) => x.id === id)
+    const own = w.datasets[id] ?? 0
+    if (!d || own <= 0) return { tokensT: 0, quality: 0, shares: {}, maxEpochs: 0, error: `You don't own ${d?.name ?? id}` }
+    const epochs = t / own
+    maxEpochs = Math.max(maxEpochs, epochs)
+    const repeatPenalty = epochs <= 1 ? 1 : 1 / (1 + 0.12 * (epochs - 1) ** 1.3) // data repetition has diminishing returns
+    tok += t; q += t * d.quality * repeatPenalty
+    byDomain[d.domain] = (byDomain[d.domain] ?? 0) + t
+  }
+  const shares: Partial<Record<Domain, number>> = {}
+  for (const k of Object.keys(byDomain) as Domain[]) shares[k] = byDomain[k]! / Math.max(tok, 1e-9)
+  return { tokensT: tok, quality: tok > 0 ? q / tok : 0, shares, maxEpochs, error: maxEpochs > 16 ? 'More than 16 epochs over a dataset: the model would memorise it' : undefined }
+}
+export function startArchTraining(w: World, o: { name: string; arch: ArchSpec; mix: Record<string, number>; siteId: string; gpuId: string; servers: number }): Result<string> {
+  const st = archStats(o.arch)
+  if (o.arch.experts > 1 && !hasTech(w, 'moe')) return fail('Mixture-of-Experts not researched')
+  if (o.arch.attn === 'mla' && !hasTech(w, 'moe')) return fail('Latent attention needs the MoE research')
+  const m = mixSummary(w, o.mix)
+  if (m.error) return fail(m.error)
+  if (m.tokensT <= 0) return fail('Pick some training data')
+  const r = startTraining(w, { name: o.name, paramsB: st.totalB, activeParamsB: st.activeB, tokensT: m.tokensT, moe: o.arch.experts > 1, dataQuality: m.quality, siteId: o.siteId, gpuId: o.gpuId, servers: o.servers })
+  if (!r.ok) return r
+  const run = w.runs.find((x) => x.id === r.value)!
+  run.arch = { ...o.arch }; run.mix = m.shares
+  return r
+}

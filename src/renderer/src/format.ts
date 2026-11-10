@@ -40,3 +40,9 @@ export function sci(n: number, d = 1): string {
   const e = Math.floor(Math.log10(Math.abs(n)))
   return `${(n / 10 ** e).toFixed(d)}×10${String(e).split('').map((c) => SUP[c] ?? c).join('')}`
 }
+/** Parameter counts given in billions → 124M / 8.0B / 671B / 100T. */
+export function params(b: number): string {
+  if (b >= 1000) return `${num(b / 1000, 1)}T`
+  if (b >= 1) return `${b >= 100 ? b.toFixed(0) : b.toFixed(1)}B`
+  return `${(b * 1000).toFixed(0)}M`
+}

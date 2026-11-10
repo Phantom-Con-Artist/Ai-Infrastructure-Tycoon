@@ -1,96 +1,147 @@
 import { useState } from 'react'
 import * as A from '@sim/actions'
 import { GPUS_PER_SERVER } from '@sim/data/hardware'
-import { eloFromLoss, goodput, modelLoss, referencePrice, serveMemoryGB, serveTokPerSecPerServer, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
-import { committed, gpu, hallServers, hasTech, worstFabric } from '@sim/util'
-import { dateOf, dur, flops, money, num } from '../format'
+import { eloFromLoss, goodput, modelLoss, referencePrice, trainFlops, trainMemoryGB, trainingMfu } from '@sim/ai'
+import { DATASETS, EVALS, RIVAL_MIX, TEMPLATES, archLossDelta, archStats, evalScore, type ArchSpec } from '@sim/models'
+import { NetFlow, type NetNode } from '../art/NetFlow'
+import { CorpLogo } from '../art/Logos'
+import { committed, gpu, hallServers, hasTech, techLevel, techSum, worstFabric, yearOf } from '@sim/util'
+import { dateOf, dur, flops, money, num, params } from '../format'
 import { useGame, useWorld } from '../store'
-import { Bar, Field, Head, Num, Tabs } from '../ui'
+import { Bar, Field, Num, Tabs } from '../ui'
 
-const TABS = ['train', 'runs', 'models'] as const
+const TABS = ['design', 'data', 'runs', 'models', 'evals'] as const
 
 export function Lab() {
   const w = useWorld()
-  const [tab, setTab] = useState<(typeof TABS)[number]>(w.runs.some((r) => r.status === 'running') ? 'runs' : 'train')
+  const [tab, setTab] = useState<(typeof TABS)[number]>(w.runs.some((r) => r.status === 'running') ? 'runs' : 'design')
   return (
     <>
-      <Head title="Research Lab" sub="Pick a model size and token budget, then burn FLOPs. Scaling laws are unforgiving: more parameters need more data, more data needs more GPU-months." />
-      <Tabs tabs={TABS} value={tab} onChange={setTab} />
-      {tab === 'train' && <Train onStart={() => setTab('runs')} />}
+      <div className="page-head"><div><div className="eyebrow">Research lab</div><h1>Design a mind</h1></div><Tabs tabs={TABS} value={tab} onChange={setTab} /></div>
+      {tab === 'design' && <Design onStart={() => setTab('runs')} onData={() => setTab('data')} />}
+      {tab === 'data' && <DataMarket />}
       {tab === 'runs' && <Runs />}
       {tab === 'models' && <Models />}
+      {tab === 'evals' && <Evals />}
     </>
   )
 }
 
-function Train({ onStart }: { onStart: () => void }) {
+function Design({ onStart, onData }: { onStart: () => void; onData: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
+  const [tpl, setTpl] = useState('llamma8')
+  const [arch, setArch] = useState<ArchSpec>(() => ({ ...TEMPLATES.find((t) => t.id === 'llamma8')!.arch }))
+  const [sel, setSel] = useState<NetNode | null>('block')
   const [name, setName] = useState(() => A.randomModelName(w) + '-1')
-  const [paramsB, setParams] = useState(7)
-  const [tokensT, setTokens] = useState(2)
-  const [moe, setMoe] = useState(false)
-  const [dq, setDq] = useState(1)
+  const owned = DATASETS.filter((d) => (w.datasets[d.id] ?? 0) > 0)
+  const [mix, setMix] = useState<Record<string, number>>(() => Object.fromEntries(owned.map((d) => [d.id, Math.min(d.tokensT, 2)])))
   const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
   const site = w.sites.find((s) => s.id === siteId)
   const gpuIds = site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
-  const [gpuId, setGpu] = useState(gpuIds[0] ?? '')
+  const [gpuId, setGpu] = useState('')
   const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[0] ?? ''
-  const total = site && gid ? site.halls.reduce((a, h) => a + hallServers(h, gid), 0) : 0
-  const free = site && gid ? total - committed(w, siteId, gid) : 0
+  const free = site && gid ? site.halls.reduce((acc, h) => acc + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0
   const [servers, setServers] = useState(16)
   const n = Math.max(1, Math.min(servers, Math.max(1, free)))
-  const active = moe ? paramsB / 8 : paramsB
+  const up = (p: Partial<ArchSpec>): void => { setArch((x) => ({ ...x, ...p })); setTpl('custom') }
+  const st = archStats(arch)
+  const m = A.mixSummary(w, mix)
+  const loss = modelLoss(st.totalB, st.activeB, Math.max(m.tokensT, 0.001), arch.experts > 1, m.quality || 1) + archLossDelta(arch)
+  const elo = eloFromLoss(loss) + techSum(w, 'elo')
+  const F = trainFlops(st.activeB, m.tokensT)
   const g = gid ? gpu(w, gid) : null
-  const dqEff = Math.min(1.4, dq + (hasTech(w, 'synth') ? 0.15 : 0))
-  const loss = modelLoss(paramsB, active, tokensT, moe, dqEff)
-  const elo = eloFromLoss(loss) + (hasTech(w, 'distill') && paramsB <= 70 ? 60 : 0)
-  const F = trainFlops(active, tokensT)
   const mfu = site && gid ? trainingMfu(w, n, worstFabric(site, gid)) : 0
-  const rate = g ? n * GPUS_PER_SERVER * g.tflops * 1e12 * mfu * goodput(w, n, g) : 0
-  const secs = rate > 0 ? F / rate : Infinity
-  const mem = trainMemoryGB(paramsB), have = g ? 0.75 * n * GPUS_PER_SERVER * g.memGB : 0
-  const err = site && g ? A.validateTraining(w, { name, paramsB, tokensT, moe, siteId, gpuId: gid, servers: n }) : 'Build a site and install servers first'
-  const best = Math.max(...w.competitors.map((c) => c.elo))
+  const rate = g ? n * 8 * g.tflops * 1e12 * mfu * goodput(w, n, g) : 0
+  const memNeed = trainMemoryGB(st.totalB), memHave = g ? 0.75 * n * 8 * g.memGB : 0
+  const evals = EVALS.map((e) => ({ e, v: evalScore(e, elo, m.tokensT ? m.shares : RIVAL_MIX, techLevel(w, 'reasoning')) }))
+  const field = (label: string, v: number, min: number, max: number, step: number, k: keyof ArchSpec, log = false) => (
+    <Field label={`${label}: ${num(v)}`}><input type="range" min={log ? Math.log2(min) : min} max={log ? Math.log2(max) : max} step={log ? 0.01 : step} value={log ? Math.log2(v) : v}
+      onChange={(ev) => { let x = +ev.target.value; if (log) x = Math.round(2 ** x / step) * step; up({ [k]: x } as Partial<ArchSpec>) }} /></Field>)
   return (
-    <div className="row" style={{ alignItems: 'flex-start', gap: 28 }}>
-      <div className="panel col" style={{ flex: 1.1 }}>
+    <div className="col" style={{ gap: 16 }}>
+      <div className="row" style={{ gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+        {TEMPLATES.map((t) => { const s2 = archStats(t.arch); return (
+          <button key={t.id} className={'adv' + (tpl === t.id ? ' on' : '')} style={{ gridTemplateColumns: '30px 1fr', minWidth: 200 }} onClick={() => { setTpl(t.id); setArch({ ...t.arch }); setName(t.name.replace(/[^A-Za-z0-9]+/g, '-') + '-remix') }}>
+            <span>{t.corp ? <CorpLogo id={t.corp} size={28} /> : <span style={{ fontSize: 20 }}>🌌</span>}</span>
+            <span><b>{t.name}</b><br /><span>{params(s2.totalB)}{t.arch.experts > 1 ? ` · ${params(s2.activeB)} active` : ''}</span></span>
+          </button>) })}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 16, alignItems: 'start' }}>
+        <div className="panel" style={{ padding: 10 }}><NetFlow a={arch} selected={sel} onSelect={setSel} /></div>
+        <div className="col" style={{ gap: 12 }}>
+          <div className="panel col" style={{ gap: 10 }}>
+            <div className="row" style={{ justifyContent: 'space-between' }}><h3>{sel === 'embed' ? 'Embedding' : sel === 'attn' ? 'Attention' : sel === 'ffn' ? (arch.experts > 1 ? 'Mixture of experts' : 'Feed-forward') : sel === 'head' ? 'Output head' : 'Block stack'}</h3><span className="tag b">click the diagram</span></div>
+            {(sel === 'block' || !sel) && <>{field('Layers', arch.layers, 2, 1000, 1, 'layers')}{field('d_model', arch.dModel, 256, 131072, 128, 'dModel', true)}</>}
+            {sel === 'embed' && <>{field('Vocabulary (k)', arch.vocabK, 8, 512, 1, 'vocabK')}{field('Context (k tokens)', arch.ctxK, 1, 10000, 1, 'ctxK', true)}</>}
+            {sel === 'attn' && <>
+              <div className="tabs" style={{ marginBottom: 0 }}>{(['mha', 'gqa', 'mla'] as const).map((k) => <button key={k} className={arch.attn === k ? 'on' : ''} onClick={() => up({ attn: k })}>{k.toUpperCase()}</button>)}</div>
+              {field('Heads', arch.heads, 1, 1024, 1, 'heads', true)}{arch.attn === 'gqa' && field('KV heads', arch.kvHeads, 1, arch.heads, 1, 'kvHeads')}{field('Context (k tokens)', arch.ctxK, 1, 10000, 1, 'ctxK', true)}</>}
+            {sel === 'ffn' && <>
+              {field('FFN multiplier', arch.ffnMult, 0.1, 8, 0.05, 'ffnMult')}
+              {field('Experts', arch.experts, 1, 1_000_000, 1, 'experts', true)}
+              {arch.experts > 1 && <>{field('Top-k routed', arch.topK, 1, Math.min(64, arch.experts), 1, 'topK')}{field('Shared experts', arch.shared, 0, 8, 1, 'shared')}</>}
+              {arch.experts > 1 && !hasTech(w, 'moe') && <span className="neg" style={{ fontSize: 12.5 }}>MoE needs research before you can train it.</span>}</>}
+            {sel === 'head' && <p className="dim" style={{ fontSize: 13 }}>Tied to the embedding. Bigger vocabularies compress text better but cost parameters; ~128k is the sweet spot.</p>}
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {[['Total params', params(st.totalB)], ['Active / token', params(st.activeB)], ['KV cache / token', `${num(st.kvBytesPerToken / 1024)} KB`], ['Training compute', flops(F)], ['Expected loss', loss.toFixed(3)], ['Expected Elo', `${Math.round(elo)}`]].map(([k, v]) =>
+              <div key={k} className="panel" style={{ padding: '10px 12px' }}><div className="dim" style={{ fontSize: 11.5 }}>{k}</div><div style={{ fontSize: 17, fontWeight: 650 }}>{v}</div></div>)}
+          </div>
+          <div className="panel col" style={{ gap: 6 }}>
+            <div className="row" style={{ justifyContent: 'space-between' }}><b style={{ fontSize: 13 }}>Predicted benchmark scores</b><span className="dim" style={{ fontSize: 12 }}>from scale × data mix</span></div>
+            {evals.map(({ e, v }) => <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 44px', gap: 10, alignItems: 'center', fontSize: 12.5 }} title={e.parody}><span>{e.name}</span><div className="bar"><i style={{ width: `${v}%` }} /></div><span style={{ textAlign: 'right', fontWeight: 600 }}>{v.toFixed(0)}</span></div>)}
+          </div>
+        </div>
+      </div>
+      <div className="panel col" style={{ gap: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}><h3>Training data mix</h3><button className="btn sm ghost" onClick={onData}>Dataset market</button></div>
+        {owned.length === 0 ? <p className="dim">You own no data. Grab the free web crawl in the dataset market — or something less legal.</p> :
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>{owned.map((d) => (
+            <Field key={d.id} label={`${d.name} · ${(mix[d.id] ?? 0).toFixed(2)}T of ${d.tokensT}T${(mix[d.id] ?? 0) > d.tokensT ? ` · ${((mix[d.id] ?? 0) / d.tokensT).toFixed(1)} epochs` : ''}`}>
+              <input type="range" min={0} max={d.tokensT * 4} step={d.tokensT / 100} value={mix[d.id] ?? 0} onChange={(ev) => setMix({ ...mix, [d.id]: +ev.target.value })} /></Field>))}</div>}
+        <div className="dim" style={{ fontSize: 12.5 }}>{m.tokensT.toFixed(2)}T tokens · quality ×{(m.quality || 0).toFixed(2)} · {((m.tokensT * 1000) / Math.max(st.activeB, 1e-9)).toFixed(0)} tokens/param (Chinchilla ≈ 20){m.error ? ` · ${m.error}` : ''}</div>
+      </div>
+      <div className="panel row wrap" style={{ gap: 14, alignItems: 'end' }}>
         <Field label="Model name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <div className="row">
-          <Field label="Parameters (billions)"><Num value={paramsB} min={0.1} step={paramsB < 10 ? 1 : 10} onChange={setParams} /></Field>
-          <Field label="Training tokens (trillions)"><Num value={tokensT} min={0.01} step={0.5} onChange={setTokens} /></Field>
-        </div>
-        <div className="row">
-          <button className="btn sm" onClick={() => { setParams(7); setTokens(2) }}>7B · 2T</button>
-          <button className="btn sm" onClick={() => { setParams(70); setTokens(15) }}>70B · 15T</button>
-          <button className="btn sm" onClick={() => { setParams(405); setTokens(15) }}>405B · 15T</button>
-          <button className="btn sm" onClick={() => { setParams(2000); setTokens(40) }}>2T · 40T</button>
-        </div>
-        <div className="row">
-          <Field label={`Data quality ×${dq.toFixed(2)}${hasTech(w, 'synth') ? ' (+0.15 synthetic)' : ''}`}><input type="range" min={0.6} max={1.25} step={0.05} value={dq} onChange={(e) => setDq(+e.target.value)} /></Field>
-          <label className="f" style={{ opacity: hasTech(w, 'moe') ? 1 : 0.4 }}>Mixture-of-Experts (8×)<input type="checkbox" checked={moe} disabled={!hasTech(w, 'moe')} onChange={(e) => setMoe(e.target.checked)} /></label>
-        </div>
-        <div className="row">
-          <Field label="Site"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
-          <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
-        </div>
-        <Field label={`Servers: ${n} of ${free} free (${n * 8} GPUs)`}><input type="range" min={1} max={Math.max(1, free)} value={n} onChange={(e) => setServers(+e.target.value)} /></Field>
-        <div className="row"><button className="btn pri" disabled={!!err} onClick={() => { const r = act((x) => A.startTraining(x, { name, paramsB, activeParamsB: active, tokensT, moe, dataQuality: dq, siteId, gpuId: gid, servers: n }), 'Training started'); if (r.ok) onStart() }}>Start training · data {money(tokensT * 1e6 * 20)}</button>{err && <span className="warn" style={{ fontSize: 12 }}>{err}</span>}</div>
+        <Field label="Site"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+        <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
+        <Field label={`Servers ${n}/${free} · ${num(n * 8)} GPUs`}><input type="range" min={1} max={Math.max(1, free)} value={n} onChange={(e) => setServers(+e.target.value)} /></Field>
+        <div className="dim" style={{ fontSize: 12.5 }}>MFU {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
+        <button className="btn pri" onClick={() => { const r = act((x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n }), 'Training started'); if (r.ok) onStart() }}>Start training</button>
       </div>
-      <div className="panel col" style={{ flex: 1 }}>
-        <h2>Forecast</h2>
-        <table><tbody>
-          <tr><td className="dim">Compute (6·N·D)</td><td className="r mono">{flops(F)}</td></tr>
-          <tr><td className="dim">Tokens per parameter</td><td className="r mono">{((tokensT * 1000) / active).toFixed(1)} {Math.abs(tokensT * 1000 / active - 20) < 8 ? <span className="tag g">≈ compute-optimal</span> : null}</td></tr>
-          <tr><td className="dim">Cluster MFU · goodput</td><td className="r mono">{(mfu * 100).toFixed(0)}% · {g ? (goodput(w, n, g) * 100).toFixed(0) : 0}%</td></tr>
-          <tr><td className="dim">Wall-clock</td><td className="r mono">{dur(secs / 3600)}</td></tr>
-          <tr><td className="dim">GPU memory needed / usable</td><td className="r mono" style={{ color: mem > have ? 'var(--red)' : undefined }}>{num(mem)} / {num(have)} GB</td></tr>
-          <tr><td className="dim">Final loss</td><td className="r mono">{loss.toFixed(3)}</td></tr>
-          <tr><td className="dim">Expected Elo</td><td className="r mono"><b>{Math.round(elo)}</b> <span className="dim">(SOTA {Math.round(best)})</span></td></tr>
-          <tr><td className="dim">Serve memory</td><td className="r mono">{num(serveMemoryGB(paramsB))} GB</td></tr>
-          <tr><td className="dim">Serve speed</td><td className="r mono">{g ? num(serveTokPerSecPerServer(w, g, active)) : 0} tok/s / server</td></tr>
-          <tr><td className="dim">Suggested price</td><td className="r mono">${referencePrice(w.tick / 8766, elo).toFixed(2)} / Mtok</td></tr>
-        </tbody></table>
-      </div>
+    </div>
+  )
+}
+
+function DataMarket() {
+  const w = useWorld(); const act = useGame((s) => s.act)
+  return (
+    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 12 }}>
+      {DATASETS.map((d) => { const own = (w.datasets[d.id] ?? 0) > 0; const locked = (d.needsTech && !hasTech(w, d.needsTech)) || d.year > yearOf(w.tick) + 0.5; return (
+        <div key={d.id} className="panel lift col" style={{ gap: 8, opacity: locked ? 0.5 : 1 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}><span className="tag b">{d.domain}</span>{d.legalRisk > 0.4 ? <span className="tag r">legal risk {(d.legalRisk * 100).toFixed(0)}%</span> : d.legalRisk > 0.1 ? <span className="tag a">some risk</span> : <span className="tag g">clean</span>}</div>
+          <h3>{d.name}</h3><div className="dim" style={{ fontSize: 12.5 }}>{d.source}</div>
+          <div className="row" style={{ gap: 18, fontSize: 13 }}><span><b>{num(d.tokensT)}T</b> tokens</span><span>quality <b>×{d.quality}</b></span></div>
+          <button className={'btn sm ' + (own ? 'ghost' : 'pri')} disabled={own || !!locked} onClick={() => act((x) => A.buyDataset(x, d.id))}>{own ? 'Owned' : locked ? 'Locked' : d.usd === 0 ? 'Download free' : `Buy · ${money(d.usd)}`}</button>
+        </div>) })}
+    </div>
+  )
+}
+
+function Evals() {
+  const w = useWorld()
+  const rows = [
+    ...w.competitors.map((c) => ({ name: c.name, corp: c.corp, evals: Object.fromEntries(EVALS.map((e) => [e.id, evalScore(e, c.elo, RIVAL_MIX, Math.max(0, (w.tick / 8766) - 1.5))])), you: false })),
+    ...w.models.map((m) => ({ name: m.name, corp: '', evals: m.evals ?? {}, you: true }))
+  ]
+  return (
+    <div className="panel" style={{ padding: 8, overflowX: 'auto' }}>
+      <table><thead><tr><th>Model</th>{EVALS.map((e) => <th key={e.id} className="r" title={e.parody}>{e.name}</th>)}</tr></thead><tbody>
+        {rows.sort((a, b) => (b.evals.mmlu ?? 0) - (a.evals.mmlu ?? 0)).map((r, i) => <tr key={r.name + i} style={r.you ? { background: 'var(--accent-soft)' } : undefined}>
+          <td><span className="row" style={{ gap: 8 }}>{r.corp && <CorpLogo id={r.corp} size={22} />}<b style={{ fontWeight: 600 }}>{r.name}</b></span></td>
+          {EVALS.map((e) => { const v = r.evals[e.id] ?? 0; const best = Math.max(...rows.map((x) => x.evals[e.id] ?? 0)); return <td key={e.id} className="r" style={{ fontWeight: v === best ? 700 : 450, color: v === best ? 'var(--accent)' : undefined }}>{v.toFixed(1)}</td> })}
+        </tr>)}
+      </tbody></table>
     </div>
   )
 }

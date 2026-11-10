@@ -8,9 +8,10 @@ import { dailySilicon } from './chips'
 import { dailyMarket, initCompetitors, marketDemandTokensPerDay, modelShare, rentalPrice, rentalUtilisation, serverMarketPrice } from './market'
 import { poisson, rnd } from './rng'
 import { HOURS_PER_YEAR, type DayLedger, type World } from './types'
-import { clamp, findSite, gpu, newId, pushNews, techSum, worstFabric, yearOf } from './util'
+import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric, yearOf } from './util'
+import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
-export const WORLD_VERSION = 3
+export const WORLD_VERSION = 4
 const emptyDay = (day: number): DayLedger => ({ day, revenue: 0, powerCost: 0, staffCost: 0, interest: 0, opex: 0, capex: 0, cash: 0, itMw: 0, gpus: 0, rentalRev: 0, inferRev: 0, contractRev: 0 })
 
 export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo = 'You', advisor = 'cfo', logo = { glyph: 'hex', color: 'oklch(0.6 0.17 155)' }): World {
@@ -25,7 +26,7 @@ export function createWorld(seed = 1337, company = 'Untitled AI Infra Inc.', ceo
     staff: { engineers: 3, researchers: 1, ops: 2, sales: 1 },
     events: [], news: [{ tick: 0, kind: 'info', title: `${company} is founded`, body: `${ADVISORS.find((a) => a.id === advisor)?.name ?? 'Your advisor'} slides a term sheet across the table. $40M seed. No pressure.` }],
     ledger: [], today: emptyDay(0), quarterProfit: 0, totalTco2: 0, totalWaterL: 0, achievements: [],
-    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: []
+    silicon: { designs: [], fab: null, chipStock: {} }, customGpus: [], datasets: {}
   }
 }
 
@@ -145,13 +146,14 @@ export function finishRun(w: World, runId: string): void {
   run.status = 'done'
   run.flopsDone = run.flopsTotal
   if (run.owner === 'player') {
-    const loss = modelLoss(run.paramsB, run.activeParamsB, run.tokensT, run.moe, run.dataQuality)
+    const loss = modelLoss(run.paramsB, run.activeParamsB, run.tokensT, run.moe, run.dataQuality) + (run.arch ? archLossDelta(run.arch) : 0)
     let elo = eloFromLoss(loss)
     if (w.research.done.includes('distill') && run.paramsB <= 70) elo += 60
     elo += techSum(w, 'elo')
     w.models.push({
       id: newId(w, 'm'), name: run.name, owner: 'player', paramsB: run.paramsB, activeParamsB: run.activeParamsB, tokensT: run.tokensT,
-      loss, elo, releaseTick: w.tick, priceMtok: 0, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: false
+      loss, elo, releaseTick: w.tick, priceMtok: 0, posttrain: 0, tokensServed: 0, revenue: 0, share: 0, demandTokPerDay: 0, capacityTokPerDay: 0, releasedByPlayer: false,
+      arch: run.arch, mix: run.mix, evals: Object.fromEntries(EVALS.map((e) => [e.id, evalScore(e, elo, run.mix ?? RIVAL_MIX, techLevel(w, 'reasoning'))]))
     })
     pushNews(w, 'good', `${run.name} finished training`, `Final loss ${loss.toFixed(3)} → Elo ${Math.round(elo)}. Post-train it and ship it before a rival does.`)
   } else {
