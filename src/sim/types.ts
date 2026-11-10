@@ -1,0 +1,70 @@
+import type { CoolingType, FabricType, GenKind } from './data/hardware'
+
+export const HOURS_PER_YEAR = 8766
+export const START_YEAR = 2023
+
+export interface Rack { gpuId: string; servers: number; failed: number }
+export interface Hall {
+  id: string; name: string; slots: number; racks: Rack[]
+  cooling: CoolingType; coolKw: number; powerKw: number; fabric: FabricType
+  readyTick: number
+  // live state
+  tempC: number; throttle: number; itKw: number; coolPowerKw: number; pue: number; online: boolean; waterL: number
+}
+export interface Generator { id: string; kind: GenKind; mw: number; mwh: number; soc: number; readyTick: number }
+export interface Order { id: string; gpuId: string; servers: number; arriveTick: number }
+export interface Site {
+  id: string; name: string; regionId: string
+  utilityMw: number; pendingUtility: { mw: number; readyTick: number }[]
+  halls: Hall[]; gens: Generator[]
+  stock: Record<string, number>; orders: Order[]
+  // live
+  ambientC: number; priceMwh: number; windCf: number; spotNoise: number; gridUp: boolean
+  demandMw: number; supplyMw: number; gridMw: number; powerFactor: number; costPerHour: number; carbonKgPerHour: number
+}
+
+export interface Rental { id: string; siteId: string; gpuId: string; servers: number; priceMult: number }
+export interface Deployment { id: string; modelId: string; siteId: string; gpuId: string; servers: number }
+
+export type RunStatus = 'running' | 'paused' | 'done' | 'failed'
+export interface TrainingRun {
+  id: string; name: string; owner: 'player' | string /* contract id */
+  paramsB: number; activeParamsB: number; tokensT: number; moe: boolean; dataQuality: number
+  siteId: string; gpuId: string; servers: number
+  flopsTotal: number; flopsDone: number; status: RunStatus
+  startTick: number; mfu: number; etaH: number; spentUsd: number; restarts: number; note: string
+}
+export interface AiModel {
+  id: string; name: string; owner: string; paramsB: number; activeParamsB: number; tokensT: number
+  loss: number; elo: number; releaseTick: number; priceMtok: number; posttrain: number
+  tokensServed: number; revenue: number; share: number; demandTokPerDay: number; capacityTokPerDay: number; releasedByPlayer: boolean
+}
+export interface Competitor { corp: string; name: string; elo: number; priceMtok: number }
+
+export interface Contract {
+  id: string; customer: string; modelName: string; paramsB: number; tokensT: number; moe: boolean
+  deadlineTick: number; payUsd: number; expiresTick: number; minGpuMemGB: number; accepted: boolean; runId?: string; done?: boolean
+}
+export interface Loan { id: string; principal: number; rate: number }
+export interface NewsItem { tick: number; kind: 'info' | 'good' | 'bad' | 'event'; title: string; body: string }
+export interface ActiveEvent { id: string; kind: string; title: string; endTick: number; siteId?: string; mag: number }
+export interface ResearchState { done: string[]; current?: string; progressUsd: number; budgetPerDay: number }
+export interface Staff { engineers: number; researchers: number; ops: number; sales: number }
+export interface DayLedger { day: number; revenue: number; powerCost: number; staffCost: number; interest: number; opex: number; capex: number; cash: number; itMw: number; gpus: number; rentalRev: number; inferRev: number; contractRev: number }
+export interface MarketState {
+  boom: number; supplyTight: number; tokensPerDay: number; priceDrift: number
+  gpuPressure: Record<string, number>
+}
+
+export interface World {
+  version: number; tick: number; rng: number; nextId: number
+  company: string; ceo: string; advisor: string
+  cash: number; loans: Loan[]; reputation: number; esg: number; gameOver: boolean; negCashDays: number
+  sites: Site[]; rentals: Rental[]; deployments: Deployment[]
+  runs: TrainingRun[]; models: AiModel[]; contracts: Contract[]
+  market: MarketState; competitors: Competitor[]
+  research: ResearchState; staff: Staff
+  events: ActiveEvent[]; news: NewsItem[]; ledger: DayLedger[]
+  today: DayLedger; quarterProfit: number; totalTco2: number; totalWaterL: number
+  achievements: string[]
+}

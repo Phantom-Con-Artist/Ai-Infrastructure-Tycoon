@@ -1,0 +1,149 @@
+import { CUSTOMERS, RIVAL_RELEASES, corp } from './data/lore'
+import { GPUS_PER_SERVER, gpuCatalog, serverPriceUsd, type GpuSpec } from './data/hardware'
+import { referencePrice } from './ai'
+import { gauss, pick, range, rnd } from './rng'
+import { HOURS_PER_YEAR, type Competitor, type Contract, type World } from './types'
+import { clamp, newId, pushNews, siteServers, yearOf } from './util'
+
+/** Street price of a GPU (new silicon tracks list price; old silicon decays). */
+export function gpuMarketPrice(w: World, g: GpuSpec): number {
+  const age = Math.max(0, yearOf(w.tick) - g.year)
+  const decay = age <= 1 ? 1 : Math.max(0.3, Math.pow(0.82, age - 1))
+  return g.priceUsd * decay * (1 + 0.35 * (w.market.supplyTight - 0.3))
+}
+export const serverMarketPrice = (w: World, g: GpuSpec): number => {
+  const p = gpuMarketPrice(w, g)
+  return Math.round(GPUS_PER_SERVER * p * 1.2 + 20000 + 0 * serverPriceUsd(g))
+}
+export const leadDays = (w: World): number => Math.round(21 + w.market.supplyTight * 70)
+
+/** Reference cloud rental price in $/GPU-hour before demand pressure. */
+export function refRentPerGpuHour(w: World, g: GpuSpec): number {
+  const cost = gpuMarketPrice(w, g) * 1.25
+  return Math.max(0.2, (cost / (4 * HOURS_PER_YEAR * 0.7)) * 1.8)
+}
+export function rentalPrice(w: World, g: GpuSpec): number {
+  const p = w.market.gpuPressure[g.id] ?? 1
+  return refRentPerGpuHour(w, g) * Math.pow(clamp(p, 0.3, 3), 0.8)
+}
+export function rentalUtilisation(w: World, g: GpuSpec, priceMult: number): number {
+  const p = w.market.gpuPressure[g.id] ?? 1
+  const salesBoost = 1 + Math.min(0.08, Math.log10(1 + w.staff.sales) * 0.04)
+  return clamp(0.8 * p * salesBoost * Math.pow(priceMult, -1.6) * (0.6 + 0.4 * w.reputation / 100), 0.03, 0.97)
+}
+
+export function marketDemandTokensPerDay(w: World): number { return w.market.tokensPerDay * w.market.boom }
+
+export function currentCompetitors(w: World): Competitor[] { return w.competitors }
+
+export function dailyMarket(w: World): void {
+  const m = w.market
+  const years = w.tick / HOURS_PER_YEAR
+  const growth = 0.15 + 1.1 / (1 + years / 2.5)
+  m.tokensPerDay *= Math.pow(1 + growth, 1 / 365)
+  m.boom += (1 - m.boom) * 0.01 + 0.01 * gauss(w)
+  m.boom = clamp(m.boom, 0.35, 3)
+  m.supplyTight += (0.3 - m.supplyTight) * 0.012
+  const cat = gpuCatalog(yearOf(w.tick)).sort((a, b) => b.year - a.year || b.tflops - a.tflops)
+  const topYear = cat[0]?.year ?? 2023
+  for (const g of cat) {
+    const gen = topYear - g.year
+    const f = gen <= 0 ? 1.25 : gen === 1 ? 1.1 : gen === 2 ? 0.9 : gen === 3 ? 0.7 : 0.5
+    w.market.gpuPressure[g.id] = clamp(m.boom * f * (0.8 + 0.2 * m.supplyTight), 0.1, 3.5)
+  }
+  // price drift
+  m.priceDrift = Math.pow(0.55, 1 / 365)
+  rivalReleases(w)
+  for (const c of w.competitors) {
+    const yrs = years
+    c.priceMtok = referencePrice(yrs, c.elo) * (corp(c.corp).kind === 'cloud' ? 0.9 : 1)
+  }
+  rollContracts(w)
+}
+
+const rivalNext: Record<string, number> = {}
+function rivalReleases(w: World): void {
+  const month = (w.tick / HOURS_PER_YEAR) * 12
+  for (const r of RIVAL_RELEASES) {
+    if (month >= r.month && !w.competitors.some((c) => c.name === r.name) && r.month > 0) {
+      const existing = w.competitors.find((c) => c.corp === r.corp)
+      if (existing) { existing.name = r.name; existing.elo = Math.max(existing.elo, r.elo) }
+      else w.competitors.push({ corp: r.corp, name: r.name, elo: r.elo, priceMtok: referencePrice(month / 12, r.elo) })
+      pushNews(w, 'event', `${corp(r.corp).name} launches ${r.name}`, `${corp(r.corp).ceo}: "${corp(r.corp).quip}" Leaderboard Elo ${r.elo}.`)
+    }
+  }
+  // Beyond the scripted table: procedural releases, ~every 9 months per lab with diminishing gains.
+  if (month > 36) {
+    for (const c of w.competitors) {
+      const key = c.corp
+      if (rivalNext[key] === undefined) rivalNext[key] = month + range(w, 3, 12)
+      if (month >= rivalNext[key]) {
+        const gain = 70 * Math.pow(0.97, month - 36) * range(w, 0.4, 1.4)
+        c.elo += gain
+        const ver = Math.floor((month - 36) / 9) + 6
+        c.name = `${c.name.replace(/\s\d+(\.\d+)?.*$/, '')} ${ver}`
+        rivalNext[key] = month + range(w, 6, 12)
+        pushNews(w, 'event', `${corp(c.corp).name} ships ${c.name}`, `New SOTA at Elo ${Math.round(c.elo)}. The leaderboard is a treadmill.`)
+      }
+    }
+  }
+}
+
+export function initCompetitors(): Competitor[] {
+  return [
+    { corp: 'openaye', name: 'GPTea 3.5', elo: 1390, priceMtok: 2 },
+    { corp: 'ratthropic', name: 'Clawed Instant', elo: 1340, priceMtok: 1.6 },
+    { corp: 'qooqle', name: 'Palmy', elo: 1330, priceMtok: 1.5 },
+    { corp: 'meeta', name: 'Llamma 1', elo: 1290, priceMtok: 0.9 }
+  ]
+}
+
+export function modelShare(w: World): Map<string, number> {
+  // softmax over utility: quality vs price, among all competitors and player models
+  const entries: { id: string; u: number }[] = []
+  const years = w.tick / HOURS_PER_YEAR
+  for (const c of w.competitors) entries.push({ id: 'c:' + c.corp, u: (c.elo - 1500) / 110 - Math.log(Math.max(0.01, c.priceMtok)) })
+  for (const m of w.models) {
+    if (m.owner !== 'player' || !m.releasedByPlayer) continue
+    const hype = 1 + (w.advisor === 'pr' ? 0.06 : 0)
+    entries.push({ id: m.id, u: (m.elo - 1500) / 110 - Math.log(Math.max(0.01, m.priceMtok)) + Math.log(hype) + (w.reputation - 50) / 120 })
+  }
+  void years
+  const mx = Math.max(...entries.map((e) => e.u))
+  const exps = entries.map((e) => Math.exp(e.u - mx))
+  const sum = exps.reduce((a, b) => a + b, 0)
+  const out = new Map<string, number>()
+  entries.forEach((e, i) => out.set(e.id, exps[i] / sum))
+  return out
+}
+
+function rollContracts(w: World): void {
+  w.contracts = w.contracts.filter((c) => c.accepted || c.expiresTick > w.tick)
+  const open = w.contracts.filter((c) => !c.accepted).length
+  if (open >= 6 || rnd(w) > 0.4) return
+  // size offers to what the player's biggest site can actually do
+  let best = { servers: 8, tflops: 312, site: '' }
+  for (const s of w.sites) for (const gId of Object.keys(s.stock).concat(s.halls.flatMap((h) => h.racks.map((r) => r.gpuId)))) {
+    const g = gpuCatalog(yearOf(w.tick) + 50).find((x) => x.id === gId)
+    if (!g) continue
+    const n = siteServers(s, gId)
+    if (n * g.tflops > best.servers * best.tflops) best = { servers: n, tflops: g.tflops, site: s.id }
+  }
+  const frac = range(w, 0.15, 0.7)
+  const days = Math.round(range(w, 4, 40))
+  const flops = best.servers * frac * 8 * best.tflops * 1e12 * 0.33 * days * 86400
+  const maxN = Math.sqrt(flops / 120) / 1e9
+  const paramsB = Math.round(Math.exp(range(w, 0, Math.log(Math.max(2, Math.min(400, maxN))))))
+  const nb = Math.max(1, paramsB)
+  const tokensT = Math.max(0.02, flops / (6 * nb * 1e9) / 1e12)
+  const rate = 3.6 * range(w, 1.15, 1.7)
+  const gpuHours = (best.servers * frac * 8 * days * 24)
+  const pay = Math.round(gpuHours * rate * (0.8 + 0.2 * w.market.boom) / 1000) * 1000
+  const moe = nb > 100 && rnd(w) < 0.3
+  const c: Contract = {
+    id: newId(w, 'k'), customer: pick(w, CUSTOMERS), modelName: `${pick(w, ['Project', 'Operation', 'Initiative'])} ${pick(w, ['Gizmo', 'Banana', 'Cobweb', 'Walrus', 'Nimbus', 'Tulip', 'Anvil'])}`,
+    paramsB: nb, tokensT: +tokensT.toFixed(3), moe, deadlineTick: w.tick + Math.round(days * 24 * range(w, 1.5, 2.5)),
+    payUsd: Math.max(50_000, pay), expiresTick: w.tick + 24 * 14, minGpuMemGB: nb > 70 ? 80 : 40, accepted: false
+  }
+  w.contracts.push(c)
+}
