@@ -1,0 +1,85 @@
+/* The Daily Compute — the only serif surface in the game. */
+.np-scrim {
+  --np-paper: oklch(0.965 0.018 85);
+  --np-paper-2: oklch(0.935 0.022 82);
+  --np-ink: oklch(0.22 0.015 60);
+  --np-ink-2: oklch(0.38 0.015 60);
+  --np-rule: oklch(0.22 0.015 60 / .55);
+  --np-accent: oklch(0.55 0.15 30);
+  --serif: 'Newsreader Variable', Georgia, serif;
+  position: fixed; inset: 0; z-index: 80; overflow: auto; padding: 64px 24px 48px;
+  background: oklch(0.25 0.02 260 / .55); backdrop-filter: blur(4px); animation: fade .3s var(--ease);
+}
+.np-nav { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 6px; padding: 5px; border-radius: 99px; background: var(--surface); box-shadow: var(--sh-2); font: 600 12.5px var(--sans); color: var(--tx-3); }
+.np-nav button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; cursor: pointer; padding: 6px 12px; border-radius: 99px; font: 600 12.5px var(--sans); color: var(--tx); }
+.np-nav button:hover:not(:disabled) { background: var(--surface-2); }
+.np-nav button:disabled { opacity: .35; cursor: default; }
+.np-nav span { padding: 0 6px; font-variant-numeric: tabular-nums; }
+.np-nav .np-x { padding: 6px; margin-left: 4px; background: var(--surface-2); }
+
+.np {
+  max-width: 1080px; margin: 0 auto; padding: 34px 44px 44px; color: var(--np-ink); font-family: var(--serif);
+  background: var(--np-paper);
+  background-image: radial-gradient(oklch(0.5 0.03 70 / .05) 1px, transparent 1px);
+  background-size: 3px 3px;
+  box-shadow: 0 40px 80px -30px oklch(0.2 0.03 260 / .55), 0 2px 0 var(--np-paper-2);
+  transform-origin: 50% 0; animation: unfold .7s var(--ease);
+}
+@keyframes unfold { from { transform: translateY(24px) scaleY(.97); opacity: 0; } }
+
+.np-head { text-align: center; }
+.np-ears { display: flex; justify-content: space-between; font: italic 400 13px/1 var(--serif); color: var(--np-ink-2); padding-bottom: 10px; }
+.np-head h1 {
+  font: 700 clamp(44px, 7.4vw, 92px)/0.9 var(--serif); font-variation-settings: 'opsz' 72; letter-spacing: -.035em;
+  padding: 10px 0 14px; border-top: 3px solid var(--np-ink); border-bottom: 1px solid var(--np-ink);
+}
+.np-strip { display: flex; justify-content: space-between; gap: 12px; padding: 7px 2px; border-bottom: 3px double var(--np-ink); font: 500 12px var(--serif); letter-spacing: .08em; text-transform: uppercase; }
+
+.np-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0 28px; padding-top: 22px; }
+.np-lead { grid-column: span 3; padding-right: 28px; border-right: 1px solid var(--np-rule); }
+.np-rail { grid-column: span 2; display: grid; gap: 18px; align-content: start; }
+.np-cols { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 22px; padding-top: 16px; border-top: 3px double var(--np-ink); }
+
+.np-kicker { display: block; font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--np-accent); margin-bottom: 8px; }
+.np-lead h2 { font: 700 clamp(30px, 3.6vw, 46px)/1.02 var(--serif); font-variation-settings: 'opsz' 60; letter-spacing: -.025em; text-wrap: balance; }
+.np-lead figure { margin: 16px 0 12px; padding: 10px; border-top: 1px solid var(--np-rule); border-bottom: 1px solid var(--np-rule); }
+.np-lead figure svg { display: block; width: 100%; height: auto; max-height: 260px; }
+.np-lead-date { display: block; font-size: 13px; color: var(--np-ink-2); margin-bottom: 8px; }
+.np-deck { font: 400 18px/1.5 var(--serif); font-variation-settings: 'opsz' 14; text-wrap: pretty; }
+.np-deck.long { columns: 2; column-gap: 24px; text-align: justify; hyphens: auto; }
+.np-deck.long::first-letter { float: left; font: 700 52px/0.82 var(--serif); padding: 4px 6px 0 0; color: var(--np-ink); }
+.np-dateline { font-weight: 650; font-variant: small-caps; letter-spacing: .02em; }
+
+.np-market { border: 1px solid var(--np-ink); padding: 12px 14px 10px; }
+.np-market h4 { font: 700 15px var(--serif); text-transform: uppercase; letter-spacing: .08em; padding-bottom: 6px; border-bottom: 1px solid var(--np-ink); margin-bottom: 4px; }
+.np-market table { width: 100%; border-collapse: collapse; font: 500 13.5px var(--serif); font-variant-numeric: tabular-nums; }
+.np-market td { padding: 5px 0; border-bottom: 1px dotted var(--np-rule); }
+.np-market td:nth-child(2), .np-market td:nth-child(3) { text-align: right; padding-left: 8px; white-space: nowrap; }
+.np-market tr.you td { font-weight: 700; }
+.np-market .np-up { color: oklch(0.45 0.13 150); } .np-market .np-down { color: var(--np-accent); }
+.np-spot { font: italic 400 13px var(--serif); padding-top: 8px; color: var(--np-ink-2); }
+
+.np-ad { border: 2px solid var(--np-ink); outline: 1px solid var(--np-ink); outline-offset: 3px; padding: 14px 16px; text-align: center; background: var(--np-paper-2); }
+.np-ad b { display: block; font: 800 22px/1.05 var(--serif); font-variation-settings: 'opsz' 48; letter-spacing: -.01em; }
+.np-ad p { font: italic 400 14px/1.4 var(--serif); margin: 8px 0; }
+.np-ad small { font: 600 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.np-ad.tall { margin: 0 16px; align-self: start; }
+
+.np-story { padding: 0 16px; border-left: 1px solid var(--np-rule); }
+.np-story:first-child { border-left: 0; padding-left: 0; }
+.np-story h3 { font: 700 20px/1.1 var(--serif); font-variation-settings: 'opsz' 36; letter-spacing: -.015em; margin-bottom: 6px; text-wrap: balance; }
+.np-story.s h3 { font-size: 16px; }
+.np-story p { font: 400 14px/1.45 var(--serif); text-align: justify; hyphens: auto; color: var(--np-ink); }
+
+.np-empty { padding: 60px 20px 40px; text-align: center; }
+.np-empty h2 { font: 700 38px var(--serif); letter-spacing: -.02em; }
+.np-empty p { font: italic 400 17px var(--serif); color: var(--np-ink-2); margin-top: 8px; }
+
+@media (max-width: 860px) {
+  .np { padding: 22px 18px; }
+  .np-grid { grid-template-columns: 1fr; }
+  .np-lead { grid-column: auto; border-right: 0; padding-right: 0; }
+  .np-rail { grid-column: auto; margin-top: 18px; }
+  .np-cols { grid-template-columns: 1fr 1fr; }
+  .np-deck { columns: 1; }
+}

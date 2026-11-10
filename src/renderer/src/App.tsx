@@ -8,6 +8,7 @@ import { HUBS, HUB_ORDER, SCREEN_LABEL, hubOf, type Hub } from './nav'
 import { Confirm } from './overlays/Confirm'
 import { Ticker } from './overlays/Ticker'
 import { NewsDrawer, useUnread } from './overlays/NewsDrawer'
+import { Newspaper } from './overlays/Newspaper'
 import { Overview } from './screens/Overview'
 import { Sites } from './screens/Sites'
 import { Fleet } from './screens/Fleet'
@@ -128,6 +129,7 @@ function Game() {
         {screen === 'paper' && <PaperArchive />}
       </main>
       <NewsDrawer />
+      <Newspaper />
       <Confirm />
     </div>
   )
