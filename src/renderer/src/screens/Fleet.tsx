@@ -8,11 +8,12 @@ import { gpu, hallServers, committed, yearOf } from '@sim/util'
 import type { RentalKind } from '@sim/types'
 import { money, num } from '../format'
 import { useGame, useWorld } from '../store'
-import { EmptyState, Field, Num, Tabs } from '../ui'
+import { Advanced, EmptyState, Field, Num, Summary, Tabs, Term } from '../ui'
 import { GpuArt } from '../art/GpuArt'
 import { CorpLogo } from '../art/Logos'
 import { EmptyFleetArt } from '../art/Illustrations'
 import * as PV from '@sim/preview'
+import * as Sum from '../summaries'
 
 export function Fleet() {
   const w = useWorld(); const go = useGame((s) => s.go)
@@ -20,7 +21,8 @@ export function Fleet() {
   if (!w.sites.length) return <EmptyState art={<EmptyFleetArt />} eyebrow="Fleet · no sites" title="Servers need somewhere to live." body="Buy land and build a hall first. Then come back to order accelerators for AI and CPU servers for VM clouds."><button className="btn pri" onClick={() => go('sites')}>Open Sites</button></EmptyState>
   return (
     <>
-      <div className="page-head"><div><div className="eyebrow">Lead time {leadDays(w)} days · supply tightness {w.market.supplyTight.toFixed(2)} · AI boom {w.market.boom.toFixed(2)}</div><h1>Fleet & Cloud</h1></div><Tabs tabs={['buy', 'cloud'] as const} value={tab} onChange={setTab} /></div>
+      <div className="page-head"><div><div className="eyebrow">GPU market is {w.market.boom > 1.2 ? 'hot' : w.market.boom < 0.85 ? 'cooling' : 'steady'} · new orders arrive in {leadDays(w)} days</div><h1>Fleet & Cloud</h1></div><Tabs tabs={['buy', 'cloud'] as const} value={tab} onChange={setTab} /></div>
+      <Summary items={Sum.fleetSummary(w)} />
       {tab === 'buy' ? <Buy /> : <CloudPools />}
     </>
   )
@@ -55,8 +57,9 @@ function Buy() {
       <Field label="Deliver to"><select value={siteId} onChange={(e) => setSite(e.target.value)} style={{ maxWidth: 360 }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
       <h2><Server size={16} /> Accelerators · 8 per server</h2>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => !g.vcpus).map(card)}</div>
-      <h2><Cpu size={16} /> CPU servers · for VM clouds</h2>
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => g.vcpus).map(card)}</div>
+      <Advanced title="CPU servers for virtual-machine clouds">
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => g.vcpus).map(card)}</div>
+      </Advanced>
     </div>
   )
 }
@@ -81,7 +84,7 @@ function CloudPools() {
   return (
     <div className="col" style={{ gap: 12 }}>
       {sparesPanel}
-      <p className="dim">Rent your servers to the world. On-demand follows the market. Reserved locks a year of steady income at a discount. Spot is always full but cheap.</p>
+      <p className="dim">Rent your servers to the world. <Term k="ondemand">On-demand</Term> follows the market. <Term k="reserved">Reserved</Term> locks a year of steady income at a discount. <Term k="spot">Spot</Term> is always full but cheap.</p>
       {pools.map(({ s, id }) => {
         const g = gpu(w, id)
         const total = s.halls.reduce((a, h) => a + hallServers(h, id), 0)

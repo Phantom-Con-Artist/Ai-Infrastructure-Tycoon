@@ -7,18 +7,21 @@ import { valuation } from '@sim/world'
 import { hasTech } from '@sim/util'
 import { money } from '../format'
 import { useGame, useWorld } from '../store'
-import { Tabs } from '../ui'
+import { Summary, Tabs } from '../ui'
 import { CorpLogo, WordMark, type LogoGlyph } from '../art/Logos'
 import { Portrait } from '../art/People'
 import * as PV from '@sim/preview'
+import * as Sum from '../summaries'
 
 const TABS = ['models', 'labs', 'evals', 'companies', 'rich list'] as const
 
 export function Rankings() {
   const [tab, setTab] = useState<(typeof TABS)[number]>('models')
+  const w = useWorld()
   return (
     <>
       <div className="page-head"><div><div className="eyebrow">Leaderboards</div><h1>Who is winning the AI race</h1></div><Tabs tabs={TABS} value={tab} onChange={setTab} /></div>
+      <Summary items={Sum.rankingsSummary(w)} />
       {tab === 'models' && <Models />}
       {tab === 'labs' && <Labs />}
       {tab === 'evals' && <Evals />}

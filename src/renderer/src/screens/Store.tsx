@@ -3,9 +3,10 @@ import { KeyRound, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import * as S from '@sim/store'
 import { dateOf, money, num } from '../format'
 import { useGame, useWorld } from '../store'
-import { EmptyState, Field, Num } from '../ui'
+import { EmptyState, Field, Num, Summary } from '../ui'
 import { EmptyLabArt } from '../art/Illustrations'
 import * as PV from '@sim/preview'
+import * as Sum from '../summaries'
 
 const CAT_ICON: Record<S.Category, string> = { chat: '💬', coding: '⌨️', creative: '🎨', companion: '🫶', enterprise: '🏢', api: '🔑' }
 
@@ -16,6 +17,8 @@ export function Store() {
   if (!launched.length) return <EmptyState art={<EmptyLabArt />} eyebrow="Store · nothing to sell" title="Products need a brain." body="Every chat app, coding agent and API platform here runs on one of your launched models, served by your GPUs. Train and launch a model in the Lab, deploy it on some servers, then come back to package it into products with Free, Plus and Pro plans."><button className="btn pri" onClick={() => go('lab')}>Open Lab</button></EmptyState>
   const product = w.products.find((p) => p.id === sel)
   return (
+    <>
+    <Summary items={Sum.storeSummary(w)} />
     <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 18, alignItems: 'start' }}>
       <div className="col" style={{ gap: 14, position: 'sticky', top: 0 }}>
         <button className="btn pri" onClick={() => setSel('new')}><Plus size={14} /> New product</button>
@@ -26,6 +29,7 @@ export function Store() {
       </div>
       {sel === 'new' || !product ? <NewProduct onDone={(id) => setSel(id)} /> : product.category === 'api' ? <ApiConsole id={product.id} /> : <Dashboard id={product.id} />}
     </div>
+    </>
   )
 }
 

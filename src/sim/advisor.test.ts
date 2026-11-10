@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as A from './actions'
 import { createWorld } from './world'
 import { GOALS, checkGoals, nextSteps } from './advisor'
-import { boot } from './testkit'
+import { boot, firstGpu, ready } from './testkit'
 
 describe('advisor next steps', () => {
   it('tells a brand-new company to buy land', () => {
@@ -35,6 +35,17 @@ describe('advisor next steps', () => {
     expect(s.length).toBeLessThanOrEqual(3)
     for (let i = 1; i < s.length; i++) expect(s[i - 1].severity).toBeGreaterThanOrEqual(s[i].severity)
   })
+})
+
+describe('idle GPUs', () => {
+  it('does not nag when every server is rented, and does when none are', () => {
+    const { w, site, hall } = boot(2); w.cash = 1e10
+    const g = firstGpu(w)
+    ready(w, site, hall, g, 16)
+    expect(nextSteps(w).some((s) => s.id === 'idle-gpus')).toBe(true)
+    expect(A.setRental(w, site.id, g, 16, 1).ok).toBe(true)
+    expect(nextSteps(w).some((s) => s.id === 'idle-gpus')).toBe(false)
+  }, 30_000)
 })
 
 describe('goals', () => {

@@ -156,5 +156,6 @@ export const useWorld = (): World => {
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const g = window as unknown as Record<string, unknown>
   g.__game = useGame
+  void import('./devDemo').then((m) => { g.__demo = m.demo })
   void Promise.all([import('@sim/actions'), import('@sim/chips'), import('@sim/store'), import('@sim/world'), import('@sim/events'), import('@sim/dev'), import('@sim/managers')]).then(([A, C, S, W, E, D, M]) => { g.__sim = { A, C, S, W, E, D, M } })
 }

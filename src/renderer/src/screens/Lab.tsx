@@ -9,8 +9,9 @@ import { CorpLogo } from '../art/Logos'
 import { committed, gpu, hallServers, hasTech, techLevel, techSum, worstFabric, yearOf } from '@sim/util'
 import { dateOf, dur, flops, money, num, params } from '../format'
 import { useGame, useWorld } from '../store'
-import { Bar, Field, Num, Tabs } from '../ui'
+import { Bar, Field, Num, Summary, Tabs, Term } from '../ui'
 import * as PV from '@sim/preview'
+import * as Sum from '../summaries'
 
 const TABS = ['design', 'data', 'runs', 'models', 'evals'] as const
 
@@ -20,6 +21,7 @@ export function Lab() {
   return (
     <>
       <div className="page-head"><div><div className="eyebrow">Research lab</div><h1>Design a mind</h1></div><Tabs tabs={TABS} value={tab} onChange={setTab} /></div>
+      <Summary items={Sum.labSummary(w)} />
       {tab === 'design' && <Design onStart={() => setTab('runs')} onData={() => setTab('data')} />}
       {tab === 'data' && <DataMarket />}
       {tab === 'runs' && <Runs />}
@@ -110,7 +112,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
         <Field label="Compute"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></select></Field>
         <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
         <Field label={`Servers ${n}/${free} · ${num(n * 8)} GPUs`}><input type="range" min={1} max={Math.max(1, free)} value={n} onChange={(e) => setServers(+e.target.value)} /></Field>
-        <div className="dim" style={{ fontSize: 12.5 }}>MFU {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}{cloud ? ` · ${money(bill)}/h ≈ ${money(bill * (rate > 0 ? F / rate / 3600 : 0))} total` : ''}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
+        <div className="dim" style={{ fontSize: 12.5 }}><Term k="mfu">MFU</Term> {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}{cloud ? ` · ${money(bill)}/h ≈ ${money(bill * (rate > 0 ? F / rate / 3600 : 0))} total` : ''}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
         <button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Start training ${name}?`, PV.previewTraining(w, cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0), 'Train', (x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n }), { okMsg: 'Training started' }).then((r) => { if (r?.ok) onStart() }) }}>Start training</button>
       </div>
     </div>

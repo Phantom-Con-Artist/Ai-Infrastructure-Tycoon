@@ -4,9 +4,10 @@ import { ROLES, TRAITS, createLab, firePerson, giveRaise, hirePerson, labBoost, 
 import { BRANCHES, type Branch } from '@sim/data/tech'
 import { money } from '../format'
 import { useGame, useWorld } from '../store'
-import { Field, Tabs } from '../ui'
+import { Field, Summary, Tabs } from '../ui'
 import { Portrait } from '../art/People'
 import * as PV from '@sim/preview'
+import * as Sum from '../summaries'
 
 export function Team() {
   const [tab, setTab] = useState<'team' | 'hiring' | 'labs'>('team')
@@ -14,6 +15,7 @@ export function Team() {
   return (
     <>
       <div className="page-head"><div><div className="eyebrow">{w.people.length} people · payroll {money(payrollPerDay(w) * 365)}/yr</div><h1>Your people</h1></div><Tabs tabs={['team', 'hiring', 'labs'] as const} value={tab} onChange={setTab} /></div>
+      <Summary items={Sum.teamSummary(w)} />
       {tab === 'team' && <Org />}
       {tab === 'hiring' && <Hiring />}
       {tab === 'labs' && <Labs />}

@@ -7,7 +7,7 @@ import { coolingUnlocked, fabricUnlocked, hasTech } from '@sim/util'
 import { dateOf, money } from '../format'
 import { HallEditor } from '../three/HallEditor'
 import { useGame, useWorld } from '../store'
-import { EmptyState, Field, Num, Tabs } from '../ui'
+import { Advanced, EmptyState, Field, Num, Summary, Tabs, Term } from '../ui'
 import { EmptyHallArt, EmptyLand } from '../art/Illustrations'
 import { PowerFlow } from '../art/PowerFlow'
 import { WorldMap } from '../art/WorldMap'
@@ -69,18 +69,21 @@ function SiteView({ siteId, onNew }: { siteId: string; onNew: () => void }) {
     <>
       <div className="page-head">
         <div><div className="eyebrow">{r.name}</div><h1>{site.name}</h1>
-          <div className="row" style={{ marginTop: 10, gap: 8 }}>
-            <span className="tag"><Thermometer size={12} /> {site.ambientC.toFixed(0)}°C</span>
-            <span className="tag"><Zap size={12} /> ${site.priceMwh.toFixed(0)}/MWh</span>
-            <span className="tag">{site.demandMw.toFixed(2)} / {site.utilityMw} MW</span>
+          {(!site.gridUp || site.powerFactor < 1) && <div className="row" style={{ marginTop: 10, gap: 8 }}>
             {!site.gridUp && <span className="tag r">Grid down</span>}
             {site.powerFactor < 1 && <span className="tag r">Brownout {(site.powerFactor * 100).toFixed(0)}%</span>}
-          </div></div>
+          </div>}</div>
         <div className="row">
           {w.sites.length > 1 && <select value={site.id} onChange={(e) => selectSite(e.target.value)} style={{ width: 'auto' }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
           <button className="btn ghost" onClick={onNew}><Plus size={14} /> Site</button>
         </div>
       </div>
+      <Summary items={[
+        { label: 'Power used', value: `${site.demandMw.toFixed(1)} / ${site.utilityMw} MW`, tone: site.demandMw > site.utilityMw * 0.9 ? 'warn' : undefined, hint: 'from the grid feed' },
+        { label: 'Electricity', value: `$${site.priceMwh.toFixed(0)}/MWh`, hint: `${site.ambientC.toFixed(0)}°C outside` },
+        { label: 'Racks', value: site.halls.reduce((a, h) => a + h.racks.length, 0), hint: `${site.halls.length} hall${site.halls.length === 1 ? '' : 's'}` },
+        { label: 'Servers', value: site.halls.reduce((a, h) => a + h.racks.reduce((b, x) => b + x.servers, 0), 0), hint: `${Object.values(site.stock).reduce((a, n) => a + n, 0)} spare on the dock` }
+      ]} />
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 14 }}>
         <Tabs tabs={['floor', 'power'] as const} value={tab} onChange={setTab} />
         {tab === 'floor' && site.halls.length > 0 && <div className="row" style={{ gap: 6 }}>
@@ -144,24 +147,26 @@ function PowerTab({ siteId }: { siteId: string }) {
           {([['cost', 'Lowest cost', 'Cheapest source first. Gas when it beats the grid.'], ['green', 'Green', 'Renewables + batteries first, buys certificates, gas only in emergencies.'], ['resilient', 'Resilient', 'Keeps batteries 80% charged for outages.'], ['arbitrage', 'Arbitrage', 'Cycles batteries aggressively on price swings.']] as const).map(([k, n, b]) =>
             <button key={k} className={'adv' + (strat === k ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => act((x) => A.setPowerStrategy(x, siteId, k), undefined, { system: 'facilities' })}><b>{n}</b><span>{b}</span></button>)}
         </div>
-        <Field label={`Demand response: shed ${((site.drPct ?? 0) * 100).toFixed(0)}% of load during price spikes (paid 80% of spot)`}><input type="range" min={0} max={0.5} step={0.05} value={site.drPct ?? 0} onChange={(e) => act((x) => A.setDemandResponse(x, siteId, +e.target.value), undefined, { system: 'facilities' })} /></Field>
+        <Field label={`Demand response (DR): shed ${((site.drPct ?? 0) * 100).toFixed(0)}% of load during price spikes (paid 80% of spot)`}><input type="range" min={0} max={0.5} step={0.05} value={site.drPct ?? 0} onChange={(e) => act((x) => A.setDemandResponse(x, siteId, +e.target.value), undefined, { system: 'facilities' })} /></Field>
         {site.flow && site.flow.drCredit > 0 && <span className="tag g">earning {money(site.flow.drCredit)}/h from the grid right now</span>}
       </div>
     </div>
-    <div className="panel"><h2>Last 48 hours</h2><LineChart fmt={(v) => v.toFixed(1)} series={[{ name: 'Spot $/MWh', color: 'var(--amber)', data: h.map((x) => x.price) }, { name: 'Draw MW \u00d710', color: 'var(--blue)', data: h.map((x) => x.mw * 10) }, { name: 'Grid MW \u00d710', color: 'var(--tx-3)', data: h.map((x) => x.grid * 10), dash: true }]} /></div>
-    <div className="row" style={{ alignItems: 'flex-start', gap: 20 }}>
-      <div className="panel col" style={{ flex: 1 }}>
-        <h2>Power purchase agreement</h2>
-        {site.ppa && site.ppa.untilTick > w.tick ? <div>Hedged <b>{site.ppa.mw} MW</b> at <b>${site.ppa.price}/MWh</b> until {dateOf(site.ppa.untilTick)}</div> : <div className="dim" style={{ fontSize: 13 }}>Lock grid energy at <b>${A.ppaQuote(w, siteId)}/MWh</b> for 10 years. Protects you from spikes, costs you on cheap days.</div>}
-        <div className="row"><Field label="MW to hedge"><Num value={ppaMw} min={1} max={site.utilityMw} onChange={setPpaMw} /></Field><button className="btn" style={{ alignSelf: 'end' }} disabled={!hasTech(w, 'ppa')} onClick={() => void useGame.getState().confirmAct('Sign a 10-year power deal?', PV.previewPpa(w, siteId, ppaMw), 'Sign', (x) => A.signPpa(x, siteId, ppaMw), { system: 'finance' })}>{hasTech(w, 'ppa') ? 'Sign PPA' : 'Research PPAs'}</button></div>
-      </div>
-      <div className="panel col" style={{ flex: 1 }}>
+      <div className="panel col">
         <h2>Utility connection</h2>
         <div style={{ fontSize: 28, fontWeight: 650, letterSpacing: '-.03em' }}>{site.utilityMw} MW <span className="dim" style={{ fontSize: 14, fontWeight: 500 }}>of {rg.gridCapMw} MW regional headroom</span></div>
         <div className="bar"><i style={{ width: `${Math.min(100, (prov / Math.max(cap, 0.01)) * 100)}%` }} /></div>
         <div className="dim" style={{ fontSize: 12.5 }}>{prov.toFixed(1)} MW of PDUs provisioned against {cap.toFixed(1)} MW supply</div>
         {site.pendingUtility.map((p, i) => <div key={i} className="tag a">+{p.mw} MW energises {dateOf(p.readyTick)}</div>)}
         <div className="row"><Field label="Request MW ($1.3M/MW)"><Num value={mw} min={1} onChange={setMw} /></Field><button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => void useGame.getState().confirmAct(`Upgrade the grid feed by ${mw} MW?`, PV.previewSpend(w, mw * 1_300_000), 'Order', (x) => A.buyUtility(x, siteId, mw), { okMsg: 'Substation upgrade ordered', system: 'facilities' })}>Order {money(mw * 1_300_000)}</button></div>
+      </div>
+    <Advanced title="Price history, contracts & on-site generation">
+    <div className="col" style={{ gap: 16 }}>
+    <div className="panel"><h2>Last 48 hours</h2><LineChart fmt={(v) => v.toFixed(1)} series={[{ name: 'Spot $/MWh', color: 'var(--amber)', data: h.map((x) => x.price) }, { name: 'Draw MW \u00d710', color: 'var(--blue)', data: h.map((x) => x.mw * 10) }, { name: 'Grid MW \u00d710', color: 'var(--tx-3)', data: h.map((x) => x.grid * 10), dash: true }]} /></div>
+    <div className="row" style={{ alignItems: 'flex-start', gap: 20 }}>
+      <div className="panel col" style={{ flex: 1 }}>
+        <h2><Term k="ppa">Power purchase agreement</Term></h2>
+        {site.ppa && site.ppa.untilTick > w.tick ? <div>Hedged <b>{site.ppa.mw} MW</b> at <b>${site.ppa.price}/MWh</b> until {dateOf(site.ppa.untilTick)}</div> : <div className="dim" style={{ fontSize: 13 }}>Lock grid energy at <b>${A.ppaQuote(w, siteId)}/MWh</b> for 10 years. Protects you from spikes, costs you on cheap days.</div>}
+        <div className="row"><Field label="MW to hedge"><Num value={ppaMw} min={1} max={site.utilityMw} onChange={setPpaMw} /></Field><button className="btn" style={{ alignSelf: 'end' }} disabled={!hasTech(w, 'ppa')} onClick={() => void useGame.getState().confirmAct('Sign a 10-year power deal?', PV.previewPpa(w, siteId, ppaMw), 'Sign', (x) => A.signPpa(x, siteId, ppaMw), { system: 'finance' })}>{hasTech(w, 'ppa') ? 'Sign PPA' : 'Research PPAs'}</button></div>
       </div>
       <div className="panel col" style={{ flex: 1.3 }}>
         <h2>On-site generation & storage</h2>
@@ -175,6 +180,8 @@ function PowerTab({ siteId }: { siteId: string }) {
         <div><button className="btn pri" onClick={() => void useGame.getState().confirmAct(`Build ${GENERATORS[kind].name}?`, PV.previewSpend(w, gmw * GENERATORS[kind].usdPerMw + (kind === 'battery' ? gmwh * 280_000 : 0)), 'Build', (x) => A.buildGenerator(x, siteId, kind, gmw, gmwh), { okMsg: 'Construction started', system: 'facilities' })}>Build · {money(gmw * GENERATORS[kind].usdPerMw + (kind === 'battery' ? gmwh * 280_000 : 0))}</button></div>
       </div>
     </div>
+    </div>
+    </Advanced>
     </div>
   )
 }

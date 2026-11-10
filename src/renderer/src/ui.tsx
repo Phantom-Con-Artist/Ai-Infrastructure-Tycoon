@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { useGame } from './store'
+import { GLOSSARY } from './glossary'
 
 export function Bar({ v, max = 1, warnAt = 0.8, badAt = 0.97 }: { v: number; max?: number; warnAt?: number; badAt?: number }) {
   const f = max > 0 ? Math.max(0, Math.min(1, v / max)) : 0
@@ -29,4 +31,46 @@ export function Spark({ data, w = 220, h = 48, color = 'var(--phos)' }: { data: 
 
 export function EmptyState({ art, eyebrow, title, body, children }: { art: ReactNode; eyebrow: string; title: string; body: ReactNode; children?: ReactNode }) {
   return <div className="empty"><div>{art}</div><div><div className="eyebrow">{eyebrow}</div><h2>{title}</h2><p>{body}</p>{children && <div className="acts">{children}</div>}</div></div>
+}
+
+/*
+ * Simple-first screen pattern. Art direction: a calm instrument panel — every screen opens with three or four big,
+ * quiet numbers (Summary), then the two or three moves that matter now (PrimaryActions). Everything else is still one
+ * click away inside Advanced, which expert players can open by default from Settings.
+ */
+export interface SummaryItem { label: string; value: ReactNode; hint?: string; tone?: 'pos' | 'neg' | 'warn' }
+export function Summary({ items }: { items: SummaryItem[] }) {
+  return (
+    <div className="summary">
+      {items.map((it) => (
+        <div key={it.label} className={'sum ' + (it.tone ?? '')}>
+          <span className="k">{it.label}</span>
+          <span className="v">{it.value}</span>
+          {it.hint && <span className="h">{it.hint}</span>}
+        </div>
+      ))}
+    </div>
+  )
+}
+export function PrimaryActions({ children }: { children: ReactNode }) {
+  return <div className="primary-actions">{children}</div>
+}
+export function Advanced({ title = 'All controls', defaultOpen, children }: { title?: string; defaultOpen?: boolean; children: ReactNode }) {
+  const expert = useGame((s) => s.settings.expertMode)
+  const [open, setOpen] = useState<boolean | null>(null)
+  const shown = open ?? defaultOpen ?? expert
+  return (
+    <section className={'advanced ' + (shown ? 'open' : '')}>
+      <button className="adv-toggle" aria-expanded={shown} onClick={() => setOpen(!shown)}>
+        <span>{title}</span><i aria-hidden>{shown ? '−' : '+'}</i>
+      </button>
+      {shown && <div className="adv-body">{children}</div>}
+    </section>
+  )
+}
+/** Jargon with a dotted underline; hover or focus for a one-line explanation. */
+export function Term({ k, children }: { k: string; children: ReactNode }) {
+  const tip = GLOSSARY[k]
+  if (!tip) return <>{children}</>
+  return <span className="term" tabIndex={0}>{children}<span className="term-tip" role="tooltip">{tip}</span></span>
 }

@@ -1,12 +1,24 @@
 /** HQ advisor: the next few things worth doing, worked out from the world, plus a gentle milestone chain. */
 import { EQUIP } from './data/equipment'
 import { fleetStats } from './world'
-import { pushNews, clamp } from './util'
+import { clamp, committed, pushNews } from './util'
 import type { World } from './types'
 
 export interface Step { id: string; title: string; body: string; screen: string; focus?: string; severity: 0 | 1 | 2 }
 
 const MAX_STEPS = 3
+
+/** Installed, working and committed servers across all sites (servers, not GPUs; ×8 for GPUs). */
+export function fleetUse(w: World): { servers: number; healthy: number; committed: number } {
+  let servers = 0, healthy = 0, used = 0
+  for (const s of w.sites) {
+    const ids = new Set<string>()
+    for (const h of s.halls) for (const r of h.racks) if (r.gpuId && r.servers > 0) ids.add(r.gpuId)
+    for (const id of ids) used += committed(w, s.id, id)
+  }
+  for (const st of fleetStats(w).values()) { servers += st.total; healthy += st.healthy }
+  return { servers, healthy, committed: Math.min(used, healthy) }
+}
 
 /** Average net cash flow per day over the last 14 ledger days (negative = burning). */
 function netPerDay(w: World): number {
@@ -49,9 +61,9 @@ const RULES: Rule[] = [
     return ready && !installed ? { id: 'no-servers', severity: 1, screen: 'fleet', title: 'Your hall is ready — fill it with servers', body: 'Order GPU servers, then install them into racks.' } : null
   },
   (w) => {
-    let healthy = 0, busy = 0
-    for (const st of fleetStats(w).values()) { healthy += st.healthy; busy += st.busy }
-    return healthy > 0 && busy / healthy < 0.75 ? { id: 'idle-gpus', severity: 1, screen: 'fleet', title: `${Math.round(100 * (1 - busy / healthy))}% of your GPUs are idle`, body: 'Rent them out, take a training contract, or serve a model.' } : null
+    const u = fleetUse(w)
+    const busy = u.healthy > 0 ? u.committed / u.healthy : 1
+    return u.healthy > 0 && busy < 0.75 ? { id: 'idle-gpus', severity: 1, screen: 'fleet', title: `${Math.round(100 * (1 - busy))}% of your GPUs are idle`, body: 'Rent them out, take a training contract, or serve a model.' } : null
   },
   (w) => w.models.some((m) => m.owner === 'player' && m.releasedByPlayer) && !w.products.length ? { id: 'no-product', severity: 0, screen: 'store', title: 'Turn your model into a product', body: 'A chat app or an API earns far more than raw tokens.' } : null,
   (w) => w.sites.length && !w.research.current ? { id: 'research-idle', severity: 0, screen: 'research', title: 'Your researchers are idle', body: 'Pick something to research. Cooling and power techs pay off first.' } : null

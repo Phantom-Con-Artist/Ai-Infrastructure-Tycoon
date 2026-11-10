@@ -8,8 +8,9 @@ import { creditLimit, debt, SALARY } from '@sim/world'
 import { ipo } from '@sim/corporate'
 import { dateOf, dur, money, num } from '../format'
 import { useGame, useWorld } from '../store'
-import { Bar, Field, Head, Num, Spark } from '../ui'
+import { Advanced, Bar, Field, Head, Num, Spark, Summary } from '../ui'
 import * as PV from '@sim/preview'
+import * as Sum from '../summaries'
 
 export function Contracts() {
   const w = useWorld(); const act = useGame((s) => s.act)
@@ -19,6 +20,7 @@ export function Contracts() {
   return (
     <>
       <Head title="Contract Training" sub="Other companies pay you to train their models on your iron. Deliver before the deadline or eat penalties. Offers scale with the size of your biggest cluster." />
+      <Summary items={Sum.contractsSummary(w)} />
       {mine.length > 0 && <><h2>In progress</h2><div className="col" style={{ marginBottom: 28 }}>{mine.map((c) => { const r = w.runs.find((x) => x.id === c.runId); return <div key={c.id} className="panel row" style={{ justifyContent: 'space-between' }}><div><b>{c.modelName}</b> for {c.customer}<div className="dim" style={{ fontSize: 12 }}>due {dateOf(c.deadlineTick)} · pays {money(c.payUsd)}</div></div><div style={{ width: 220 }}><Bar v={r ? r.flopsDone / r.flopsTotal : 0} max={1} warnAt={2} badAt={2} /><div className="mono dim" style={{ fontSize: 11 }}>{r ? dur(r.etaH) : ''} left · {w.tick > c.deadlineTick ? 'LATE' : 'on track'}</div></div></div> })}</div></>}
       <h2>Offers</h2>
       <div className="col">
@@ -70,6 +72,7 @@ export function Research() {
     <>
       <div className="page-head"><div><div className="eyebrow">{doneCount} upgrades researched · {w.staff.researchers} researchers</div><h1>Research & Development</h1>
         <p className="sub">Everything in the game unlocks here. Tiers go deeper than you can afford — on purpose. Upgrades marked ∞ can be researched forever.</p></div></div>
+      <Summary items={Sum.researchSummary(w)} />
       {cur && <div className="panel row" style={{ marginBottom: 18, gap: 18 }}>
         <div style={{ flex: 1 }}><div className="eyebrow">Researching</div><h3>{cur.name}{cur.repeatable ? ` ${roman(curLv + 1)}` : ''}</h3>
           <div className="bar" style={{ marginTop: 8 }}><i style={{ width: `${(w.research.progressUsd / techCost(cur, curLv)) * 100}%` }} /></div></div>
@@ -111,7 +114,8 @@ export function Finance() {
   const last = w.ledger.slice(-14)
   return (
     <>
-      <Head title="Finance & People" sub="Leverage buys GPUs; GPUs depreciate faster than you think." />
+      <Head title="Finance" sub="Leverage buys GPUs; GPUs depreciate faster than you think." />
+      <Summary items={Sum.financeSummary(w)} />
       <div className="row" style={{ alignItems: 'flex-start', gap: 28 }}>
         <div className="col" style={{ flex: 1 }}>
           <div className="panel col">
@@ -130,14 +134,16 @@ export function Finance() {
           </div>
         </div>
         <div className="col" style={{ flex: 1.2 }}>
+          <div className="panel"><h2>Revenue stream (90d)</h2><Spark w={560} h={80} data={w.ledger.slice(-90).map((d) => d.revenue)} /></div>
+          <Advanced title="Daily profit & loss, footprint">
           <div className="panel">
             <h2>Daily P&L, last 14 days</h2>
             <table><thead><tr><th>Day</th><th className="r">Revenue</th><th className="r">Power</th><th className="r">Staff</th><th className="r">Opex</th><th className="r">Capex</th></tr></thead><tbody>
               {[...last].reverse().map((d) => <tr key={d.day}><td className="mono">{d.day}</td><td className="r mono pos">{money(d.revenue)}</td><td className="r mono">{money(d.powerCost)}</td><td className="r mono">{money(d.staffCost)}</td><td className="r mono">{money(d.opex)}</td><td className="r mono dim">{money(d.capex)}</td></tr>)}
             </tbody></table>
           </div>
-          <div className="panel"><h2>Revenue stream (90d)</h2><Spark w={560} h={80} data={w.ledger.slice(-90).map((d) => d.revenue)} /></div>
           <div className="panel"><h2>Footprint</h2><div className="mono">{num(w.totalTco2)} tCO₂ emitted · {num(w.totalWaterL)} L water evaporated</div></div>
+          </Advanced>
         </div>
       </div>
     </>

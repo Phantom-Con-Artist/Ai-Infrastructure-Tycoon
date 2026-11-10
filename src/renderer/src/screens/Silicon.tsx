@@ -7,10 +7,11 @@ import { evaluateChip, type ChipSpec } from '@sim/silicon'
 import { hasTech, yearOf } from '@sim/util'
 import { dateOf, money, num, sci } from '../format'
 import { useGame, useWorld } from '../store'
-import { EmptyState, Field, Num, Tabs } from '../ui'
+import { EmptyState, Field, Num, Summary, Tabs } from '../ui'
 import { Floorplan, WaferMap } from '../art/ChipArt'
 import { GpuArt } from '../art/GpuArt'
 import * as PV from '@sim/preview'
+import * as Sum from '../summaries'
 
 const NAMES = ['Dreamchip', 'Hyperion', 'Thunderdie', 'Overclockasaurus', 'Gigabrain', 'Siliconthesizer', 'MegaMatmul', 'Tensorus Rex', 'Chonk']
 
@@ -28,6 +29,7 @@ export function Silicon() {
     <>
       <div className="page-head"><div><div className="eyebrow">Silicon division</div><h1>Make your dream chip</h1></div>
         <Tabs tabs={['designer', 'products', 'fab'] as const} value={tab} onChange={setTab} /></div>
+      <Summary items={Sum.siliconSummary(w)} />
       {tab === 'designer' && <Designer onDone={() => setTab('products')} />}
       {tab === 'products' && <Products onNew={() => setTab('designer')} />}
       {tab === 'fab' && <FabView />}

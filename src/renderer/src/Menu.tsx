@@ -105,6 +105,8 @@ function SettingsSheet({ onBack }: { onBack: () => void }) {
       <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.skipIntro} onChange={(e) => setSettings({ skipIntro: e.target.checked })} /> Skip the studio intro</label>
       <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.reduceMotion} onChange={(e) => setSettings({ reduceMotion: e.target.checked })} /> Reduce motion</label>
       <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.confirmQuit} onChange={(e) => setSettings({ confirmQuit: e.target.checked })} /> Save automatically when quitting to the menu</label>
+      <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.expertMode} onChange={(e) => setSettings({ expertMode: e.target.checked })} /> Expert mode — open every “All controls” section by default</label>
+      <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.confirmExpensive} onChange={(e) => setSettings({ confirmExpensive: e.target.checked })} /> Ask before big purchases (over 25% of cash)</label>
     </div>
   )
 }
