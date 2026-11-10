@@ -91,4 +91,5 @@ export interface World {
   silicon: Silicon; customGpus: GpuSpec[]
   datasets: Record<string, number>
   rivals: import('./corporate').Rival[]; founderStake: number; public?: boolean; keynotes?: number
+  web: import('./web').WebPresence
 }

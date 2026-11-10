@@ -1,6 +1,7 @@
 import { CUSTOMERS, RIVAL_RELEASES, corp } from './data/lore'
 import { GPUS_PER_SERVER, gpuCatalog, serverPriceUsd, type GpuSpec } from './data/hardware'
 import { referencePrice } from './ai'
+import { webQuality } from './web'
 import { gauss, pick, range, rnd } from './rng'
 import { HOURS_PER_YEAR, type Competitor, type Contract, type World } from './types'
 import { clamp, newId, pushNews, siteServers, techSum, yearOf } from './util'
@@ -106,7 +107,7 @@ export function modelShare(w: World): Map<string, number> {
   for (const m of w.models) {
     if (m.owner !== 'player' || !m.releasedByPlayer) continue
     const hype = 1 + (w.advisor === 'pr' ? 0.06 : 0)
-    entries.push({ id: m.id, u: (m.elo - 1500) / 110 - Math.log(Math.max(0.01, m.priceMtok)) + Math.log(hype) + Math.log(1 + (m.hype ?? 0)) + (w.reputation - 50) / 120 })
+    entries.push({ id: m.id, u: (m.elo - 1500) / 110 - Math.log(Math.max(0.01, m.priceMtok)) + Math.log(hype) + Math.log(1 + (m.hype ?? 0)) + webQuality(w) * 0.15 + (w.reputation - 50) / 120 })
   }
   void years
   const mx = Math.max(...entries.map((e) => e.u))
