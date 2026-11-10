@@ -206,7 +206,8 @@ a.chip:hover { color: var(--mint); box-shadow: inset 0 0 0 1px var(--mint-deep);
 .links svg { width: 18px; height: 18px; flex: none; }
 
 /* ---------- Documentation ---------- */
-.docs { display: grid; gap: 0 56px; }
+.docs { display: grid; gap: 0 56px; grid-template-columns: minmax(0, 1fr); }
+.docs > * { min-width: 0; } /* long code lines scroll inside their block instead of widening the page */
 .docs__toc { display: none; }
 @media (min-width: 1080px) {
   .docs { grid-template-columns: 210px minmax(0, 1fr); align-items: start; }

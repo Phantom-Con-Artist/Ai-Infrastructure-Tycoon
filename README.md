@@ -100,12 +100,16 @@ The only lose condition is running out of money for 30 days.
 | ⚡ **Power** | Utility feeds, solar, wind, gas, batteries, geothermal and eventually small reactors. Choose a dispatch strategy and sign PPAs. |
 | ❄️ **Cool** | Air, rear-door, direct-to-chip, immersion. Air can't handle a Blackwall-class rack, and physics will remind you. |
 | 🔩 **Silicon** | Design GPUs and CPUs from process node to HBM stack in a live 3D package, with finishes and 12 absurd-but-real mods. Tape out, buy wafers or build your own fab with EUV scanners, then sell chips. Or design your own 8-GPU server nodes around anyone's GPU. |
-| 🧠 **Models** | Real transformer maths (GQA, MLA, mixture-of-experts), a dataset market with "legal risk", and benchmark scores that depend on your data mix. Six modalities as separate business lines; train from scratch, fine-tune, distil or continue pre-training from your models or open weights. |
-| 🛍️ **Products** | Chat apps, coding agents, an API platform with keys and rate limits, and enterprise seats. You design the plans. |
+| 🧠 **Models** | Real transformer maths (GQA, MLA, mixture-of-experts), a dataset market with "legal risk", and benchmark scores that depend on your data mix. Seven modalities (chat, coding, image, speech, music, video, omni) as separate business lines, each raced against its own field of specialist rivals; train from scratch, fine-tune, distil or continue pre-training from your models or open weights. |
+| 🛍️ **Products** | Chat apps, coding agents, an API platform with keys and rate limits, and enterprise seats. You design the plans, build features one at a time, choose a support tier and run price experiments. |
+| 🗃️ **Data** | Buy datasets from a market that restocks every quarter, or run your own data projects: scrape, license, pay experts, generate with your model, or log your users. License what you make to rivals, or sell it outright. |
+| 🔬 **Research** | 154 technologies in 16 branches with a queue. A Mastery skill line for every kind of model, and final levels that can be repeated for ever. |
+| 🤝 **Organisations** | Companies buy seats on your models with an uptime promise. Sign, or ask for more with the odds shown. Serve them well and they renew bigger; starve them and they leave. |
+| 🌍 **Society** | Nothing scripted: public trust, regulation, AI slop on the internet and your own safety debt move because of what you do, and push back. Laws pass, agents misbehave, rivals gang up on the leader. |
 | ☁️ **Cloud** | Rent out GPU and CPU servers on-demand, reserved or spot, or rent compute yourself when you're short. |
 | 👥 **People** | Hire named weirdos with traits, keep them happy, and watch rivals poach your best ones. |
 | 🏆 **Rivals** | 35 parody companies with CEOs and brand marks, rival campuses on a network globe, leaderboards, acquisitions (if regulators let you), an IPO, a rich list, and 32 achievements. |
-| 🧭 **Guidance** | HQ suggests the next few things worth doing. Hire managers for facilities, sales, people, finance and research and let them run on autopilot; they ask before anything you can't undo. |
+| 🧭 **Guidance** | Every screen opens with what it is for, what is yours and what is not. The training screen forecasts quality, time and cost and names the bottleneck. HQ lists everything in progress and suggests the next few things worth doing. Hire managers for facilities, sales, people, finance and research and let them run on autopilot; they ask before anything you can't undo. |
 | 🛡️ **Safety net** | Anything irreversible asks first (hold to confirm), big purchases show your cash afterwards, and small edits can be undone for five seconds. |
 | 📰 **News** | A headline ticker, a news drawer you can filter, and The Daily Compute every morning. |
 | 🧪 **Sandbox** | Your own rules: unlimited cash, no bankruptcy, six difficulty sliders and a developer panel. |
@@ -170,9 +174,18 @@ src/
 resources/       App icon
 tools/blender/   Python used to build the 3D assets in Blender
 docs/            Design notes, roadmap, screenshots
+apps/site/       The website: landing page, documentation, about (Astro, Cloudflare Pages)
+apps/motion/     Remotion clips for the website, cut from screenshots of the game
 ```
 
 There's more in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Website
+
+The landing page, documentation and about page live in [apps/site](apps/site): static Astro, styled after the game's
+title screen, built for Cloudflare Pages (root directory `apps/site`, build `npm run build`, output `dist`).
+The clips on it are rendered from screenshots of the game by [apps/motion](apps/motion) with Remotion.
+See [apps/README.md](apps/README.md).
 
 ## Contributing
 
@@ -198,7 +211,3 @@ Made by **[Phantom-Con Artist](https://github.com/Phantom-Con-Artist)** with
 [Claude Code](https://claude.com/claude-code).
 
 <div align="center"><sub>No GPUs were harmed in the making of this game. Several were simulated to death.</sub></div>
-
-## Website
-
-The landing page, documentation and about page live in [apps/site](apps/site) (Astro, deployed to Cloudflare Pages). The clips on it are rendered from screenshots of the game by [apps/motion](apps/motion) (Remotion). See [apps/README.md](apps/README.md).

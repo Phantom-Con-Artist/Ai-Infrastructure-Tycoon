@@ -35,14 +35,28 @@ Status: ✅ done · 🟡 partial · ⬜ todo
 - ✅ 3D chip studio: package built from the spec, exploded view, finishes, 12 absurd-but-real mods with visible props
 - ✅ Model Foundry: six modalities with their own price and demand, a Modalities R&D branch, and scratch / fine-tune / distil / continue from your models or open weights
 - ✅ Simpler dark title screen
+- ✅ Fix & clarify: same-day orders stack into one shipment; one progress bar for deliveries, builds, power, training, tape-outs, research, data projects and product work; HQ "In progress" list; hiring board replaced weekly with a countdown; rack roof strips colour-coded by state
+- ✅ Dataset market restocks with a larger edition every quarter
+- ✅ Training forecast ("What you'll get"): expected Elo against the best rival, time, cost, the bottleneck in one sentence, and curves for size and data; five own-design starting sizes; numbered steps
+- ✅ Music as a seventh modality; a separate field of specialist rivals and a separate market race for every modality
+- ✅ Data Foundry: scrape, license, expert-label, synthetic or user-conversation projects; license or sell what you make
+- ✅ Organisations: seat contracts with an uptime promise, counter-offers with odds shown, support tiers, renewals and cancellations
+- ✅ Product team: eleven features built one at a time, three support tiers, two-week price experiments
+- ✅ Society: public trust, regulation and three laws, AI slop degrading crawled data, safety debt and agent incidents, rivals chasing the leader, price wars
+- ✅ Research grown to 154 technologies in 16 branches (Data, Products, Safety, Mastery added), with uncapped final levels and an absurd late game
+- ✅ Per-screen guide (what this is, yours, not yours), plain tab labels, Lenis inertia scrolling
+- ✅ A four-year soak test and a scripted five-year career as a balance check; whole-branch review and its ten fixes
+- ✅ Linux AppImage via `npm run dist`
+- ✅ Website in `apps/site` (Astro, Cloudflare Pages) with Remotion clips from `apps/motion`
 
-## Next (agreed order)
-1. Per-modality competition — image, speech, code and video rivals of their own (Halfjourney, ElevenLaps, Cursed …)
-2. Data Foundry — make, label and sell datasets per modality
-4. Silicon from scratch — deeper chip design
-5. Story & media — press conferences, richer websites, trailers, secret events
+## Next
+1. Publish: upload packaged builds to GitHub Releases (Windows and macOS need building on those systems) and deploy the website
+2. Balance from real play: the early game is harsh (a full medium hall costs $15M of the $40M start; research before income bankrupts by day 150)
+3. Declutter individual screens now that every one has a guide
+4. More emergent loops: a talent market, local grid backlash, alumni startups
+5. Silicon from scratch: deeper chip design
+6. Story and media: press conferences, richer websites, trailers, secret events
 
 ## Ideas for later
 - Images made with the agy image-generation tool (transparent PNGs)
-- Balance pass: a small first cluster hovers around break-even
 - Multi-site training (tech exists), orbital data centers / Dyson swarm gameplay, export trailers to MP4, sound design

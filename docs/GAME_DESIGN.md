@@ -40,19 +40,52 @@ hour by hour with real-world physics and economics, then exaggerated just enough
   with a focus (Scaling, Efficiency, Safety, Hardware).
 - **Models** — train with real scaling laws (6·N·D FLOPs, Chinchilla loss), post-train, launch with
   a **keynote**, and fight for market share on the Elo leaderboard.
-- **Model Foundry** — text, code, image, speech, video and omni models are separate business lines with their own
-  price and demand, unlocked through the Modalities branch. Make them from scratch, by fine-tuning (cheap, capped
+- **Model Foundry** — text, code, image, speech, music, video and omni models are separate business lines with their own
+  price, demand and field of specialist rivals (an image model takes share from image studios, not chatbots), unlocked through the Modalities branch. Make them from scratch, by fine-tuning (cheap, capped
   gain), by distilling a smaller student from a stronger teacher (closes 60% of the gap, never passes it), or by
   continued pre-training. Bases are your own models or open-weights templates; switching modality costs Elo.
 
+- **Data Foundry** — make datasets instead of only buying them. A project turns a daily budget into tokens from one
+  of five sources (scrape, license, human experts, synthetic, your users' conversations), each trading cost, quality
+  and risk. License the result to rivals for daily income (it makes them slightly better) or sell it outright.
+  Small sets are worth their size, large ones flatten out, and a sale never pays much more than the set cost to make.
+- **Products and organisations** — consumer products get a product team (features built one at a time, a support
+  tier, two-week price experiments). Organisations buy seats under a contract with an uptime promise; they can be
+  countered at shown odds, renew larger when served well and cancel when starved. Everything is served from the
+  same deployments, so success in one place is paid for in another.
+- **Research** — 154 technologies in 16 branches with a queue. Mastery is a skill line per modality; the last level
+  of most branches is uncapped.
+
+## Emergent layer
+
+Four numbers in `sim/society.ts` are moved only by what the player and the industry do, and each feeds the others:
+
+- **AI slop** rises with tokens served and synthetic data. Crawled dataset editions lose quality; human-made data
+  the player owns gains licence value.
+- **Public trust** falls with risky datasets, logging users, incidents and safety debt, and rises with Safety
+  research. Reputation drifts towards it, and reputation already drives users, hiring and deals.
+- **Regulation pressure** grows with market share above a fifth and with low trust. Laws pass at 35, 60 and 85
+  (Data Act, compute levy, antitrust decree).
+- **Safety debt** is capability beyond safety research. Above 0.5 agents misbehave inside products; far above it a
+  one-off breakout can happen.
+
+Rivals respond as well: they close the gap faster on a leader, start a price war when undercut by a player with real
+share, and improve when licensed the player's data. None of this is scheduled.
+
 ## Long loop (endless)
 
+- The dataset market restocks with a larger edition every quarter, and the last research levels never run out.
 - New silicon generations arrive every two years, forever. Rivals ship new models every ~9 months.
   Markets run on hype cycles, supply crunches, heat waves, grid outages and lawsuits.
 - Goals are open: valuation milestones, the #1 model, a 1 GW campus, a wafer-scale monster chip.
   You lose by bankruptcy (30 days of negative cash).
 
 ## Approachability layer
+
+- Every screen opens with a guide strip: what the screen is for, what on it is the player's, what belongs to someone
+  else, and the next sensible move. It can be hidden per screen.
+- The training screen is five numbered steps and ends in a forecast in plain words that names the bottleneck.
+- Anything timed shows the same progress bar, and HQ lists all of it.
 
 Nothing is removed to make the game easier; complexity is folded away and can be handed off.
 

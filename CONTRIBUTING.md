@@ -63,3 +63,9 @@ Plain English is fine. Say what changed and, if it isn't obvious, why.
 ## Questions
 
 Open an issue or start a discussion. There are no stupid questions, only underpowered PDUs.
+
+## The website
+
+The site in `apps/site` and the Remotion project in `apps/motion` are separate packages with their own installs
+(`cd apps/site && npm install && npm run dev`). Copy lives in `apps/site/src/data`. Jokes on the site are quoted from the
+game's own text; if you change a line in the game, change it there too. See [apps/README.md](apps/README.md).
