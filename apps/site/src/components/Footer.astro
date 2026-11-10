@@ -1,0 +1,34 @@
+---
+import Icon from './Icon.astro';
+import { LINKS, GAME } from '../data/site';
+interface Props { cta?: boolean }
+const { cta = true } = Astro.props;
+---
+{cta && (
+  <section class="cta wrap" aria-labelledby="cta-title">
+    <span class="eyebrow">Free. Open source. Slightly unhinged.</span>
+    <h2 id="cta-title" class="h1">Go on. <em>Rack something.</em></h2>
+    <p class="lead">Version {GAME.version}. No account, no shop, no telemetry. If it breaks, you get to keep both halves.</p>
+    <div class="btn-row" style="justify-content:center">
+      <a class="btn" href={LINKS.releases} target="_blank" rel="noopener">Get the game <Icon name="download" /></a>
+      <a class="btn btn--ghost" href={LINKS.repo} target="_blank" rel="noopener">Source on GitHub <Icon name="github" /></a>
+    </div>
+  </section>
+)}
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer__row">
+      <span>© {new Date().getFullYear()} {GAME.studio} · {GAME.licence} licence</span>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs">Documentation</a>
+        <a href="/about">About</a>
+        <a href={LINKS.repo} target="_blank" rel="noopener">GitHub</a>
+        <a href={LINKS.releases} target="_blank" rel="noopener">Releases</a>
+        <a href={LINKS.issues} target="_blank" rel="noopener">Report a bug</a>
+        <a href={LINKS.disclaimer} target="_blank" rel="noopener">Disclaimer</a>
+      </nav>
+    </div>
+    <p>Every company, person, product and headline in the game is a parody. Not affiliated with, or endorsed by, anyone real.</p>
+  </div>
+</footer>

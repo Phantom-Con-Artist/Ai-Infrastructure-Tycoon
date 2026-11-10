@@ -1,0 +1,49 @@
+---
+import '../styles/site.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import { GAME } from '../data/site';
+
+interface Props { title?: string; description?: string; cta?: boolean }
+const {
+  title = `${GAME.name}: build the machine that thinks`,
+  description = 'A free, open-source parody management game. Buy land, wire megawatts, rack GPUs, train frontier models, ship products and outlast 35 rivals who want the same power line.',
+  cta = true,
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#0f1424" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={new URL('/og.jpg', Astro.site).href} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- Reveals start hidden only when motion is allowed, and only if the script actually boots. -->
+    <script is:inline>
+      (function () {
+        var d = document.documentElement;
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        d.classList.add('motion');
+        setTimeout(function () { if (!window.__siteReady) d.classList.remove('motion'); }, 2500);
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <Nav />
+    <main id="main"><slot /></main>
+    <Footer cta={cta} />
+    <script>
+      import '../scripts/site';
+    </script>
+  </body>
+</html>

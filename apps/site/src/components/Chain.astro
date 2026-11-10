@@ -1,0 +1,17 @@
+---
+/** Cause and effect as a row of boxes joined by arrows. Reads as an ordered list without CSS. */
+import Icon from './Icon.astro';
+import type { Flow } from '../data/site';
+interface Props { flow: Flow; label: string }
+const { flow, label } = Astro.props;
+const out = flow.outcomes ?? [];
+---
+<ol class="chain" aria-label={label}>
+  {flow.steps.map((s, i) => (
+    <li>
+      <span>{s.title}{s.note && <small>{s.note}</small>}</span>
+      {(i < flow.steps.length - 1 || out.length > 0) && <Icon name="arrow" />}
+    </li>
+  ))}
+  {out.length > 0 && <li class="out"><span>{out.join(' · ')}</span></li>}
+</ol>

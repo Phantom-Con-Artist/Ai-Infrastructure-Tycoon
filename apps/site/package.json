@@ -1,0 +1,23 @@
+{
+  "name": "@ai-infra-tycoon/site",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Landing, documentation and about pages for AI Infrastructure Tycoon (Astro, Cloudflare Pages).",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "astro": "^7.4.7",
+    "lenis": "^1.3.27"
+  }
+}

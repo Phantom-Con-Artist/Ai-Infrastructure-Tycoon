@@ -198,3 +198,7 @@ Made by **[Phantom-Con Artist](https://github.com/Phantom-Con-Artist)** with
 [Claude Code](https://claude.com/claude-code).
 
 <div align="center"><sub>No GPUs were harmed in the making of this game. Several were simulated to death.</sub></div>
+
+## Website
+
+The landing page, documentation and about page live in [apps/site](apps/site) (Astro, deployed to Cloudflare Pages). The clips on it are rendered from screenshots of the game by [apps/motion](apps/motion) (Remotion). See [apps/README.md](apps/README.md).

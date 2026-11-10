@@ -1,0 +1,351 @@
+---
+import { Image } from 'astro:assets';
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import Chain from '../components/Chain.astro';
+import { shot } from '../data/shots';
+import { LINKS, type Flow as FlowData } from '../data/site';
+
+const SECTIONS = [
+  ['install', 'Install'],
+  ['first-hour', 'Your first hour'],
+  ['screens', 'The six hubs'],
+  ['build', 'Sites and halls'],
+  ['fleet', 'Servers and silicon'],
+  ['models', 'Training models'],
+  ['data', 'Data'],
+  ['research', 'Research'],
+  ['products', 'Products and deals'],
+  ['people', 'People and managers'],
+  ['society', 'How the world reacts'],
+  ['controls', 'Controls and saves'],
+  ['trouble', 'Troubleshooting'],
+] as const;
+
+const firstHour: FlowData = {
+  steps: [
+    { title: 'Buy land', note: 'Cheap power, cool weather' },
+    { title: 'Build a hall', note: 'Order servers the same day' },
+    { title: 'Lay out one row', note: 'Racks, power, cooling' },
+    { title: 'Install and rent out', note: 'First income' },
+  ],
+  outcomes: ['Then: train a model'],
+};
+const training: FlowData = {
+  steps: [
+    { title: 'What are you making?', note: 'Kind of model and method' },
+    { title: 'Shape the model', note: 'Your own size or a rival recipe' },
+    { title: 'Feed it data', note: 'Mix the datasets you own' },
+    { title: 'Read the forecast', note: 'Quality, time, cost, bottleneck' },
+  ],
+  outcomes: ['Train, then launch it'],
+};
+---
+<Layout title="Documentation | AI Infrastructure Tycoon" description="How to install and play AI Infrastructure Tycoon: your first hour, building halls, buying servers, training models, data, research, products, people, and how the world reacts.">
+  <section class="phero">
+    <div class="wrap">
+      <h1 class="h1" data-rise>How to play, from an <em>empty field</em> to a frontier lab</h1>
+      <p class="lead" data-rise>Everything here matches the current build. Start with the first hour, then read a section when the game asks something of you.</p>
+      <nav class="jump" aria-label="Sections" data-rise>
+        {SECTIONS.slice(0, 7).map(([id, label]) => <a class="chip" href={`#${id}`}>{label}</a>)}
+      </nav>
+    </div>
+  </section>
+
+  <div class="wrap docs">
+    <nav class="docs__toc" aria-label="On this page">
+      <b>On this page</b>
+      {SECTIONS.map(([id, label]) => <a href={`#${id}`}>{label}</a>)}
+    </nav>
+
+    <div>
+      <section class="program" id="install" aria-labelledby="install-h">
+        <div class="program__head">
+          <h2 id="install-h" class="h2" data-rise>Install</h2>
+          <p data-rise>The game is a desktop app. Take a packaged build from the releases page if there is one for your system, or build it yourself in a few minutes.</p>
+        </div>
+        <div class="prose" data-rise>
+          <h3>Download</h3>
+          <p>Packaged builds are published on the <a class="link" href={LINKS.releases} target="_blank" rel="noopener">GitHub releases page</a>. On Linux the build is a single AppImage: make it executable and run it.</p>
+          <pre class="code">chmod +x "AI Infrastructure Tycoon-0.1.0-beta.AppImage"
+./"AI Infrastructure Tycoon-0.1.0-beta.AppImage"</pre>
+          <h3>Build from source</h3>
+          <p>You need Node.js 22 or newer and git. The same commands work on Linux, Windows and macOS; the packaging step produces an installer for the system you run it on.</p>
+          <pre class="code">git clone {LINKS.clone}
+cd Ai-Infrastructure-Tycoon
+npm install
+<i># play straight from source</i>
+npm run dev
+<i># or make a packaged app in ./release</i>
+npm run dist</pre>
+          <h3>Play in a browser</h3>
+          <p>There is a browser build meant for development. It keeps saves in the browser instead of a file.</p>
+          <pre class="code">npm run web      <i># then open http://localhost:5199</i></pre>
+        </div>
+      </section>
+
+      <section class="program" id="first-hour" aria-labelledby="first-h">
+        <div class="program__head">
+          <h2 id="first-h" class="h2" data-rise>Your first hour</h2>
+          <p data-rise>You start with $40 million and nothing else. The aim of the first hour is one row of servers earning rent, because nothing else pays until you have a model.</p>
+        </div>
+        <Chain flow={firstHour} label="Your first hour" />
+        <div class="prose" data-rise>
+          <ol>
+            <li><b>Buy land</b> under Build, Sites. Look for a low power price and a cool climate: both cut your bill every hour for the rest of the game.</li>
+            <li><b>Build a hall.</b> A medium, air-cooled hall is enough. It takes about eleven weeks to build.</li>
+            <li><b>Order servers on the same day.</b> Delivery takes about as long as the build, so ordering later means an empty hall.</li>
+            <li><b>Lay out one row, not the whole floor.</b> Filling a medium hall with racks costs about $15 million, which is most of your remaining cash.</li>
+            <li><b>Install the servers</b> from the hall's loading dock when both the hall and the truck have arrived.</li>
+            <li><b>Rent them out</b> under Fleet, Rent out and cloud. On-demand rental is your first income.</li>
+            <li><b>Then start research</b>, not before. Research is paid every day and will bankrupt a company with no income in about five months.</li>
+          </ol>
+        </div>
+        <p class="note" data-rise><b>Running out of money:</b> thirty days in a row with negative cash ends the company. Watch "Net / day" in the top bar.</p>
+        <div class="media" data-rise>
+          <Image src={shot('hq-progress')} alt="The headquarters screen listing everything in progress: a delivery, a feature being built, a grid upgrade and research, each with a progress bar" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+      </section>
+
+      <section class="program" id="screens" aria-labelledby="screens-h">
+        <div class="program__head">
+          <h2 id="screens-h" class="h2" data-rise>The six hubs</h2>
+          <p data-rise>The left rail has six hubs. Each opens with a short strip saying what the screen is for, what on it is yours and what belongs to someone else. You can hide it per screen.</p>
+        </div>
+        <ul class="ledger" data-rise-group>
+          <li><time>HQ</time><b>What needs you today</b><span>Cash, income, the next sensible move, everything in progress and requests from your managers.</span></li>
+          <li><time>Build</time><b>Sites, Fleet, Silicon</b><span>Land and halls, servers and rentals, and your own chip designs.</span></li>
+          <li><time>Make</time><b>Lab, R&amp;D</b><span>Design and train models, buy or make data, and research new technology.</span></li>
+          <li><time>Sell</time><b>Store, Deals, Web</b><span>Consumer products and APIs, organisation and training contracts, and your website.</span></li>
+          <li><time>Company</time><b>Team, Books</b><span>Hiring, morale and labs; income, loans and going public.</span></li>
+          <li><time>World</time><b>Ranks, Studio, Newspaper</b><span>Leaderboards, the society gauges, launch videos and back issues of the daily paper.</span></li>
+        </ul>
+      </section>
+
+      <section class="program" id="build" aria-labelledby="build-h">
+        <div class="program__head">
+          <h2 id="build-h" class="h2" data-rise>Sites and halls</h2>
+          <p data-rise>A site is a piece of land with a grid connection. A hall is a building on it. Inside a hall you place racks, power units and coolers on a tile grid.</p>
+        </div>
+        <div class="media" data-rise>
+          <Image src={shot('hall')} alt="A data hall in 3D with rows of racks, power units and coolers, and a legend counting healthy, throttled, hot, broken, unpowered and empty racks" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+        <div class="prose" data-rise>
+          <h3>The layout puzzle</h3>
+          <ul>
+            <li>A rack only works within reach of a power unit and a cooler. A power unit reaches six tiles; an air cooler reaches seven.</li>
+            <li>Each power unit and cooler has a capacity. Overload a power unit and every rack on it is throttled.</li>
+            <li>Cooling sets a heat limit per rack. Hot modern GPUs may fill only some of a rack's eight slots until you research liquid cooling.</li>
+            <li>Hold the mouse on anything you placed to pick it up and move it.</li>
+          </ul>
+          <h3>Rack colours</h3>
+          <p>Each rack has a coloured strip on its roof and a matching floor pad. The legend counts every state.</p>
+          <ul>
+            <li><b>Green</b> healthy, <b>amber</b> throttled, <b>orange-red</b> hot with no cooling.</li>
+            <li><b>Pink</b> has broken servers, <b>dark</b> has no power, <b>grey</b> is empty.</li>
+          </ul>
+          <h3>Power</h3>
+          <p>The grid feed is sized in megawatts and upgrades take months of permitting. You can add batteries, solar, wind and gas, sign long-term power contracts, and choose a strategy: cheapest, greenest, most resilient, or buying low and selling high.</p>
+        </div>
+      </section>
+
+      <section class="program" id="fleet" aria-labelledby="fleet-h">
+        <div class="program__head">
+          <h2 id="fleet-h" class="h2" data-rise>Servers and silicon</h2>
+          <p data-rise>Every server holds eight GPUs. Servers are what you rent out, train on and serve models from, so every other system competes for them.</p>
+        </div>
+        <div class="prose" data-rise>
+          <ul>
+            <li><b>Ordering.</b> Orders for the same server placed on the same day arrive as one shipment. Bigger orders take a little longer and get a volume discount from 50 servers up.</li>
+            <li><b>Spares.</b> Servers left on the dock swap in automatically when hardware fails. Sell them if you need the cash.</li>
+            <li><b>Renting out.</b> On-demand pays the market rate, reserved trades price for certainty, and spot fills what is left.</li>
+            <li><b>Cloud.</b> You can also rent other companies' GPUs by the hour. It costs more than owning but needs no hall.</li>
+            <li><b>Your own node.</b> Choose the accelerator, cooling, power profile and memory to make a server design of your own.</li>
+            <li><b>Your own chip.</b> Under Silicon, design a chip, pay for the tape-out and have it made at a foundry or in your own fab.</li>
+          </ul>
+        </div>
+        <div class="media" data-rise>
+          <Image src={shot('fleet')} alt="The fleet screen with installed GPUs, how busy they are, rental income, and an order on its way with a progress bar" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+      </section>
+
+      <section class="program" id="models" aria-labelledby="models-h">
+        <div class="program__head">
+          <h2 id="models-h" class="h2" data-rise>Training models</h2>
+          <p data-rise>The Design tab of the Lab is five numbered steps. Anything you train is yours, including a model that starts from a recipe a rival published.</p>
+        </div>
+        <Chain flow={training} label="Training a model" />
+        <div class="prose" data-rise>
+          <h3>Three levers</h3>
+          <ul>
+            <li><b>Model size</b> and <b>data</b> decide quality. They need to be matched: a small model cannot absorb a mountain of data, and a huge model starves on a little.</li>
+            <li><b>GPUs</b> decide speed only. Twice the servers finishes in about half the time and the model is no better.</li>
+          </ul>
+          <p>The "What you'll get" card shows the expected Elo against the best rival, the time, the cost, and one sentence naming whichever lever is holding you back. Two small curves show what a quarter to four times the size or the data would do.</p>
+          <h3>Four ways to make a model</h3>
+          <ul>
+            <li><b>From scratch.</b> Full price and full freedom. Pick one of five starting sizes of your own, Pocket to Frontier, or copy a rival's recipe.</li>
+            <li><b>Fine-tune.</b> Start from a model you own or from open weights. Cheap and fast, with a small gain that halves each time you fine-tune a fine-tune.</li>
+            <li><b>Distil.</b> A smaller student copies a stronger teacher: most of the gap, never past it.</li>
+            <li><b>Continue.</b> Keep pre-training a base on new data. The tokens add up.</li>
+          </ul>
+          <h3>Seven kinds of model</h3>
+          <p>Chat, coding, image, speech, music, video and omni. Each has its own price, its own demand and its own field of specialist rivals, so an image model takes customers from image studios and not from chatbots. All but chat are unlocked in research.</p>
+          <h3>After training</h3>
+          <p>A finished model appears under "Your models". Launch it to put it on the market, then deploy it on servers. A model with no servers answers nobody.</p>
+        </div>
+        <div class="media" data-rise>
+          <Image src={shot('lab-shape')} alt="Step two of the model designer: five starting sizes for your own design, then recipes published by rivals" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+      </section>
+
+      <section class="program" id="data" aria-labelledby="data-h">
+        <div class="program__head">
+          <h2 id="data-h" class="h2" data-rise>Data</h2>
+          <p data-rise>Models are trained on datasets you own. You can buy them or make them, and what you make you can also sell.</p>
+        </div>
+        <div class="prose" data-rise>
+          <h3>Buy data</h3>
+          <p>The market has a fixed catalogue plus a new, larger edition every quarter, so it never runs dry. Some of the cheapest datasets carry legal risk, which costs you public trust and, later, fines.</p>
+          <h3>Make data</h3>
+          <p>A data project turns a daily budget into tokens. There are five sources:</p>
+          <ul>
+            <li><b>Scrape the web:</b> cheap and enormous, with legal risk.</li>
+            <li><b>License from owners:</b> clean and more expensive.</li>
+            <li><b>Human experts:</b> small, superb and costly. Needs research.</li>
+            <li><b>Generate with your model:</b> as good as your best model, and it adds to the slop problem. Needs research.</li>
+            <li><b>Your users' conversations:</b> nearly free and uniquely yours. The public notices. Needs research and a product.</li>
+          </ul>
+          <h3>Sell data</h3>
+          <p>License a dataset you made to rivals for daily income, which makes their models slightly better, or sell it outright and lose the right to train on it. A second dataset on the same subject earns less than the first.</p>
+        </div>
+        <div class="media" data-rise>
+          <Image src={shot('data-foundry')} alt="The data foundry form: five sources with cost per trillion tokens and quality, a subject, a size and a daily budget" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+      </section>
+
+      <section class="program" id="research" aria-labelledby="research-h">
+        <div class="program__head">
+          <h2 id="research-h" class="h2" data-rise>Research</h2>
+          <p data-rise>154 technologies in 16 branches. One is researched at a time, paid for daily, and the rest wait in a queue you can reorder.</p>
+        </div>
+        <div class="prose" data-rise>
+          <ul>
+            <li><b>Queue freely.</b> Each finished technology starts the next. Switching mid-way keeps the progress you paid for.</li>
+            <li><b>Prerequisites.</b> A locked technology names what it needs. You cannot jump one ahead of its prerequisite.</li>
+            <li><b>Repeatable levels.</b> Items marked with an infinity sign can be researched again and again at a rising price. Some have no cap at all.</li>
+            <li><b>Mastery.</b> Each kind of model has its own four-step skill line that raises the quality of every model you train in it.</li>
+            <li><b>Labs.</b> A research lab focused on a branch speeds up everything in that branch.</li>
+          </ul>
+          <p>The branches: Facilities, Power, Network, Training, Models, Modalities, Silicon, Memory, Fab, Cloud, Business, Data, Products, Safety, Mastery and Moonshots.</p>
+        </div>
+        <div class="media" data-rise>
+          <Image src={shot('research-tree')} alt="The research tree as a grid, with branches down the side and levels across the top" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+      </section>
+
+      <section class="program" id="products" aria-labelledby="products-h">
+        <div class="program__head">
+          <h2 id="products-h" class="h2" data-rise>Products and deals</h2>
+          <p data-rise>There are three ways to earn from a launched model: sell tokens on the open market, build a product on it, or sign an organisation.</p>
+        </div>
+        <div class="prose" data-rise>
+          <h3>Products</h3>
+          <ul>
+            <li>Six kinds: chat assistant, coding agent, creative studio, companion, enterprise suite and developer API.</li>
+            <li><b>Plans.</b> Set the price, the daily token limit, ads and priority access for up to six plans.</li>
+            <li><b>Features.</b> The product team builds one feature at a time. Each changes how many people come, how many stay and how many tokens they use.</li>
+            <li><b>Support.</b> Help centre, live chat or concierge. Better support costs per user and calms frustrated ones.</li>
+            <li><b>Price experiments.</b> A two-week test tells you whether to raise, cut or keep a plan's price.</li>
+          </ul>
+          <h3>Organisations</h3>
+          <p>Companies offer to buy seats on one of your models for six to twenty-four months. Each offer names a minimum quality and the share of requests you promise to answer.</p>
+          <ul>
+            <li>Sign as offered, or ask for 10% or 25% more. The odds are shown, and a refusal withdraws the offer.</li>
+            <li>The card warns you if the model does not have the spare capacity. Customers whose requests go unanswered leave and tell others.</li>
+            <li>Happy customers renew with more seats.</li>
+          </ul>
+          <h3>Contract training</h3>
+          <p>Other companies pay you to train their model on your servers before a deadline. The finished model is theirs.</p>
+        </div>
+        <div class="media" data-rise>
+          <Image src={shot('store')} alt="A chat product page showing users, paying subscribers, monthly recurring revenue and the share of requests served" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+      </section>
+
+      <section class="program" id="people" aria-labelledby="people-h">
+        <div class="program__head">
+          <h2 id="people-h" class="h2" data-rise>People and managers</h2>
+          <p data-rise>Skill and morale change how well everything else runs. The hiring board is replaced every week, and the talent improves as your reputation grows.</p>
+        </div>
+        <div class="prose" data-rise>
+          <ul>
+            <li><b>Roles.</b> Infrastructure engineers, research scientists, technicians, sales and silicon architects.</li>
+            <li><b>Traits.</b> A candidate may be a ten-times engineer, a burnout risk, famous online or loyal. Each changes cost and behaviour.</li>
+            <li><b>Morale.</b> Underpaid or unhappy people quit, and rivals poach your best unless they are content.</li>
+            <li><b>Managers.</b> Hire a manager for facilities, sales, people, finance or research to run that area for you. Bigger decisions arrive in your inbox for approval, and a request you decline is not repeated for a month.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="program" id="society" aria-labelledby="society-h">
+        <div class="program__head">
+          <h2 id="society-h" class="h2" data-rise>How the world reacts</h2>
+          <p data-rise>Under World, Ranks, Society are four gauges. None follows a script; each moves because of what you and the industry are doing.</p>
+        </div>
+        <ul class="ledger" data-rise-group>
+          <li><time>Public trust</time><b>Your reputation follows it</b><span>Falls with risky datasets, logging user conversations, incidents and safety debt. Safety research raises it. Reputation in turn drives users, hiring and deals.</span></li>
+          <li><time>Regulation</time><b>Laws pass at 35, 60 and 85</b><span>Grows once you hold more than a fifth of the chat market, and faster when trust is low. The Data Act fines risky data, the compute levy takes 2% of revenue, and the antitrust decree bills you while you hold over half the market.</span></li>
+          <li><time>AI slop</time><b>The internet fills with machine text</b><span>Rises with every token served and every synthetic dataset. Crawled data trains worse; data made by people, which you own, becomes more valuable to license.</span></li>
+          <li><time>Safety debt</time><b>Capability beyond your safety research</b><span>Above 0.5, agents begin misbehaving inside your products. Far above it, something worse can happen once.</span></li>
+        </ul>
+        <div class="prose" data-rise>
+          <h3>Rivals respond to you</h3>
+          <ul>
+            <li>Take first place and the other labs pool their effort and close the gap faster.</li>
+            <li>Undercut everyone while holding real share and a price war begins.</li>
+            <li>License your datasets and their models improve.</li>
+          </ul>
+        </div>
+        <div class="media" data-rise>
+          <Image src={shot('society')} alt="The society screen: gauges for public trust, regulation pressure, AI slop on the internet and safety debt, followed by the list of laws" widths={[800, 1280, 1440]} sizes="(min-width: 1100px) 60vw, 92vw" />
+        </div>
+      </section>
+
+      <section class="program" id="controls" aria-labelledby="controls-h">
+        <div class="program__head">
+          <h2 id="controls-h" class="h2" data-rise>Controls and saves</h2>
+          <p data-rise>One tick is one hour of game time. The speed buttons sit at the top right.</p>
+        </div>
+        <ul class="ledger" data-rise-group>
+          <li><time><kbd>Space</kbd></time><b>Pause or resume</b><span>Everything can be done while paused.</span></li>
+          <li><time><kbd>1</kbd> to <kbd>4</kbd></time><b>Speed</b><span>Six hours, one day, one week or one month of game time per second.</span></li>
+          <li><time><kbd>F11</kbd></time><b>Full screen</b><span>The window is frameless, with its own controls at the top right.</span></li>
+          <li><time>Hold</time><b>Move or confirm</b><span>Hold the mouse on a placed item to move it. Severe decisions ask you to hold the button.</span></li>
+        </ul>
+        <div class="prose" data-rise>
+          <h3>Saves</h3>
+          <p>The game saves automatically and from the Save button. Desktop saves live in a local database file; nothing leaves your machine. A save from an older version whose world no longer matches is refused with a message, not loaded wrongly.</p>
+          <h3>Career and sandbox</h3>
+          <p>A career starts with $40 million and can go bankrupt. A sandbox lets you turn on unlimited cash, switch off bankruptcy and change the pace of research, failures and rivals. Achievements and leaderboards are off in sandbox games.</p>
+        </div>
+      </section>
+
+      <section class="program" id="trouble" aria-labelledby="trouble-h">
+        <div class="program__head">
+          <h2 id="trouble-h" class="h2" data-rise>Troubleshooting</h2>
+        </div>
+        <ul class="faq" data-rise-group>
+          <li><h3>Running from source opens no window</h3><p>Some editors set an environment variable that makes Electron start as plain Node. Start it with that variable removed: <code>env -u ELECTRON_RUN_AS_NODE npm run dev</code>.</p></li>
+          <li><h3>My old save will not load</h3><p>The shape of the simulated world changed between versions. The game refuses the save and tells you so. Start a new company, or check out the older version to finish that one.</p></li>
+          <li><h3>My racks are dark or red</h3><p>Dark racks are out of reach of a power unit; red ones have no cooler in reach. Use the hall legend to count them, then move or add equipment.</p></li>
+          <li><h3>My product is losing users</h3><p>Check "Served" on its page. Below 100% means the model does not have enough servers deployed. Deploy more, or rent cloud GPUs.</p></li>
+          <li><h3>Something is broken</h3><p><a class="link" href={LINKS.newIssue} target="_blank" rel="noopener">Open an issue on GitHub</a> with what you did and what happened. A save file helps.</p></li>
+        </ul>
+        <p style="margin-top: 48px" data-rise>
+          <a class="btn" href={LINKS.releases} target="_blank" rel="noopener">Get the game <Icon name="download" /></a>
+        </p>
+      </section>
+    </div>
+  </div>
+</Layout>

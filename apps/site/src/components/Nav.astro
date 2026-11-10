@@ -1,0 +1,21 @@
+---
+import Icon from './Icon.astro';
+import { NAV, LINKS, GAME } from '../data/site';
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+<header class="nav" data-nav>
+  <div class="nav__bar">
+    <a class="nav__brand" href="/" aria-label={`${GAME.name}, home`}>
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="4" width="22" height="7" rx="2.5" /><rect x="5" y="12.5" width="22" height="7" rx="2.5" /><rect x="5" y="21" width="22" height="7" rx="2.5" />
+        <path d="M10 7.5h.01M10 16h.01M10 24.5h.01" />
+      </svg>
+      <span>{GAME.name}</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      {NAV.map((item) => <a href={item.href} aria-current={path === item.href ? 'page' : undefined}>{item.short}<span class="long">{item.rest}</span></a>)}
+      <a href={LINKS.repo} target="_blank" rel="noopener">GitHub <Icon name="arrow-up" /></a>
+      <a class="nav__get" href={LINKS.releases} target="_blank" rel="noopener">Get it</a>
+    </nav>
+  </div>
+</header>

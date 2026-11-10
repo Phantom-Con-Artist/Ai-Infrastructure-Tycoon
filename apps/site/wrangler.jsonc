@@ -1,0 +1,7 @@
+// Cloudflare Pages: Astro builds a static site into ./dist (`npm run build`).
+// In the Pages project set the root directory to `apps/site`.
+{
+  "name": "ai-infrastructure-tycoon",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-10-01"
+}

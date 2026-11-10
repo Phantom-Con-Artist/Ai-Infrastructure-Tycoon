@@ -1,0 +1,176 @@
+---
+import { Image } from 'astro:assets';
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import Chain from '../components/Chain.astro';
+import { shot } from '../data/shots';
+import { PILLARS, SYSTEMS, LOOPS, FIGURES, FAQ, LINKS } from '../data/site';
+import { HEADLINES, RIVALS, ENDGAME } from '../data/fun';
+---
+<Layout>
+  <!-- Hero: the game's own title screen, then the game itself -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="wrap hero__grid">
+      <span class="eyebrow" data-rise>A management game about watts, silicon and hubris</span>
+      <h1 id="hero-title" class="display" data-rise>Build the <em>machine</em><br />that thinks.</h1>
+      <p class="lead" data-rise>Pour concrete, wire megawatts, rack GPUs, train frontier models, and outlast 35 rivals who want the same power line. Free, open source, and a parody of everyone involved.</p>
+      <div class="btn-row" data-rise>
+        <a class="btn" href={LINKS.releases} target="_blank" rel="noopener">Get the game <Icon name="download" /></a>
+        <a class="btn btn--ghost" href="/docs">How to play</a>
+      </div>
+      <dl class="stats" data-rise>
+        <div><b>15</b><span>Regions</span></div>
+        <div><b>35</b><span>Rivals</span></div>
+        <div><b>154</b><span>Technologies</span></div>
+        <div><b>1 h</b><span>Per tick</span></div>
+      </dl>
+    </div>
+    <div class="wrap" style="margin-top: clamp(40px, 6vw, 72px)" data-rise>
+      <figure class="screen screen--wide">
+        <div class="screen__bar" aria-hidden="true"><i></i><i></i><i></i><span>AI Infrastructure Tycoon · Northwind Compute</span></div>
+        <video data-clip muted loop playsinline preload="none" poster="/clips/reel.webp" width="1280" height="720" aria-label="A short film of the game: a data hall, the server market, the model lab, the research tree, a product page and the society screen">
+          <source src="/clips/reel.mp4" type="video/mp4" />
+        </video>
+      </figure>
+    </div>
+  </section>
+
+  <!-- The news ticker, as in the game -->
+  <div class="ticker" aria-label="Headlines from the game">
+    <ul class="ticker__track">
+      {[...HEADLINES, ...HEADLINES].map((h, i) => <li aria-hidden={i >= HEADLINES.length ? 'true' : undefined}>{h}</li>)}
+    </ul>
+  </div>
+
+  <!-- What you do -->
+  <section class="sec" aria-labelledby="do-title">
+    <div class="wrap">
+      <header class="head">
+        <span class="eyebrow" data-rise>What you actually do</span>
+        <h2 id="do-title" class="h2" data-rise>One company, from the power line to the chatbot</h2>
+        <p class="lead" data-rise>You are the chief executive. It starts with $40 million and an empty field, and it does not end.</p>
+      </header>
+      <ul class="cards" data-rise-group>
+        {PILLARS.map((p) => (
+          <li class="card">
+            <Image src={shot(p.shot)} alt={p.alt} widths={[480, 800]} sizes="(min-width: 1100px) 380px, (min-width: 720px) 50vw, 92vw" />
+            <div class="card__text">
+              <span><span class="tag">{p.tag}</span></span>
+              <h3 class="h3">{p.title}</h3>
+              <p>{p.body}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- Systems, as clips rendered from the game -->
+  <section class="sec sec--top-0" aria-labelledby="systems-title">
+    <div class="wrap">
+      <header class="head">
+        <span class="eyebrow" data-rise>Six systems, one simulation</span>
+        <h2 id="systems-title" class="h2" data-rise>Everything shares the same GPUs. That is the joke, and the game.</h2>
+      </header>
+      <ul class="cards" data-rise-group>
+        {SYSTEMS.map((s) => (
+          <li class="card">
+            <video data-clip muted loop playsinline preload="none" poster={`/clips/${s.id}.webp`} width="1280" height="800" aria-label={`${s.title}: a clip from the game`}>
+              <source src={`/clips/${s.id}.mp4`} type="video/mp4" />
+            </video>
+            <div class="card__text">
+              <h3 class="h3">{s.title}</h3>
+              <p>{s.short}</p>
+              <a class="link" href={s.href}>How it works</a>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- Rivals -->
+  <section class="sec sec--top-0" aria-labelledby="rivals-title">
+    <div class="wrap">
+      <header class="head">
+        <span class="eyebrow" data-rise>Meet the competition</span>
+        <h2 id="rivals-title" class="h2" data-rise>35 rivals. Any resemblance is <em>entirely deliberate.</em></h2>
+        <p class="lead" data-rise>Labs, chip makers and clouds, each with a chief executive, a headquarters and a release schedule. Get ahead and they gang up on you.</p>
+      </header>
+      <ul class="rivals" data-rise-group>
+        {RIVALS.map((r) => (
+          <li class="rival" style={`--c:${r.color}`}>
+            <q>{r.quip}</q>
+            <span><b>{r.ceo}</b> · {r.name}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- Emergent behaviour -->
+  <section class="sec sec--top-0" aria-labelledby="loops-title">
+    <div class="wrap">
+      <header class="head">
+        <span class="eyebrow" data-rise>Nothing is scripted</span>
+        <h2 id="loops-title" class="h2" data-rise>Four ways your own success <em>comes back for you</em></h2>
+        <p class="lead" data-rise>No story beats wait for a date. These chains run because of what you and your rivals actually did.</p>
+      </header>
+      <ul class="loops" data-rise-group>
+        {LOOPS.map((l) => (
+          <li class="loop">
+            <div><h3 class="h3">{l.title}</h3><p>{l.body}</p></div>
+            <Chain flow={l.flow} label={l.title} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- The newspaper -->
+  <section class="sec sec--top-0" aria-labelledby="paper-title">
+    <div class="wrap">
+      <div class="paper" data-rise>
+        <div>
+          <div class="paper__name"><span>The Daily Compute</span><span>Price: 1 token</span></div>
+          <h2 id="paper-title">It prints a newspaper about you. Every midnight.</h2>
+          <p>Your launches, your outages, your rivals' launches, your rivals' gloating. The front page is generated from what happened that day, so it is occasionally flattering and usually not.</p>
+        </div>
+        <Image src={shot('paper')} alt="The front page of The Daily Compute, the in-game newspaper, leading with a chat agent that went off-script" widths={[640, 1000, 1440]} sizes="(min-width: 900px) 46vw, 88vw" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Endgame -->
+  <section class="sec sec--top-0" aria-labelledby="end-title">
+    <div class="wrap">
+      <header class="head">
+        <span class="eyebrow" data-rise>The late game</span>
+        <h2 id="end-title" class="h2" data-rise>It starts with hot-aisle containment. It ends <em>somewhere else.</em></h2>
+        <p class="lead" data-rise>Real research, with the descriptions the game gives it.</p>
+      </header>
+      <ol class="endgame" data-rise-group>
+        {ENDGAME.map((e) => <li><b>{e.name}</b><span>{e.blurb}</span></li>)}
+      </ol>
+    </div>
+  </section>
+
+  <!-- Numbers and questions -->
+  <section class="sec sec--top-0" aria-labelledby="figures-title">
+    <div class="wrap">
+      <header class="head"><h2 id="figures-title" class="h2" data-rise>The small print, in large print</h2></header>
+      <ul class="figures" data-rise-group>
+        {FIGURES.map((f) => <li><b>{f.n}</b><strong>{f.what}</strong><span>{f.note}</span></li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec sec--top-0" aria-labelledby="faq-title">
+    <div class="wrap">
+      <header class="head"><h2 id="faq-title" class="h2" data-rise>Before you download</h2></header>
+      <ul class="faq" data-rise-group>
+        {FAQ.map((f) => <li><h3>{f.q}</h3><p>{f.a}</p></li>)}
+      </ul>
+    </div>
+  </section>
+</Layout>

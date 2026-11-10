@@ -1,0 +1,93 @@
+---
+import { Image } from 'astro:assets';
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import { shot } from '../data/shots';
+import { LINKS, GAME, STACK } from '../data/site';
+---
+<Layout title="About | AI Infrastructure Tycoon" description="AI Infrastructure Tycoon is a free, open-source parody management game about the AI industry, made by Phantom-Con Artist. What it is, how it is built, and how to contribute.">
+  <section class="phero">
+    <div class="wrap">
+      <h1 class="h1" data-rise>A parody of an industry that is <em>already hard to parody</em></h1>
+      <p class="lead" data-rise>{GAME.name} is a free, open-source management game made by {GAME.studio} and whoever sends a pull request. It takes the real arithmetic of AI seriously and almost nothing else.</p>
+      <div class="btn-row" style="margin-top:28px" data-rise>
+        <a class="btn" href={LINKS.repo} target="_blank" rel="noopener">View the source <Icon name="github" /></a>
+        <a class="btn btn--ghost" href="/docs">How to play</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec--top-0" aria-label="The headquarters screen">
+    <div class="wrap">
+      <div class="media" style="margin-top:0" data-rise>
+        <Image src={shot('hq')} alt="The headquarters screen: a ring-shaped campus in 3D, with valuation, daily income, revenue and installed GPUs beneath it" widths={[800, 1280, 1440]} sizes="(min-width: 1440px) 1362px, 92vw" loading="eager" />
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec--top-0" aria-labelledby="what-title">
+    <div class="wrap wrap--narrow">
+      <h2 id="what-title" class="h2" data-rise>What it is</h2>
+      <div class="prose" style="margin-top:28px" data-rise>
+        <p>You run an AI infrastructure company from a bare field. You buy land where the power is cheap, build halls, place racks and cooling by hand, order GPUs, and then decide what the machines are for: renting them out, training your own models, or serving millions of people who would like an answer now.</p>
+        <p>Underneath is one simulation that advances an hour at a time. Power prices move with the weather. Hardware fails. Models follow published scaling laws. Customers leave when requests go unanswered. Thirty-five rival companies ship on their own schedule and react when you get ahead.</p>
+        <p>The systems are connected on purpose. A viral product drains the GPUs an enterprise customer was promised. A free pirated dataset costs you public trust three months later. The text your models write lands back on the internet and makes the next crawl worse. Nobody wrote those stories down; they fall out of the rules.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec--top-0" aria-labelledby="parody-title">
+    <div class="wrap">
+      <header class="head">
+        <span class="eyebrow" data-rise>The serious bit</span>
+        <h2 id="parody-title" class="h2" data-rise>Fiction, <em>all of it</em></h2>
+        <p class="lead" data-rise>Every company, product, model, chip, executive, quote and news story in the game is invented. Names like Qooqle, Ratthropic, OpenAye, Nvidious and Advanced Micro Dudes are parody, inspired by the industry the way a cartoon is inspired by a politician.</p>
+      </header>
+      <ul class="ledger" data-rise-group>
+        <li><time>Not affiliated</time><b>With anyone real</b><span>The game is not affiliated with, sponsored by or endorsed by any real company or person. No real trademarks or logos are used; the marks in the game are original drawings.</span></li>
+        <li><time>Not advice</time><b>It is a game</b><span>The numbers are calibrated against public reporting so that the game feels right, not so that it can be used to plan a data centre, a model or an investment.</span></li>
+        <li><time>Not watching</time><b>Nothing leaves your machine</b><span>There are no accounts, no analytics and no network calls from the game. Saves are a local file. This website sets no cookies.</span></li>
+      </ul>
+      <p style="margin-top: 36px" data-rise>
+        <a class="btn btn--ghost" href={LINKS.disclaimer} target="_blank" rel="noopener">Read the full disclaimer <Icon name="arrow-up" /></a>
+      </p>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="stack-title">
+    <div class="wrap">
+      <header class="head"><h2 id="stack-title" class="h2" data-rise>How it is built</h2></header>
+      <ul class="figures" data-rise-group>
+        {STACK.map((s) => <li><b style="font-size:1.7rem">{s.n}</b><strong>{s.what}</strong><span>{s.note}</span></li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec sec--top-0" aria-labelledby="rules-title">
+    <div class="wrap wrap--narrow">
+      <h2 id="rules-title" class="h2" data-rise>Three rules the project keeps</h2>
+      <div class="prose" style="margin-top:28px" data-rise>
+        <p><b>The simulation is the game.</b> All rules live in plain, deterministic code with no knowledge of the interface. The same seed and the same choices give the same company, which is what makes it testable.</p>
+        <p><b>Complexity is hidden, not removed.</b> Each screen opens with three or four quiet numbers and the two moves that matter. The architecture maths, the power dispatch and the churn model are one click further in for people who want them.</p>
+        <p><b>The player is told the truth.</b> Before anything expensive the game shows what it will cost and what it will change. Forecasts name the bottleneck. Odds are printed on the button.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec--top-0" aria-labelledby="help-title">
+    <div class="wrap">
+      <header class="head">
+        <h2 id="help-title" class="h2" data-rise>Take it apart</h2>
+        <p class="lead" data-rise>The licence is MIT. Fork it, change the rules, add a rival, fix a number that annoys you.</p>
+      </header>
+      <ul class="links" data-rise-group>
+        <li><a href={LINKS.repo} target="_blank" rel="noopener"><span>Source code<small>The game, its tests, the Blender scripts for the 3D models, and this website</small></span><Icon name="arrow-up" /></a></li>
+        <li><a href={LINKS.contributing} target="_blank" rel="noopener"><span>Contributing guide<small>How to set up, what a good pull request looks like, and the parody-names rule</small></span><Icon name="arrow-up" /></a></li>
+        <li><a href={LINKS.design} target="_blank" rel="noopener"><span>Game design document<small>Why each system exists and how they are meant to push on one another</small></span><Icon name="arrow-up" /></a></li>
+        <li><a href={LINKS.roadmap} target="_blank" rel="noopener"><span>Roadmap<small>What is planned, what is half-built and what is only a joke so far</small></span><Icon name="arrow-up" /></a></li>
+        <li><a href={LINKS.issues} target="_blank" rel="noopener"><span>Issues<small>Bugs, balance complaints and ideas</small></span><Icon name="arrow-up" /></a></li>
+        <li><a href={LINKS.licence} target="_blank" rel="noopener"><span>Licence<small>MIT</small></span><Icon name="arrow-up" /></a></li>
+      </ul>
+    </div>
+  </section>
+</Layout>
