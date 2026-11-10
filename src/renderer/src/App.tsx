@@ -9,6 +9,7 @@ import { Sites } from './screens/Sites'
 import { Fleet } from './screens/Fleet'
 import { Lab } from './screens/Lab'
 import { Contracts, Finance, Research } from './screens/Business'
+import { TitleBar } from './TitleBar'
 
 const NAV: [Screen, string, string][] = [
   ['overview', 'HQ', '◧'], ['sites', 'Sites', '▦'], ['fleet', 'Fleet', '▤'], ['lab', 'Lab', '◉'],
@@ -30,6 +31,7 @@ export function App() {
       if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'SELECT') return
       if (e.code === 'Space') { e.preventDefault(); s.setSpeed(s.speed === 0 ? 1 : 0) }
       if (e.key >= '1' && e.key <= '4') s.setSpeed(+e.key)
+      if (e.key === 'F11') { e.preventDefault(); window.win?.fullscreen() }
     }
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
@@ -48,6 +50,7 @@ function Game() {
   const profit = (() => { const l = w.ledger.slice(-14); return l.length ? l.reduce((a, d) => a + d.revenue - d.powerCost - d.staffCost - d.opex - d.interest, 0) / l.length : 0 })()
   return (
     <div className="app">
+      <TitleBar />
       <nav className="nav">
         <div className="logo">AI<br />INFRA<br />TYCOON</div>
         {NAV.map(([id, label, icon]) => <button key={id} className={screen === id ? 'on' : ''} onClick={() => go(id)}><span style={{ fontSize: 18 }}>{icon}</span>{label}</button>)}
@@ -89,10 +92,11 @@ function Start() {
   const newGame = useGame((s) => s.newGame); const load = useGame((s) => s.load)
   const [company, setCompany] = useState('Hyperscale Dreams Inc.')
   const [advisor, setAdvisor] = useState('cfo')
-  const [kit, setKit] = useState(true)
   const [saves, setSaves] = useState<Awaited<ReturnType<typeof window.saves.list>>>([])
   useEffect(() => { window.saves?.list().then(setSaves).catch(() => undefined) }, [])
   return (
+    <div className="start-wrap">
+    <TitleBar />
     <div className="start">
       <div className="hero">
         <div className="gridlines" />
@@ -105,10 +109,10 @@ function Start() {
         <label className="f">Company name<input type="text" value={company} onChange={(e) => setCompany(e.target.value)} /></label>
         <div><h2>Pick your right hand</h2>
           <div className="advisors">{ADVISORS.map((a) => <button key={a.id} className={'adv' + (advisor === a.id ? ' on' : '')} onClick={() => setAdvisor(a.id)}><b>{a.name} <span>· {a.role}</span></b><span>{a.bio}</span><em>{a.perk}</em></button>)}</div></div>
-        <label className="row" style={{ gap: 10, fontSize: 13 }}><input type="checkbox" checked={kit} onChange={(e) => setKit(e.target.checked)} /> Founder’s kit: an Oregon site, one air-cooled hall and 40 Amphibian A800 servers on order</label>
-        <div className="row"><button className="btn pri" onClick={() => newGame({ company, advisor, seed: (Date.now() & 0x7fffffff) | 1, kit })}>Start company · $40M seed</button></div>
+        <div className="row"><button className="btn pri" onClick={() => newGame({ company, advisor, seed: (Date.now() & 0x7fffffff) | 1 })}>Start company · $40M seed</button></div>
         {saves.length > 0 && <div><h2>Continue</h2><div className="col">{saves.map((s) => <button key={s.slot} className="adv" onClick={() => load(s.slot)}><b>{s.company} <span>· {s.slot}</span></b><span>{dateOf(s.tick)} · cash {money(s.cash)}</span></button>)}</div></div>}
       </div>
+    </div>
     </div>
   )
 }

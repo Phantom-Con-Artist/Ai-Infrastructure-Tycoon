@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createWorld, step } from '@sim/world'
-import * as A from '@sim/actions'
+import type * as A from '@sim/actions'
 import type { World } from '@sim/types'
 
 export type Screen = 'overview' | 'sites' | 'fleet' | 'lab' | 'contracts' | 'research' | 'finance'
@@ -11,7 +11,7 @@ declare global { interface Window { saves: import('../../preload').SavesApi } }
 interface UI {
   w: World | null; rev: number; speed: number; screen: Screen; siteId: string | null
   toast: { msg: string; kind: 'ok' | 'err'; id: number } | null
-  newGame: (o: { company: string; advisor: string; seed: number; kit: boolean }) => void
+  newGame: (o: { company: string; advisor: string; seed: number }) => void
   load: (slot: string) => Promise<void>
   save: (slot?: string) => Promise<void>
   exit: () => void
@@ -29,18 +29,10 @@ let lastAuto = 0
 
 export const useGame = create<UI>((set, get) => ({
   w: null, rev: 0, speed: 1, screen: 'overview', siteId: null, toast: null,
-  newGame: ({ company, advisor, seed, kit }) => {
+  newGame: ({ company, advisor, seed }) => {
     const w = createWorld(seed, company, advisor)
-    if (kit) {
-      const s = A.buildSite(w, 'or', 'Hillsboro Alpha')
-      if (s.ok) {
-        A.buildHall(w, s.value.id, { slots: 24, cooling: 'air', powerKw: 1000, coolKw: 1100, fabric: 'eth100', name: 'Hall A' })
-        A.orderServers(w, s.value.id, 'nv-a800', 40)
-        set({ siteId: s.value.id })
-      }
-    }
     acc = 0
-    set({ w, rev: 1, speed: 1, screen: 'overview' })
+    set({ w, rev: 1, speed: 0, screen: 'overview', siteId: null })
   },
   load: async (slot) => {
     const raw = await window.saves.read(slot)

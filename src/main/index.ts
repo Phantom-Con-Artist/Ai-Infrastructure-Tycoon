@@ -1,4 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
+
+let win: BrowserWindow | null = null
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 
@@ -24,15 +26,25 @@ function registerIpc(): void {
   ipcMain.handle('save:delete', (_e, slot: string) => { db.prepare('DELETE FROM saves WHERE slot = ?').run(slot); return true })
 }
 
+function registerWindowIpc(): void {
+  ipcMain.on('win:minimize', () => win?.minimize())
+  ipcMain.on('win:toggleMaximize', () => { if (!win) return; if (win.isMaximized()) win.unmaximize(); else win.maximize() })
+  ipcMain.on('win:fullscreen', () => win?.setFullScreen(!win.isFullScreen()))
+  ipcMain.on('win:close', () => win?.close())
+  ipcMain.handle('win:isMaximized', () => win?.isMaximized() ?? false)
+}
+
 function createWindow(): void {
-  const win = new BrowserWindow({
-    width: 1680, height: 960, minWidth: 1180, minHeight: 700, backgroundColor: '#14120f', title: 'AI Infrastructure Tycoon',
-    autoHideMenuBar: true,
+  win = new BrowserWindow({
+    width: 1680, height: 960, minWidth: 1180, minHeight: 700, backgroundColor: '#f7f5f0', title: 'AI Infrastructure Tycoon',
+    frame: false, autoHideMenuBar: true,
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: false }
   })
+  const send = (): void => win?.webContents.send('win:state', { maximized: win.isMaximized(), fullscreen: win.isFullScreen() })
+  win.on('maximize', send); win.on('unmaximize', send); win.on('enter-full-screen', send); win.on('leave-full-screen', send)
   if (process.env['ELECTRON_RENDERER_URL']) win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   else win.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
-app.whenReady().then(() => { openDb(); registerIpc(); createWindow() })
+app.whenReady().then(() => { openDb(); registerIpc(); registerWindowIpc(); createWindow() })
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
