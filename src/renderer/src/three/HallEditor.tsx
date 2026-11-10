@@ -12,6 +12,7 @@ import type { Hall, Site } from '@sim/types'
 import { useGame, useWorld } from '../store'
 import { money } from '../format'
 import { InstancedGlb, MODEL, at } from './Instanced'
+import { VENDOR_HEX } from '../vendors'
 import { previewRemove } from '@sim/preview'
 import { touchSystem } from '@sim/managers'
 
@@ -161,12 +162,14 @@ function Floor({ hall, built, onMove, onDown, onUp, onLeave }: { hall: Hall; bui
 function HallContents({ hall }: { hall: Hall }) {
   const w = useWorld()
   const sig = hall.racks.map((r) => `${r.x},${r.y},${r.rot},${r.servers},${r.gpuId},${r.powered ? 1 : 0}${r.cooled ? 1 : 0}`).join('|') + '#' + hall.equipment.map((e) => `${e.kind}${e.x},${e.y},${e.rot}`).join('|')
-  const { rackT, serverT, pads, padColors, eq } = useMemo(() => {
-    const rackT: THREE.Matrix4[] = [], serverT: THREE.Matrix4[] = [], pads: THREE.Matrix4[] = [], padColors: THREE.Color[] = []
+  const { rackT, serverT, serverTint, blankT, pads, padColors, eq } = useMemo(() => {
+    const rackT: THREE.Matrix4[] = [], serverT: THREE.Matrix4[] = [], serverTint: THREE.Color[] = [], blankT: THREE.Matrix4[] = [], pads: THREE.Matrix4[] = [], padColors: THREE.Color[] = []
     for (const r of hall.racks) {
       const [x, z] = tileToWorld(hall, r.x, r.y)
       rackT.push(at(x, 0, z, ROT_Y(r.rot)))
-      for (let k = 0; k < r.servers; k++) serverT.push(at(x, 0.12 + k * 0.255, z, ROT_Y(r.rot)))
+      const tint = new THREE.Color((r.gpuId && VENDOR_HEX[gpu(w, r.gpuId).vendor]) || '#d8dbe0')
+      for (let k = 0; k < r.servers; k++) { serverT.push(at(x, 0.12 + k * 0.255, z, ROT_Y(r.rot))); serverTint.push(tint) }
+      if (r.gpuId) for (let k = r.servers; k < 8; k++) blankT.push(at(x, 0.12 + k * 0.255, z, ROT_Y(r.rot))) // populated racks get blanking panels; empty racks stay hollow
       pads.push(at(x, 0.006, z))
       const c = !r.gpuId ? STATUS.empty : !r.powered ? STATUS.dark : !r.cooled ? STATUS.hot : r.throttle < 0.95 ? STATUS.throttled : STATUS.ok
       padColors.push(c)
@@ -177,14 +180,15 @@ function HallContents({ hall }: { hall: Hall }) {
       const [x, z] = tileToWorld(hall, e.x, e.y, f.w, f.d)
       eq[e.kind].push(at(x, 0, z, ROT_Y(e.rot)))
     }
-    return { rackT, serverT, pads, padColors, eq }
+    return { rackT, serverT, serverTint, blankT, pads, padColors, eq }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hall, sig, Math.floor(w.tick / 6)]) // status colours refresh every 6 game-hours
   return (
     <group>
       <StatusPads transforms={pads} colors={padColors} />
       {rackT.length > 0 && <InstancedGlb url={MODEL('rack')} transforms={rackT} />}
-      {serverT.length > 0 && <InstancedGlb url={MODEL('server')} transforms={serverT} />}
+      {serverT.length > 0 && <InstancedGlb url={MODEL('server')} transforms={serverT} tint={serverTint} />}
+      {blankT.length > 0 && <InstancedGlb url={MODEL('blank')} transforms={blankT} />}
       {(Object.keys(eq) as EquipKind[]).map((k) => eq[k].length > 0 && <InstancedGlb key={k} url={MODEL(EQUIP[k].model)} transforms={eq[k]} />)}
     </group>
   )
@@ -239,6 +243,20 @@ function SelBox({ hall, x, y }: { hall: Hall; x: number; y: number }) {
   return <mesh position={[cx, 0.015, cz]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[Math.max(f.w, f.d) * TILE * 0.62, Math.max(f.w, f.d) * TILE * 0.7, 48]} /><meshBasicMaterial color="#1f2533" /></mesh>
 }
 
+/** Front elevation of one rack: 8 slots, each server showing its 8 GPU sleds. */
+function RackSlots({ servers, cap, color, failed }: { servers: number; cap: number; color?: string; failed: number }) {
+  return (
+    <div className="rack-slots" aria-label={`${servers} of 8 slots filled`}>
+      {Array.from({ length: 8 }, (_, i) => 7 - i).map((k) => {
+        const state = k < servers ? (k < failed ? 'bad' : 'on') : k < cap ? 'free' : 'over'
+        return <div key={k} className={'slot ' + state} style={{ animationDelay: `${(7 - k) * 40}ms` }}>
+          {state === 'on' || state === 'bad' ? Array.from({ length: 8 }, (_, g) => <i key={g} style={{ background: color }} />) : <span>{state === 'free' ? 'free' : 'over power budget'}</span>}
+        </div>
+      })}
+    </div>
+  )
+}
+
 function Inspector({ site, hall, sel, onAuto }: { site: Site; hall: Hall; sel: ReturnType<typeof itemAt>; onAuto: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
   const stock = Object.entries(site.stock).filter(([, n]) => n > 0)
@@ -251,6 +269,9 @@ function Inspector({ site, hall, sel, onAuto }: { site: Site; hall: Hall; sel: R
       <div className="row wrap">{!r.gpuId ? <span className="tag">empty</span> : <span className="tag b">{r.servers}× {gpu(w, r.gpuId).name}</span>}
         <span className={'tag ' + (r.powered ? 'g' : 'r')}>{r.powered ? 'powered' : 'no PDU in reach'}</span>
         <span className={'tag ' + (r.cooled ? 'g' : 'r')}>{r.cooled ? 'cooled' : 'no cooler in reach'}</span></div>
+      <RackSlots servers={r.servers} cap={r.gpuId ? A.maxServersPerRack(w, hall, r.gpuId) : 8} color={r.gpuId ? VENDOR_HEX[gpu(w, r.gpuId).vendor] : undefined} failed={r.failed} />
+      {r.gpuId && A.maxServersPerRack(w, hall, r.gpuId) < 8 && <p className="dim" style={{ fontSize: 12, margin: '4px 0 8px' }}>
+        {COOLING[hall.cooling].name.split(' (')[0]} cooling carries {COOLING[hall.cooling].maxRackKw} kW per rack, so only {A.maxServersPerRack(w, hall, r.gpuId)} of 8 slots ({A.maxServersPerRack(w, hall, r.gpuId) * 8} GPUs) can run. Liquid cooling fills all 8.</p>}
       <table><tbody>
         <tr><td className="dim">Draw</td><td className="r">{r.kw.toFixed(1)} kW</td></tr>
         <tr><td className="dim">Throttle</td><td className="r">{(r.throttle * 100).toFixed(0)}%</td></tr>

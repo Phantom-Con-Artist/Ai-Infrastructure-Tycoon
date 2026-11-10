@@ -10,6 +10,7 @@ import { useGame, useWorld } from '../store'
 import { Summary, Tabs } from '../ui'
 import { CorpLogo, WordMark, type LogoGlyph } from '../art/Logos'
 import { Portrait } from '../art/People'
+import { Globe } from '../art/Globe'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
 
@@ -21,6 +22,7 @@ export function Rankings() {
   return (
     <>
       <div className="page-head"><div><div className="eyebrow">Leaderboards</div><h1>Who is winning the AI race</h1></div><Tabs tabs={TABS} value={tab} onChange={setTab} /></div>
+      <div className="panel gap-l" style={{ padding: 0, overflow: 'hidden' }}><Globe w={w} height={400} onPick={() => useGame.getState().go('sites')} /></div>
       <Summary items={Sum.rankingsSummary(w)} />
       {tab === 'models' && <Models />}
       {tab === 'labs' && <Labs />}

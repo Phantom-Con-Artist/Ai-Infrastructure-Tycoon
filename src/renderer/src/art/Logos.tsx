@@ -19,19 +19,7 @@ export function Glyph({ glyph, color, size = 40 }: { glyph: LogoGlyph; color: st
   )
 }
 
-const CORP_MARK: Record<string, { glyph: LogoGlyph; color: string }> = {
-  qooqle: { glyph: 'orbit', color: 'oklch(0.58 0.16 255)' }, nicosoft: { glyph: 'stack', color: 'oklch(0.6 0.13 200)' },
-  ratthropic: { glyph: 'spark', color: 'oklch(0.66 0.13 55)' }, openaye: { glyph: 'knot', color: 'oklch(0.3 0.02 265)' },
-  meeta: { glyph: 'wave', color: 'oklch(0.55 0.17 265)' }, exai: { glyph: 'prism', color: 'oklch(0.3 0.02 265)' },
-  deepsink: { glyph: 'wave', color: 'oklch(0.55 0.15 240)' }, mistrial: { glyph: 'stack', color: 'oklch(0.7 0.16 60)' },
-  nvidious: { glyph: 'chip', color: 'oklch(0.6 0.18 140)' }, amdude: { glyph: 'prism', color: 'oklch(0.58 0.2 28)' },
-  intellect: { glyph: 'hex', color: 'oklch(0.55 0.15 250)' }, amazoon: { glyph: 'wave', color: 'oklch(0.68 0.16 60)' },
-  cerebros: { glyph: 'hex', color: 'oklch(0.55 0.18 300)' }, tsmc: { glyph: 'chip', color: 'oklch(0.45 0.02 265)' }
-}
-export function CorpLogo({ id, size = 28 }: { id: string; size?: number }) {
-  const m = CORP_MARK[id] ?? { glyph: 'hex' as LogoGlyph, color: 'gray' }
-  return <span style={{ display: 'inline-grid', placeItems: 'center', width: size, height: size, borderRadius: size * 0.3, background: 'var(--surface-2)', verticalAlign: 'middle' }}><Glyph glyph={m.glyph} color={m.color} size={size * 0.7} /></span>
-}
+export { CorpLogo } from './Brand'
 /** Player word-mark: glyph + company name. */
 export function WordMark({ glyph, color, name, size = 22 }: { glyph: LogoGlyph; color: string; name: string; size?: number }) {
   return <span style={{ display: 'inline-flex', alignItems: 'center', gap: size * 0.4, font: `700 ${size}px var(--display)`, letterSpacing: '-.03em' }}><Glyph glyph={glyph} color={color} size={size * 1.4} />{name}</span>

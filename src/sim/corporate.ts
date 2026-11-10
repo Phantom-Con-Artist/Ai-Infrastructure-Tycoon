@@ -13,7 +13,17 @@ const START: Record<string, [number, number, number, number]> = {
   qooqle: [1400, 300, 0.24, 0.06], nicosoft: [2400, 210, 0.34, 0.0002], ratthropic: [5, 0.1, -1.5, 0.05], openaye: [29, 1.6, -0.6, 0.0],
   meeta: [800, 130, 0.28, 0.13], exai: [8, 0.0, -2, 0.6], deepsink: [1, 0.01, 0.1, 0.8], mistrial: [2, 0.01, -1, 0.1],
   nvidious: [1000, 27, 0.45, 0.035], amdude: [200, 23, 0.04, 0.003], intellect: [150, 54, -0.03, 0.0001], amazoon: [1300, 570, 0.06, 0.09],
-  cerebros: [4, 0.1, -0.5, 0.1], tsmc: [500, 70, 0.38, 0.0005]
+  cerebros: [4, 0.1, -0.5, 0.1], tsmc: [500, 70, 0.38, 0.0005],
+  coheer: [2, 0.02, -1, 0.1], halfjourney: [10, 0.2, 0.4, 0.6], unstability: [1, 0.01, -2, 0.1], elevenlaps: [1, 0.03, -0.3, 0.3],
+  huggingfeels: [4, 0.07, -0.5, 0.2], runaway: [1.5, 0.02, -1, 0.2], scalp: [7, 0.7, -0.1, 0.15], cursed: [0.4, 0.001, -1, 0.3],
+  overthink: [12, 0, -1, 0.3], safeish: [30, 0, -1, 0.3], pear: [2600, 380, 0.25, 0.0002], alibabble: [200, 130, 0.1, 0.05],
+  baiduh: [40, 19, 0.15, 0.17], oracular: [300, 50, 0.2, 0.4], coreweevil: [2, 0.2, -0.3, 0.3], lambada: [1, 0.25, -0.1, 0.3],
+  grawq: [1, 0.003, -3, 0.2], armless: [100, 3, 0.1, 0.0001], samsong: [300, 200, 0.07, 0.04], hynox: [80, 26, -0.2, 0.05], broadcomb: [400, 36, 0.4, 0.002]
+}
+/** Older saves predate the bigger cast: add any rival they are missing (founding-year numbers, no ownership). */
+export function backfillRivals(w: World): void {
+  const have = new Set(w.rivals.map((r) => r.id))
+  for (const r of initRivals()) if (!have.has(r.id)) w.rivals.push(r)
 }
 export function initRivals(): Rival[] {
   return CORPS.map((c) => { const s = START[c.id] ?? [10, 1, 0, 0.1]; return { id: c.id, valuation: s[0] * 1e9, revenue: s[1] * 1e9, margin: s[2], ceoStake: s[3], owned: false } })

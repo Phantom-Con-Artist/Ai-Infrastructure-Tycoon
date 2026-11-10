@@ -2,7 +2,7 @@ import type { World } from '@sim/types'
 import { REGIONS } from '@sim/data/hardware'
 
 /** Real coordinates for each playable region. */
-export const REGION_LL: Record<string, [number, number]> = { va: [-77.5, 39.0], or: [-122.9, 45.5], tx: [-99.7, 32.4], az: [-111.8, 33.4], ie: [-6.3, 53.3], is: [-21.9, 64.1], se: [22.1, 65.6], qc: [-71.2, 46.8], sg: [103.7, 1.33] }
+export const REGION_LL: Record<string, [number, number]> = Object.fromEntries(REGIONS.map((r) => [r.id, r.ll]))
 
 // Coarse continent outlines (lon, lat), hand-simplified. Good enough for a strategy-game overview.
 const CONTINENTS: [number, number][][] = [
@@ -15,7 +15,8 @@ const CONTINENTS: [number, number][][] = [
   [[-6, 50], [2, 51], [-3, 55], [-5, 58], [-8, 55]], [[-24, 64], [-14, 64], [-15, 66], [-22, 66]], [[130, 31], [140, 35], [142, 41], [140, 45], [135, 35]]
 ]
 
-export function WorldMap({ w, onPick, height = 300 }: { w: World; onPick?: (regionId: string) => void; height?: number }) {
+/** Flat map kept for small/static uses; the main map is the Globe. */
+export function FlatWorldMap({ w, onPick, height = 300 }: { w: World; onPick?: (regionId: string) => void; height?: number }) {
   const W = 1000, H = 500
   const px = (lon: number, lat: number): [number, number] => [((lon + 180) / 360) * W, ((90 - lat) / 180) * H]
   const mwBy: Record<string, number> = {}
@@ -41,3 +42,5 @@ export function WorldMap({ w, onPick, height = 300 }: { w: World; onPick?: (regi
     </svg>
   )
 }
+
+export { Globe as WorldMap } from './Globe'

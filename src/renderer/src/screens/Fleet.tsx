@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Cpu, Server } from 'lucide-react'
+import { Server } from 'lucide-react'
 import * as A from '@sim/actions'
 import { gpuCatalog, serverPeakKw, GPUS_PER_SERVER, type GpuSpec } from '@sim/data/hardware'
 import { RENTAL_KIND, rentalPrice, rentalUtilisation, serverMarketPrice, leadDays } from '@sim/market'
@@ -9,8 +9,8 @@ import type { RentalKind } from '@sim/types'
 import { money, num } from '../format'
 import { useGame, useWorld } from '../store'
 import { Advanced, EmptyState, Field, Num, Summary, Tabs, Term } from '../ui'
-import { GpuArt } from '../art/GpuArt'
-import { CorpLogo } from '../art/Logos'
+import { CorpWordmark, CpuArt, GpuArt } from '../art/Brand'
+import { CORPS, RIVAL_HUBS, corp } from '@sim/data/lore'
 import { EmptyFleetArt } from '../art/Illustrations'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
@@ -25,7 +25,7 @@ export function Fleet() {
       <div className="page-head"><div><div className="eyebrow">GPU market is {w.market.boom > 1.2 ? 'hot' : w.market.boom < 0.85 ? 'cooling' : 'steady'} · new orders arrive in {leadDays(w)} days</div><h1>Fleet & Cloud</h1></div><Tabs tabs={['buy', 'cloud'] as const} value={tab} onChange={setTab} /></div>
       <Summary items={Sum.fleetSummary(w)} />
       {tab === 'cloud' && <div style={{ marginBottom: 14 }}><ManagerCard system="sales" /></div>}
-      {tab === 'buy' ? <Buy /> : <CloudPools />}
+      {tab === 'buy' ? <Buy /> : <div className="col" style={{ gap: 14 }}><CloudPools /><RivalClouds /></div>}
     </>
   )
 }
@@ -39,9 +39,9 @@ function Buy() {
     const price = serverMarketPrice(w, g) * (1 - vendorDiscount(w, g.vendor))
     const n = qty[g.id] ?? 8
     return (
-      <div key={g.id} className="panel lift col" style={{ gap: 10 }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}><span className="row" style={{ gap: 8 }}><CorpLogo id={g.vendor} size={24} /><span className="dim" style={{ fontSize: 12 }}>{g.year}</span></span>{vendorDiscount(w, g.vendor) > 0 && <span className="tag g">subsidiary −45%</span>}</div>
-        {g.vcpus ? <div style={{ height: 88, display: 'grid', placeItems: 'center' }}><Cpu size={56} strokeWidth={1.2} /></div> : <GpuArt g={g} width={150} />}
+      <div key={g.id} className="panel lift col hw-card" style={{ gap: 10 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}><CorpWordmark id={g.vendor} size={15} /><span className="row" style={{ gap: 6 }}>{vendorDiscount(w, g.vendor) > 0 && <span className="tag g">subsidiary −45%</span>}<span className="dim" style={{ fontSize: 12 }}>{g.year}</span></span></div>
+        <div className="hw-stage" style={{ ['--vc' as string]: corp(g.vendor).color }}>{g.vcpus ? <CpuArt g={g} width={160} /> : <GpuArt g={g} width={160} />}</div>
         <h3>{g.name}</h3>
         <div className="row wrap" style={{ gap: 6, fontSize: 12 }}>
           {g.vcpus ? <><span className="tag">{g.vcpus * 8} vCPU / server</span><span className="tag">{g.memGB * 8} GB RAM</span></> : <><span className="tag">{num(g.tflops)} TFLOPS</span><span className="tag">{g.memGB} GB HBM</span></>}
@@ -62,6 +62,16 @@ function Buy() {
       <Advanced title="CPU servers for virtual-machine clouds">
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => g.vcpus).map(card)}</div>
       </Advanced>
+    </div>
+  )
+}
+
+function RivalClouds() {
+  const clouds = CORPS.filter((c) => c.kind === 'cloud' || c.focus === 'cloud' || c.focus === 'neocloud')
+  return (
+    <div className="panel col" style={{ gap: 10 }}>
+      <b>Who you're competing with</b>
+      <div className="rival-clouds">{clouds.map((c) => <div key={c.id} className="rc"><CorpWordmark id={c.id} size={14} /><span className="dim">{RIVAL_HUBS.filter((h) => h.corp === c.id).length || 'no'} campus{RIVAL_HUBS.filter((h) => h.corp === c.id).length === 1 ? '' : 'es'} · {c.hq}</span><i>“{c.quip}”</i></div>)}</div>
     </div>
   )
 }

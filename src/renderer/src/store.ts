@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { backfillRivals } from '@sim/corporate'
 import { createWorld, step } from '@sim/world'
 import type * as A from '@sim/actions'
 import type { System, World } from '@sim/types'
@@ -65,6 +66,7 @@ export const useGame = create<UI>((set, get) => ({
     if (!raw) return get().flash('Save not found', 'err')
     const w = JSON.parse(raw) as World
     if (w.version !== WORLD_VERSION) return get().flash('That save is from an older version of the game', 'err')
+    backfillRivals(w)
     acc = 0
     set({ w, rev: 1, speed: 0, screen: 'overview', siteId: w.sites[0]?.id ?? null, undo: null, pending: null, overlay: null, lastReadTick: w.tick })
   },

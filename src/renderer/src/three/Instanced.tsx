@@ -2,7 +2,7 @@ import { useGLTF } from '@react-three/drei'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
-export const ASSET_VERSION = 3
+export const ASSET_VERSION = 6
 export const MODEL = (name: string): string => `models/${name}.glb?v=${ASSET_VERSION}`
 
 interface Part { geometry: THREE.BufferGeometry; material: THREE.Material; local: THREE.Matrix4 }
@@ -24,8 +24,11 @@ function useParts(url: string): Part[] {
 /** Render many copies of a GLB with one draw call per sub-mesh. */
 export function InstancedGlb({ url, transforms, tint }: { url: string; transforms: THREE.Matrix4[]; tint?: THREE.Color[] }) {
   const parts = useParts(url)
-  return <>{parts.map((p, i) => <PartMesh key={i} part={p} transforms={transforms} tint={i === 0 ? tint : undefined} />)}</>
+  return <>{parts.map((p, i) => <PartMesh key={i} part={p} transforms={transforms} tint={tintable(p, i) ? tint : undefined} />)}</>
 }
+
+/** Only parts whose material is named "Accent" take the per-instance tint (vendor colour strips). */
+const tintable = (p: Part, _i: number): boolean => p.material.name === 'Accent'
 
 function PartMesh({ part, transforms, tint }: { part: Part; transforms: THREE.Matrix4[]; tint?: THREE.Color[] }) {
   const ref = useRef<THREE.InstancedMesh>(null)
@@ -47,4 +50,4 @@ export function at(x: number, y: number, z: number, rotY = 0, s = 1): THREE.Matr
   const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY), new THREE.Vector3(s, s, s))
   return m
 }
-for (const n of ['rack', 'server', 'crah', 'cdu', 'pdu', 'ups']) useGLTF.preload(MODEL(n))
+for (const n of ['rack', 'server', 'blank', 'crah', 'cdu', 'pdu', 'ups']) useGLTF.preload(MODEL(n))
