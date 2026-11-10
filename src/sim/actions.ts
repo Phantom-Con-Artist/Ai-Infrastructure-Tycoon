@@ -71,7 +71,7 @@ export function buildHall(w: World, siteId: string, spec: HallSpec): Result<Hall
   return ok(h)
 }
 const liquidOk = (h: Hall): boolean => h.cooling === 'dlc' || h.cooling === 'immersion'
-export function placeEquipment(w: World, hallId: string, kind: EquipKind, x: number, y: number, rot: Rot = 0): Result<Equip> {
+export function placeEquipment(w: World, hallId: string, kind: EquipKind, x: number, y: number, rot: Rot = 0, batch = false): Result<Equip> {
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
   const spec = EQUIP[kind]
   if (spec.needsTech && !hasTech(w, spec.needsTech)) return fail(`${spec.name} needs research first`)
@@ -82,17 +82,17 @@ export function placeEquipment(w: World, hallId: string, kind: EquipKind, x: num
   spend(w, spec.cost)
   const e: Equip = { id: newId(w, 'e'), kind, x, y, rot, load: 0 }
   f.hall.equipment.push(e)
-  relayout(f.hall, liquidOk(f.hall))
+  if (!batch) relayout(f.hall, liquidOk(f.hall))
   return ok(e)
 }
-export function placeRack(w: World, hallId: string, x: number, y: number, rot: Rot = 0): Result<Rack> {
+export function placeRack(w: World, hallId: string, x: number, y: number, rot: Rot = 0, batch = false): Result<Rack> {
   const f = lockHall(w, hallId); if (!f) return fail('No such hall')
   const err = canPlace(f.hall, 'rack', x, y, rot); if (err) return fail(err)
   if (w.cash < RACK_COST) return fail('Not enough cash')
   spend(w, RACK_COST)
   const r: Rack = { id: newId(w, 'k'), x, y, rot, gpuId: '', servers: 0, failed: 0, powered: false, cooled: false, throttle: 1, kw: 0 }
   f.hall.racks.push(r)
-  relayout(f.hall, liquidOk(f.hall))
+  if (!batch) relayout(f.hall, liquidOk(f.hall))
   return ok(r)
 }
 /** Remove whatever sits on a tile. Racks must be empty; equipment refunds 30%. */
@@ -121,13 +121,13 @@ export function autoLayout(w: World, hallId: string, maxRacks = 1e9): Result<{ r
   let racks = 0, eq = 0
   for (let x = 0; x < h.w; x += 10) {
     for (let y = 0; y < h.d; ) {
-      if (canPlace(h, 'pdu', x, y, 0) === null && placeEquipment(w, h.id, 'pdu', x, y, 0).ok) eq++
+      if (canPlace(h, 'pdu', x, y, 0) === null && placeEquipment(w, h.id, 'pdu', x, y, 0, true).ok) eq++
       y += 1
       const fp = footprint(cooler, 0)
-      if (y + fp.d <= h.d && canPlace(h, cooler, x, y, 0) === null && placeEquipment(w, h.id, cooler, x, y, 0).ok) eq++
+      if (y + fp.d <= h.d && canPlace(h, cooler, x, y, 0) === null && placeEquipment(w, h.id, cooler, x, y, 0, true).ok) eq++
       y += fp.d
       if (cooler === 'cdu') {
-        if (y < h.d && canPlace(h, 'crah', x, y, 0) === null && y + 2 <= h.d && placeEquipment(w, h.id, 'crah', x, y, 0).ok) eq++
+        if (y < h.d && canPlace(h, 'crah', x, y, 0) === null && y + 2 <= h.d && placeEquipment(w, h.id, 'crah', x, y, 0, true).ok) eq++
         y += 2
       }
     }
@@ -137,10 +137,11 @@ export function autoLayout(w: World, hallId: string, maxRacks = 1e9): Result<{ r
     for (let x = 0; x < h.w && racks < maxRacks; x++) {
       if (x % 10 === 0) continue
       if (canPlace(h, 'rack', x, y, 0) !== null) continue
-      if (w.cash < RACK_COST) return ok({ racks, equipment: eq })
-      if (placeRack(w, h.id, x, y, y % 3 === 0 ? 0 : 2).ok) racks++
+      if (w.cash < RACK_COST) { relayout(h, liquidOk(h)); return ok({ racks, equipment: eq }) }
+      if (placeRack(w, h.id, x, y, y % 3 === 0 ? 0 : 2, true).ok) racks++
     }
   }
+  relayout(h, liquidOk(h))
   return ok({ racks, equipment: eq })
 }
 export function retrofitCooling(w: World, hallId: string, to: CoolingType): Result {

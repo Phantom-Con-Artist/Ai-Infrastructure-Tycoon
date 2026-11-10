@@ -45,18 +45,18 @@ export const statKey = (siteId: string, gpuId: string): string => siteId + '|' +
 export function fleetStats(w: World): Map<string, FleetStat> {
   const m = new Map<string, FleetStat>()
   for (const s of w.sites) {
+    const local: Record<string, FleetStat> = {}
     for (const h of s.halls) {
       for (const r of h.racks) {
-        const k = statKey(s.id, r.gpuId)
-        const st = m.get(k) ?? { total: 0, healthy: 0, throttle: 0, busy: 0 }
         if (!r.gpuId) continue
+        const st = local[r.gpuId] ??= { total: 0, healthy: 0, throttle: 0, busy: 0 }
         const healthy = h.online && r.powered ? r.servers - r.failed : 0
         st.total += r.servers
         st.healthy += healthy
         st.throttle += healthy * h.throttle * r.throttle
-        m.set(k, st)
       }
     }
+    for (const id in local) m.set(statKey(s.id, id), local[id])
   }
   for (const st of m.values()) st.throttle = st.healthy > 0 ? st.throttle / st.healthy : 0
   return m
@@ -191,12 +191,13 @@ function failures(w: World): void {
     for (const h of s.halls) {
       if (!h.online) continue
       const hazard = clamp(Math.pow(2, (h.tempC - 27) / 10), 1, 8)
+      let lastId = '', g = null as ReturnType<typeof gpu> | null
       for (const r of h.racks) {
         if (!r.gpuId || r.servers === 0) continue
-        const g = gpu(w, r.gpuId)
+        if (r.gpuId !== lastId) { g = gpu(w, r.gpuId); lastId = r.gpuId }
         const healthy = r.servers - r.failed
         const local = r.cooled ? (r.throttle < 0.9 ? 2 : 1) : 3
-        const k = poisson(w, (healthy * GPUS_PER_SERVER * hazard * local) / g.mtbfH)
+        const k = poisson(w, (healthy * GPUS_PER_SERVER * hazard * local) / g!.mtbfH)
         if (k > 0) {
           r.failed = Math.min(r.servers, r.failed + k)
         }

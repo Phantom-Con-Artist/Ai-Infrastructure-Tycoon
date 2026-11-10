@@ -12,7 +12,7 @@ export interface Rack {
   id: string; x: number; y: number; rot: 0 | 1 | 2 | 3
   gpuId: string; servers: number; failed: number
   // derived by layout / live
-  pduId?: string; coolerId?: string; powered: boolean; cooled: boolean; throttle: number; kw: number
+  pduId?: string; coolerId?: string; pduIdx?: number; coolerIdx?: number; powered: boolean; cooled: boolean; throttle: number; kw: number
 }
 export interface Equip { id: string; kind: EquipKind; x: number; y: number; rot: 0 | 1 | 2 | 3; load: number }
 export interface Hall {

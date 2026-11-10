@@ -169,7 +169,7 @@ function HallContents({ hall }: { hall: Hall }) {
     }
     return { rackT, serverT, pads, padColors, eq }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hall, sig, w.tick])
+  }, [hall, sig, Math.floor(w.tick / 6)]) // status colours refresh every 6 game-hours
   return (
     <group>
       <StatusPads transforms={pads} colors={padColors} />

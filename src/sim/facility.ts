@@ -37,29 +37,29 @@ export const derateFactor = (h: Hall, ambient: number): number => {
 /** Per-rack electrical draw this hour; also accumulates load on each PDU and cooler. */
 function hallLoad(w: World, h: Hall, busy: Record<string, number>): number {
   let kw = 0
-  for (const e of h.equipment) e.load = 0
-  const byId = new Map(h.equipment.map((e) => [e.id, e]))
+  const eq = h.equipment
+  for (const e of eq) e.load = 0
+  let lastId = '', g: GpuSpec | null = null
   for (const r of h.racks) {
     if (!r.gpuId || !r.powered || !h.online || r.servers === 0) { r.kw = 0; continue }
-    const g: GpuSpec = gpu(w, r.gpuId)
-    r.kw = (r.servers - r.failed) * serverKw(g, busy[r.gpuId] ?? 0) * (0.6 + 0.4 * h.throttle * r.throttle)
+    if (r.gpuId !== lastId) { g = gpu(w, r.gpuId); lastId = r.gpuId }
+    r.kw = (r.servers - r.failed) * serverKw(g!, busy[r.gpuId] ?? 0) * (0.6 + 0.4 * h.throttle * r.throttle)
     kw += r.kw
-    if (r.pduId) { const p = byId.get(r.pduId); if (p) p.load += r.kw }
-    if (r.coolerId) { const c = byId.get(r.coolerId); if (c) c.load += r.kw }
+    if (r.pduIdx !== undefined && r.pduIdx >= 0 && eq[r.pduIdx]) eq[r.pduIdx].load += r.kw
+    if (r.coolerIdx !== undefined && r.coolerIdx >= 0 && eq[r.coolerIdx]) eq[r.coolerIdx].load += r.kw
   }
   return kw
 }
 
 /** Local constraints → per-rack throttle for the next hour (PDU breakers, local cooling starvation). */
 function rackThrottles(h: Hall, ambient: number): void {
-  const byId = new Map(h.equipment.map((e) => [e.id, e]))
+  const eq = h.equipment
   const der = derateFactor(h, ambient)
+  // per-equipment factors once, then a cheap pass over racks
+  const factor = eq.map((e) => e.kind === 'pdu' ? (e.load > EQUIP.pdu.kw ? EQUIP.pdu.kw / e.load : 1) : (e.load > EQUIP[e.kind].kw * der ? Math.max(0.3, EQUIP[e.kind].kw * der / e.load) : 1))
   for (const r of h.racks) {
-    const p = r.pduId ? byId.get(r.pduId) : undefined
-    const pduF = p && p.load > EQUIP.pdu.kw ? EQUIP.pdu.kw / p.load : 1
-    const c = r.coolerId ? byId.get(r.coolerId) : undefined
-    let coolF = 0.35
-    if (c) { const cap = EQUIP[c.kind].kw * der; coolF = c.load > cap ? Math.max(0.3, cap / c.load) : 1 }
+    const pduF = r.pduIdx !== undefined && r.pduIdx >= 0 ? factor[r.pduIdx] ?? 1 : 1
+    const coolF = r.coolerIdx !== undefined && r.coolerIdx >= 0 ? factor[r.coolerIdx] ?? 1 : 0.35
     r.throttle = clamp(pduF * coolF, 0, 1)
   }
 }

@@ -9,7 +9,18 @@ export const clamp = (x: number, a: number, b: number): number => Math.min(b, Ma
 export const hasTech = (w: World, id: string): boolean => w.research.done.includes(id)
 export const techLevel = (w: World, id: string): number => w.research.levels?.[id] ?? (w.research.done.includes(id) ? 1 : 0)
 /** Sum of numeric effect values for effects like "mfu:0.08". */
+const techMemo = new WeakMap<World, { stamp: string; cache: Map<string, number> }>()
 export function techSum(w: World, key: string): number {
+  const stamp = w.research.done.length + ':' + Object.values(w.research.levels ?? {}).reduce((a, b) => a + b, 0)
+  let memo = techMemo.get(w)
+  if (!memo || memo.stamp !== stamp) { memo = { stamp, cache: new Map() }; techMemo.set(w, memo) }
+  const hit = memo.cache.get(key)
+  if (hit !== undefined) return hit
+  const v = techSumRaw(w, key)
+  memo.cache.set(key, v)
+  return v
+}
+function techSumRaw(w: World, key: string): number {
   let s = 0
   for (const t of TECHS) {
     if (!t.effect.startsWith(key + ':')) continue

@@ -30,7 +30,17 @@ export const isCpu = (g: GpuSpec): boolean => (g.vcpus ?? 0) > 0
 const PHYSICISTS = ['Feynmann', 'Planckton', 'Curious-ie', 'Tesla-ish', 'Faradayne', 'Noetherium', 'Diracula', 'Heisenburger', 'Bohrderline', 'Maxwellness']
 
 /** Endless progression: a new Nvidious flagship every 2 years, AMDude a year behind and cheaper. */
+const catCache = new Map<number, GpuSpec[]>()
+/** Memoised by month: the catalog is pure in `year`, and this is called in hot loops. Returns a fresh array (callers sort it). */
 export function gpuCatalog(year: number): GpuSpec[] {
+  const key = Math.floor(year * 12)
+  const hit = catCache.get(key)
+  if (hit) return hit.slice()
+  const built = buildCatalog(key / 12)
+  catCache.set(key, built)
+  return built.slice()
+}
+function buildCatalog(year: number): GpuSpec[] {
   const out = [...BASE, ...CPUS].filter((g) => g.year <= year)
   for (let gen = 1; 2026 + gen * 2 <= year && gen <= 40; gen++) {
     const y = 2026 + gen * 2
@@ -48,8 +58,10 @@ export function gpuCatalog(year: number): GpuSpec[] {
   }
   return out
 }
-export const gpuById = (id: string, year = 2100): GpuSpec => {
-  const g = gpuCatalog(year).find((x) => x.id === id)
+const byId = new Map<string, GpuSpec>()
+export const gpuById = (id: string, _year = 2100): GpuSpec => {
+  let g = byId.get(id)
+  if (!g) { g = buildCatalog(2110).find((x) => x.id === id); if (g) byId.set(id, g) }
   if (!g) throw new Error('unknown gpu ' + id)
   return g
 }

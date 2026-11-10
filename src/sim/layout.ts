@@ -42,21 +42,23 @@ const dist = (ax: number, ay: number, bx: number, by: number): number => Math.hy
 
 /** Recompute rack → PDU and rack → cooler assignments, plus hall capacity totals. Call after any layout change. */
 export function relayout(h: Hall, liquidOk: boolean): void {
-  const pdus = h.equipment.filter((e) => e.kind === 'pdu')
-  const coolers = h.equipment.filter((e) => e.kind === 'crah' || (e.kind === 'cdu' && liquidOk))
+  const pdus = h.equipment.filter((e) => e.kind === 'pdu').map((e) => ({ e, c: centre(e.x, e.y, e.kind, e.rot) }))
+  const coolers = h.equipment.filter((e) => e.kind === 'crah' || (e.kind === 'cdu' && liquidOk)).map((e) => ({ e, c: centre(e.x, e.y, e.kind, e.rot), r: EQUIP[e.kind].radius }))
   for (const r of h.racks) {
     const [rx, ry] = [r.x + 0.5, r.y + 0.5]
     let best: Equip | undefined, bd = Infinity
-    for (const p of pdus) { const [cx, cy] = centre(p.x, p.y, p.kind, p.rot); const d = dist(rx, ry, cx, cy); if (d <= EQUIP.pdu.radius && d < bd) { bd = d; best = p } }
+    for (const { e: p, c: [cx, cy] } of pdus) { const d = dist(rx, ry, cx, cy); if (d <= EQUIP.pdu.radius && d < bd) { bd = d; best = p } }
     r.pduId = best?.id
+    r.pduIdx = best ? h.equipment.indexOf(best) : -1
     r.powered = !!best
     let bc: Equip | undefined, bcd = Infinity
-    for (const c of coolers) { const [cx, cy] = centre(c.x, c.y, c.kind, c.rot); const d = dist(rx, ry, cx, cy); if (d <= EQUIP[c.kind].radius && d < bcd) { bcd = d; bc = c } }
+    for (const { e: c, c: [cx, cy], r: rad } of coolers) { const d = dist(rx, ry, cx, cy); if (d <= rad && d < bcd) { bcd = d; bc = c } }
     r.coolerId = bc?.id
+    r.coolerIdx = bc ? h.equipment.indexOf(bc) : -1
     r.cooled = !!bc
   }
   h.powerKw = pdus.length * EQUIP.pdu.kw
-  h.coolKw = coolers.reduce((a, c) => a + EQUIP[c.kind].kw, 0)
+  h.coolKw = coolers.reduce((a, c) => a + EQUIP[c.e.kind].kw, 0)
   h.upsKwh = h.equipment.filter((e) => e.kind === 'ups').length * EQUIP.ups.kw
   h.upsSoc = Math.min(h.upsSoc, h.upsKwh)
 }

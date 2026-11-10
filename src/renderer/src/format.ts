@@ -2,6 +2,8 @@ import { START_YEAR } from '@sim/types'
 
 export function money(n: number, d = 1): string {
   const a = Math.abs(n), s = n < 0 ? '−' : ''
+  if (a >= 1e18) return `${s}$${(a / 1e18).toFixed(d)}Qi`
+  if (a >= 1e15) return `${s}$${(a / 1e15).toFixed(d)}Qa`
   if (a >= 1e12) return `${s}$${(a / 1e12).toFixed(d)}T`
   if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(d)}B`
   if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(d)}M`
@@ -10,6 +12,7 @@ export function money(n: number, d = 1): string {
 }
 export function num(n: number, d = 0): string {
   const a = Math.abs(n)
+  if (a >= 1e18) return (n / 1e18).toFixed(2) + 'E'
   if (a >= 1e15) return (n / 1e15).toFixed(2) + 'P'
   if (a >= 1e12) return (n / 1e12).toFixed(2) + 'T'
   if (a >= 1e9) return (n / 1e9).toFixed(2) + 'B'
