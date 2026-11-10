@@ -221,7 +221,7 @@ function HallContents({ hall }: { hall: Hall }) {
       for (let k = 0; k < r.servers; k++) { serverT.push(at(x, 0.12 + k * 0.255, z, ROT_Y(r.rot))); serverTint.push(tint) }
       if (r.gpuId) for (let k = r.servers; k < 8; k++) blankT.push(at(x, 0.12 + k * 0.255, z, ROT_Y(r.rot))) // populated racks get blanking panels; empty racks stay hollow
       pads.push(at(x, 0.006, z))
-      caps.push(at(x, 2.26, z)) // a light strip on the rack roof, readable from the default camera
+      caps.push(at(x, 2.62, z)) // a light strip on the rack roof, readable from the default camera
       padColors.push(STATUS[rackState(r)])
     }
     const eq: Record<string, THREE.Matrix4[]> = { pdu: [], crah: [], cdu: [], ups: [] }
@@ -254,7 +254,7 @@ function StatusPads({ transforms, colors, cap: roof }: { transforms: THREE.Matri
     m.count = transforms.length; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true
   })
   const cap = Math.max(1, transforms.length)
-  return <instancedMesh ref={ref} args={[undefined, undefined, cap]} key={cap}>{roof ? <boxGeometry args={[TILE * 0.5, 0.05, TILE * 0.5]} /> : <boxGeometry args={[TILE * 0.92, 0.01, TILE * 0.92]} />}<meshBasicMaterial transparent opacity={roof ? 1 : 0.55} toneMapped={false} /></instancedMesh>
+  return <instancedMesh ref={ref} args={[undefined, undefined, cap]} key={cap}>{roof ? <boxGeometry args={[TILE * 0.62, 0.07, TILE * 0.62]} /> : <boxGeometry args={[TILE * 0.92, 0.01, TILE * 0.92]} />}<meshBasicMaterial transparent opacity={roof ? 1 : 0.55} toneMapped={false} /></instancedMesh>
 }
 
 function Coverage({ hall, tool, sel }: { hall: Hall; tool: Tool; sel?: string }) {

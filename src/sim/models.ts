@@ -71,10 +71,10 @@ export const DATASETS: DatasetSpec[] = [
 ]
 
 /*
- * The dataset market never runs dry. Every quarter from 2025 a new edition appears: bigger, pricier, slightly cleaner,
+ * The dataset market never runs dry. Every quarter from mid-2023 a new edition appears: bigger, pricier, slightly cleaner,
  * and — the further you go — sillier. Editions are a pure function of their index, so they need no save state.
  */
-const GEN_START = 2025
+const GEN_START = 2023.5
 const GEN: { domain: Domain; t: number; q: number; usd: number; risk: number; names: [string, string, string]; src: [string, string, string] }[] = [
   { domain: 'web', t: 30, q: 0.95, usd: 8e6, risk: 0.2, names: ['Web crawl refresh', 'The Whole Feed', 'Every tab anyone left open'], src: ['Fresh crawl, deduplicated', 'Bought from a browser extension nobody remembers installing', 'Recovered from 40 billion abandoned browser sessions'] },
   { domain: 'code', t: 3, q: 1.15, usd: 20e6, risk: 0.15, names: ['Commit history bundle', 'Private monorepo leak-ish', 'Every TODO ever written'], src: ['Licensed from a code host', 'A contractor "found" it', 'Mined from comments that say "fix later"'] },
