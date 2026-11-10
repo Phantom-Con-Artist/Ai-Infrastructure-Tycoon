@@ -70,7 +70,7 @@ export const useGame = create<UI>((set, get) => ({
   },
   save: async (slot = 'manual') => {
     const w = get().w; if (!w) return
-    await saves.write(slot, { company: w.company, tick: w.tick, cash: w.cash }, JSON.stringify(w))
+    await saves.write(slot, { company: w.company, tick: w.tick, cash: w.cash, sandbox: w.rules.mode === 'sandbox' }, JSON.stringify(w))
     if (slot !== 'auto') get().flash('Game saved')
   },
   exit: () => set({ w: null, speed: 0, undo: null, pending: null, overlay: null }),

@@ -9,6 +9,7 @@ import { Confirm } from './overlays/Confirm'
 import { Ticker } from './overlays/Ticker'
 import { NewsDrawer, useUnread } from './overlays/NewsDrawer'
 import { Newspaper } from './overlays/Newspaper'
+import { DevPanel } from './overlays/DevPanel'
 import { Overview } from './screens/Overview'
 import { Sites } from './screens/Sites'
 import { Fleet } from './screens/Fleet'
@@ -50,6 +51,7 @@ export function App() {
       if (e.key === 'F11') { e.preventDefault(); window.win?.fullscreen() }
       if (!s.w || ['INPUT', 'SELECT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return
       if (e.code === 'Space') { e.preventDefault(); s.setSpeed(s.speed === 0 ? 1 : 0) }
+      if (e.key === '`' && s.w.rules?.devTools) { e.preventDefault(); s.openOverlay(s.overlay === 'dev' ? null : 'dev') }
       if (!e.altKey && e.key >= '1' && e.key <= '4') s.setSpeed(+e.key)
     }
     window.addEventListener('keydown', k)
@@ -99,7 +101,7 @@ function Game() {
       </nav>
       <header className="hud">
         <div className="cell" style={{ minWidth: 150 }}><span className="k">{w.ceo}, CEO</span><span className="v">{dateOf(w.tick)}</span></div>
-        <div className="cell"><span className="k">Cash</span><span className={'v ' + (w.cash < 0 ? 'neg' : '')}>{money(w.cash)}</span></div>
+        <div className="cell"><span className="k">Cash</span>{w.rules.infiniteCash ? <span className="v" title="Sandbox: unlimited cash">∞ Unlimited</span> : <span className={'v ' + (w.cash < 0 ? 'neg' : '')}>{money(w.cash)}</span>}</div>
         <div className="cell"><span className="k">Net / day</span><span className={'v ' + (profit > 0 ? 'pos' : profit < 0 ? 'neg' : '')}>{w.ledger.length ? money(profit) : '—'}</span></div>
         <div className="cell has-pop" tabIndex={0}><span className="k">Valuation</span><span className="v">{money(valuation(w))}</span>
           <div className="pop"><div><span>GPUs</span><b>{num(totalGpus(w))}</b></div><div><span>IT load</span><b>{totalItMw(w).toFixed(2)} MW</b></div><div><span>Reputation</span><b>{w.reputation.toFixed(0)}</b></div></div>
@@ -130,6 +132,7 @@ function Game() {
       </main>
       <NewsDrawer />
       <Newspaper />
+      <DevPanel />
       <Confirm />
     </div>
   )

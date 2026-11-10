@@ -112,7 +112,7 @@ export function Overview() {
         { label: 'Run-rate revenue', value: money(trailingRevenue(w)), hint: 'per year at today’s pace' },
         { label: 'Compute', value: `${num(totalGpus(w))} GPUs`, hint: `${totalItMw(w).toFixed(2)} MW · PUE ${pue ? pue.toFixed(2) : '—'}` }
       ] : [
-        { label: 'Seed money', value: money(w.cash), hint: 'the clock only runs when you press play' },
+        { label: 'Seed money', value: w.rules.infiniteCash ? '∞ Unlimited' : money(w.cash), hint: 'the clock only runs when you press play' },
         { label: 'Valuation', value: money(valuation(w)) },
         { label: 'Reputation', value: `${w.reputation.toFixed(0)} / 100` }
       ]} />

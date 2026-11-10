@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, FolderOpen, Play, Plus, Power, Settings as Cog, Trash2 } from 'lucide-react'
 import { ADVISORS } from '@sim/data/lore'
+import { RULE_KEYS, makeRules, type RuleKey, type Rules } from '@sim/rules'
 import { dateOf, money } from './format'
 import { useGame } from './store'
 import { saves, type SaveMeta } from './saves'
@@ -10,6 +11,44 @@ import { Portrait } from './art/People'
 import { Glyph, LOGO_COLORS, LOGO_GLYPHS, WordMark, type LogoGlyph } from './art/Logos'
 
 type View = 'home' | 'new' | 'load' | 'settings'
+
+const CASH_PRESETS: [string, number][] = [['$40M', 40e6], ['$1B', 1e9], ['$1T', 1e12]]
+const RULE_LABEL: Record<RuleKey, [string, string]> = {
+  hardwarePrice: ['Hardware prices', 'servers and chips'], powerPrice: ['Power prices', 'grid and spot'], demand: ['Customer demand', 'rentals and tokens'],
+  failureRate: ['Hardware failures', 'how often GPUs die'], rivalAggression: ['Rival speed', 'how often rivals ship'], researchSpeed: ['Research speed', 'R&D progress']
+}
+function SandboxRules({ rules, onChange }: { rules: Rules; onChange: (r: Rules) => void }) {
+  const set = (p: Partial<Rules>): void => onChange({ ...rules, ...p })
+  const setMult = (k: RuleKey, v: number): void => onChange({ ...rules, mult: { ...rules.mult, [k]: v } })
+  return (
+    <div className="sandbox-rules">
+      <div className="col" style={{ gap: 8 }}>
+        <span className="dim" style={{ fontSize: 12, fontWeight: 550 }}>Starting cash</span>
+        <div className="row wrap" style={{ gap: 6 }}>
+          {CASH_PRESETS.map(([l, v]) => <button key={l} className={'btn sm ' + (!rules.infiniteCash && rules.startCash === v ? 'pri' : '')} onClick={() => set({ startCash: v, infiniteCash: false })}>{l}</button>)}
+          <button className={'btn sm ' + (rules.infiniteCash ? 'pri' : '')} onClick={() => set({ infiniteCash: true })}>Unlimited</button>
+          <label className="row" style={{ gap: 6, fontSize: 13 }}>Custom $M<input type="number" min={1} style={{ width: 110 }} value={Math.round(rules.startCash / 1e6)} onChange={(e) => set({ startCash: Math.max(1, +e.target.value || 1) * 1e6, infiniteCash: false })} /></label>
+        </div>
+      </div>
+      <div className="row wrap" style={{ gap: 18, fontSize: 13.5 }}>
+        <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={rules.noBankruptcy || rules.infiniteCash} disabled={rules.infiniteCash} onChange={(e) => set({ noBankruptcy: e.target.checked })} /> Never go bankrupt</label>
+        <label className="row" style={{ gap: 6 }}><input type="checkbox" checked={rules.devTools} onChange={(e) => set({ devTools: e.target.checked })} /> Developer panel (press <kbd>`</kbd> in game)</label>
+      </div>
+      <div className="rule-grid">
+        {RULE_KEYS.map((k) => {
+          const v = rules.mult[k]
+          return (
+            <label key={k} className="rule">
+              <span><b>{RULE_LABEL[k][0]}</b><em>{v === 1 ? 'normal' : `×${v < 1 ? v.toFixed(2) : v.toFixed(1)}`}</em></span>
+              <input type="range" min={-2} max={2} step={0.25} value={Math.log2(v)} onChange={(e) => setMult(k, Math.round(2 ** +e.target.value * 100) / 100)} />
+              <small>{RULE_LABEL[k][1]}</small>
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export function Menu() {
   const [view, setView] = useState<View>('home')
@@ -60,9 +99,16 @@ function NewCompany({ onBack }: { onBack: () => void }) {
   const [advisor, setAdvisor] = useState('cfo')
   const [glyph, setGlyph] = useState<LogoGlyph>('hex')
   const [color, setColor] = useState(LOGO_COLORS[0])
+  const [mode, setMode] = useState<'career' | 'sandbox'>('career')
+  const [rules, setRules] = useState<Rules>(() => makeRules({ mode: 'sandbox', devTools: true }))
   return (
     <div className="sheet">
       <Back onClick={onBack} title="Found your company" />
+      <div className="mode-switch" role="radiogroup" aria-label="Game mode">
+        <button role="radio" aria-checked={mode === 'career'} className={mode === 'career' ? 'on' : ''} onClick={() => setMode('career')}><b>Career</b><span>The real game. $40M, fair rules, achievements.</span></button>
+        <button role="radio" aria-checked={mode === 'sandbox'} className={mode === 'sandbox' ? 'on' : ''} onClick={() => setMode('sandbox')}><b>Sandbox</b><span>Your rules. For testing and messing about. No achievements.</span></button>
+      </div>
+      {mode === 'sandbox' && <SandboxRules rules={rules} onChange={setRules} />}
       <div style={{ padding: '22px 18px', borderRadius: 18, background: 'var(--surface-2)', display: 'grid', placeItems: 'center' }}><WordMark glyph={glyph} color={color} name={company || 'Your Co.'} size={26} /></div>
       <div className="row"><label className="f" style={{ flex: 1.4 }}>Company name<input type="text" value={company} maxLength={36} onChange={(e) => setCompany(e.target.value)} /></label>
         <label className="f" style={{ flex: 1 }}>CEO (you)<input type="text" value={ceo} maxLength={28} onChange={(e) => setCeo(e.target.value)} /></label></div>
@@ -73,7 +119,7 @@ function NewCompany({ onBack }: { onBack: () => void }) {
       <div className="col" style={{ gap: 8 }}><span className="dim" style={{ fontSize: 12, fontWeight: 550 }}>Your right hand</span>
         <div className="advisors">{ADVISORS.map((a) => <button key={a.id} className={'adv' + (advisor === a.id ? ' on' : '')} onClick={() => setAdvisor(a.id)}><span className="face"><Portrait seed={a.name} /></span><b>{a.name}</b><span>{a.role}</span><em>{a.perk}</em></button>)}</div>
       </div>
-      <button className="btn pri" style={{ justifySelf: 'start', padding: '12px 22px' }} onClick={() => newGame({ company: company.trim() || 'Untitled Co.', ceo: ceo.trim() || 'You', advisor, seed: (Date.now() & 0x7fffffff) | 1, logo: { glyph, color } })}>Found company · $40M seed</button>
+      <button className="btn pri" style={{ justifySelf: 'start', padding: '12px 22px' }} onClick={() => newGame({ company: company.trim() || 'Untitled Co.', ceo: ceo.trim() || 'You', advisor, seed: (Date.now() & 0x7fffffff) | 1, logo: { glyph, color }, rules: mode === 'sandbox' ? rules : undefined })}>{mode === 'sandbox' ? `Start sandbox · ${rules.infiniteCash ? 'unlimited cash' : money(rules.startCash)}` : 'Found company · $40M seed'}</button>
     </div>
   )
 }
@@ -85,7 +131,7 @@ function LoadList({ list, onBack, onChange }: { list: SaveMeta[]; onBack: () => 
       <Back onClick={onBack} title="Load game" />
       {list.map((s) => (
         <div key={s.slot} className="saverow">
-          <div className="grow"><b>{s.company}</b> <span className="tag">{s.slot}</span><div className="dim" style={{ fontSize: 12.5 }}>{dateOf(s.tick)} · {money(s.cash)} · saved {new Date(s.savedAt).toLocaleString()}</div></div>
+          <div className="grow"><b>{s.company}</b> <span className="tag">{s.slot}</span>{s.sandbox && <span className="tag sandbox">Sandbox</span>}<div className="dim" style={{ fontSize: 12.5 }}>{dateOf(s.tick)} · {money(s.cash)} · saved {new Date(s.savedAt).toLocaleString()}</div></div>
           <button className="btn sm pri" onClick={() => load(s.slot)}>Load</button>
           <button className="btn sm danger" aria-label="Delete save" onClick={() => { void saves.remove(s.slot).then(onChange) }}><Trash2 size={14} /></button>
         </div>

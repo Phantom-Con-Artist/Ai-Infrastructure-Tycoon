@@ -47,3 +47,16 @@ describe('world v9 + rules', () => {
     expect(w.news[0].importance).toBe(2)
   })
 })
+
+describe('sandbox fairness', () => {
+  it('never awards achievements in a sandbox game', async () => {
+    const { checkAchievements } = await import('./corporate')
+    const { devUnlockTech } = await import('./dev')
+    const { stepMany } = await import('./world')
+    const w = createWorld(1, 'S', 'Y', 'cfo', undefined, { mode: 'sandbox', devTools: true, startCash: 1e12 })
+    devUnlockTech(w, 'all')
+    stepMany(w, 24 * 30)
+    expect(checkAchievements(w)).toEqual([])
+    expect(w.achievements).toEqual([])
+  })
+})

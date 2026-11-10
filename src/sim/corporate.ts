@@ -153,6 +153,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'dyson', name: 'Sunburned', desc: 'Begin the Dyson swarm.', icon: '☀️', check: (w) => hasTech(w, 'dyson') }
 ]
 export function checkAchievements(w: World): string[] {
+  if (w.rules?.mode === 'sandbox') return [] // sandbox runs don't count
   const got: string[] = []
   for (const a of ACHIEVEMENTS) if (!w.achievements.includes(a.id) && a.check(w)) { w.achievements.push(a.id); got.push(a.id); pushNews(w, 'good', `${a.icon} Achievement: ${a.name}`, a.desc) }
   return got

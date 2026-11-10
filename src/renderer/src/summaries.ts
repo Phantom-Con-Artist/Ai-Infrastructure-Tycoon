@@ -90,7 +90,7 @@ export function financeSummary(w: World): SummaryItem[] {
   const days = net < 0 ? Math.max(0, w.cash) / -net : Infinity
   const short = w.cash < 0 || days < 30
   return [
-    { label: 'Cash', value: money(w.cash), tone: w.cash < 0 ? 'neg' : undefined },
+    { label: 'Cash', value: w.rules?.infiniteCash ? '∞ Unlimited' : money(w.cash), tone: !w.rules?.infiniteCash && w.cash < 0 ? 'neg' : undefined },
     { label: 'Net per day', value: w.ledger.length ? money(net) : '—', tone: net > 0 ? 'pos' : net < 0 ? 'neg' : undefined, hint: 'last 14 days' },
     { label: 'Runway', value: w.rules?.infiniteCash ? 'Unlimited' : !Number.isFinite(days) ? 'Profitable' : days > 1095 ? 'Over 3 years' : `${Math.floor(days)} days`, tone: !w.rules?.infiniteCash && short ? 'neg' : 'pos', hint: 'until cash runs out' },
     { label: 'Debt', value: money(debt(w)), hint: `limit ${money(creditLimit(w))}` }

@@ -1,8 +1,8 @@
 /** Save backend: SQLite via Electron IPC, or localStorage when running in a plain browser (dev/testing). */
-export interface SaveMeta { slot: string; company: string; tick: number; cash: number; savedAt: number }
+export interface SaveMeta { slot: string; company: string; tick: number; cash: number; savedAt: number; sandbox?: boolean }
 interface Backend {
   list(): Promise<SaveMeta[]>
-  write(slot: string, meta: { company: string; tick: number; cash: number }, world: string): Promise<boolean>
+  write(slot: string, meta: { company: string; tick: number; cash: number; sandbox?: boolean }, world: string): Promise<boolean>
   read(slot: string): Promise<string | null>
   remove(slot: string): Promise<boolean>
 }

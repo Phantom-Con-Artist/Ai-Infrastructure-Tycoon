@@ -11,15 +11,17 @@ function openDb(): void {
   db.exec(`CREATE TABLE IF NOT EXISTS saves (
     slot TEXT PRIMARY KEY, company TEXT NOT NULL, tick INTEGER NOT NULL, cash REAL NOT NULL,
     saved_at INTEGER NOT NULL, world TEXT NOT NULL)`)
+  const cols = db.prepare('PRAGMA table_info(saves)').all() as { name: string }[]
+  if (!cols.some((c) => c.name === 'sandbox')) db.exec('ALTER TABLE saves ADD COLUMN sandbox INTEGER NOT NULL DEFAULT 0')
 }
 
 function registerIpc(): void {
   ipcMain.handle('save:list', () =>
-    db.prepare('SELECT slot, company, tick, cash, saved_at AS savedAt FROM saves ORDER BY saved_at DESC').all())
-  ipcMain.handle('save:write', (_e, slot: string, meta: { company: string; tick: number; cash: number }, world: string) => {
-    db.prepare(`INSERT INTO saves (slot, company, tick, cash, saved_at, world) VALUES (?,?,?,?,?,?)
-      ON CONFLICT(slot) DO UPDATE SET company=excluded.company, tick=excluded.tick, cash=excluded.cash, saved_at=excluded.saved_at, world=excluded.world`)
-      .run(slot, meta.company, meta.tick, meta.cash, Date.now(), world)
+    db.prepare('SELECT slot, company, tick, cash, saved_at AS savedAt, sandbox FROM saves ORDER BY saved_at DESC').all().map((r) => ({ ...(r as object), sandbox: !!(r as { sandbox: number }).sandbox })))
+  ipcMain.handle('save:write', (_e, slot: string, meta: { company: string; tick: number; cash: number; sandbox?: boolean }, world: string) => {
+    db.prepare(`INSERT INTO saves (slot, company, tick, cash, saved_at, world, sandbox) VALUES (?,?,?,?,?,?,?)
+      ON CONFLICT(slot) DO UPDATE SET company=excluded.company, tick=excluded.tick, cash=excluded.cash, saved_at=excluded.saved_at, world=excluded.world, sandbox=excluded.sandbox`)
+      .run(slot, meta.company, meta.tick, meta.cash, Date.now(), world, meta.sandbox ? 1 : 0)
     return true
   })
   ipcMain.handle('save:read', (_e, slot: string) => (db.prepare('SELECT world FROM saves WHERE slot = ?').get(slot) as { world: string } | undefined)?.world ?? null)

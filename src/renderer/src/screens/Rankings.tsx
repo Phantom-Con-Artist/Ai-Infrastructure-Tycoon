@@ -104,7 +104,7 @@ function Rich() {
   return <div className="panel" style={{ padding: 8 }}><table><tbody>
     {list.map((p, i) => <tr key={p.name} style={p.you ? { background: 'var(--accent-soft)' } : undefined}><td style={{ width: 40 }}><Rank i={i} /></td>
       <td style={{ width: 52 }}><span style={{ display: 'block', borderRadius: 12, overflow: 'hidden', width: 40 }}><Portrait seed={p.name} size={40} jacket={p.corp === 'nvidious'} /></span></td>
-      <td><b style={{ fontWeight: 650 }}>{p.name}{p.you ? ' (you)' : ''}</b><div className="dim" style={{ fontSize: 12.5 }}>{p.source}</div></td>
+      <td><b style={{ fontWeight: 650 }}>{p.name}{p.you ? ' (you)' : ''}</b>{p.you && w.rules.mode === 'sandbox' && <span className="tag sandbox" style={{ marginLeft: 6 }}>sandbox · unofficial</span>}<div className="dim" style={{ fontSize: 12.5 }}>{p.source}</div></td>
       <td className="r"><b style={{ fontSize: 16 }}>{money(p.worth)}</b></td></tr>)}
   </tbody></table></div>
 }
