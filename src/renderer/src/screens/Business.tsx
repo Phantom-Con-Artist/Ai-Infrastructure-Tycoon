@@ -1,3 +1,4 @@
+import { Select } from '../Select'
 import { Fragment, useState } from 'react'
 import * as A from '@sim/actions'
 import { ADVISORS } from '@sim/data/lore'
@@ -54,8 +55,8 @@ function Offer({ id, open, toggle }: { id: string; open: boolean; toggle: () => 
         <div className="row"><b className="mono pos" style={{ fontSize: 20 }}>{money(c.payUsd)}</b><button className="btn pri" onClick={toggle}>{open ? 'Close' : 'Accept…'}</button></div>
       </div>
       {open && <div className="row wrap">
-        <Field label="Site"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
-        <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((g) => <option key={g} value={g}>{gpu(w, g).name}</option>)}</select></Field>
+        <Field label="Site"><Select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
+        <Field label="GPU"><Select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((g) => <option key={g} value={g}>{gpu(w, g).name}</option>)}</Select></Field>
         <Field label={`Servers ${servers} / ${free} free`}><input type="range" min={1} max={Math.max(1, free)} value={servers} onChange={(e) => setN(+e.target.value)} /></Field>
         <button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => act((x) => A.acceptContract(x, id, siteId, gid, servers), 'Contract signed — training started')}>Sign & start</button>
       </div>}

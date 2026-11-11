@@ -1,4 +1,5 @@
 /** Screens for the three connected systems: Data Foundry (Lab), organisation deals (Deals) and the society loop (Ranks). */
+import { Select } from '../Select'
 import { useState } from 'react'
 import { MODALITIES } from '@sim/foundry'
 import * as DF from '@sim/datafoundry'
@@ -34,7 +35,7 @@ export function DataFoundry() {
             <b>{s.name}</b><span>{ok ? s.blurb : 'Locked · research in R&D → Data'}</span><em>{money(s.usdPerT)}/T · quality ×{DF.sourceQuality(w, k)}{s.risk > 0.3 ? ' · legal risk' : ''}</em></button>) })}</div>
         <div className="row wrap" style={{ gap: 14, alignItems: 'end' }}>
           <Field label="Name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="Subject"><select value={domain} onChange={(e) => setDomain(e.target.value as Domain)}>{DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}</select></Field>
+          <Field label="Subject"><Select value={domain} onChange={(e) => setDomain(e.target.value as Domain)}>{DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}</Select></Field>
           <Field label="Size (trillion tokens)"><Num value={targetT} min={0.01} step={0.1} onChange={setTarget} /></Field>
           <Field label="Budget ($k per day)"><Num value={budgetK} min={1} step={10} onChange={setBudget} /></Field>
           <div className="dim" style={{ fontSize: 12.5 }}>Ready in <b style={{ color: 'var(--tx)' }}>{days(targetT / rate)}</b><br />about {money(total)} in total</div>
@@ -88,7 +89,7 @@ export function OrgDeals() {
               <div style={{ fontSize: 13 }}><b>{num(d.seats)}</b> seats × <b>${d.pricePerSeat}</b> = <b>{money(d.seats * d.pricePerSeat)}</b>/month for {d.months} months</div>
               <div className="dim" style={{ fontSize: 12.5 }}>Needs {d.minElo}+ Elo · {(d.sla * 100).toFixed(0)}% of requests answered · offer ends {dateOf(d.expiresTick)}</div>
               {models.length === 0 ? <div className="neg" style={{ fontSize: 12.5 }}>None of your {MODALITIES[d.modality].name.toLowerCase()} models is good enough yet.</div> : <>
-                <select value={mid} onChange={(e) => setPick({ ...pickModel, [d.id]: e.target.value })}>{models.map((m) => <option key={m.id} value={m.id}>{m.name} · {Math.round(m.elo)} Elo</option>)}</select>
+                <Select value={mid} onChange={(e) => setPick({ ...pickModel, [d.id]: e.target.value })}>{models.map((m) => <option key={m.id} value={m.id}>{m.name} · {Math.round(m.elo)} Elo</option>)}</Select>
                 {OG.spareCapacity(w, mid) < OG.dealDemand(d) && <div className="neg" style={{ fontSize: 12.5 }}>They will send {num(OG.dealDemand(d))} tokens a day; this model has {num(OG.spareCapacity(w, mid))} to spare. Deploy it on more servers first or they will leave unhappy.</div>}
                 <div className="row wrap" style={{ gap: 6 }}>
                   <button className="btn sm pri" onClick={() => act((x) => OG.acceptDeal(x, d.id, mid), `${d.org} signed`)}>Sign</button>

@@ -1,3 +1,4 @@
+import { Select } from "./Select"
 /**
  * A seat at the table for one system. Empty seats invite you to hire; filled ones show who runs it, an Auto switch,
  * one policy knob and the last few things they did. `compact` is the HQ variant; the full card sits on system screens.
@@ -23,7 +24,7 @@ function Policy({ system }: { system: System }) {
     case 'sales': return <label className="mc-pol">Price {Math.round(pol('margin') * 100)}% of best<input type="range" min={0.8} max={1.3} step={0.05} value={pol('margin')} onChange={(e) => set('margin', +e.target.value)} /></label>
     case 'people': return <label className="mc-pol">Keep morale above {Math.round(pol('moraleFloor') * 100)}%<input type="range" min={0.4} max={0.9} step={0.05} value={pol('moraleFloor')} onChange={(e) => set('moraleFloor', +e.target.value)} /></label>
     case 'finance': return <label className="mc-pol">Cash reserve {pol('reserveDays')} days<input type="range" min={7} max={120} step={1} value={pol('reserveDays')} onChange={(e) => set('reserveDays', +e.target.value)} /></label>
-    case 'research': return <label className="mc-pol">Focus<select value={w.managerFocus ?? ''} onChange={(e) => act((x) => e.target.value ? M.setManagerFocus(x, e.target.value as Branch) : (x.managerFocus = undefined, ok))}><option value="">Cheapest first</option>{BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}</select></label>
+    case 'research': return <label className="mc-pol">Focus<Select value={w.managerFocus ?? ''} onChange={(e) => act((x) => e.target.value ? M.setManagerFocus(x, e.target.value as Branch) : (x.managerFocus = undefined, ok))}><option value="">Cheapest first</option>{BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}</Select></label>
   }
 }
 

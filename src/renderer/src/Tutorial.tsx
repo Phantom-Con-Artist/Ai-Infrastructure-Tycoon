@@ -8,7 +8,7 @@ interface Step { title: string; body: string; screen: Screen; done: boolean }
 /** The whole game in nine steps, from an empty company to a paying product. Each step ticks itself off from the world state. */
 export function Tutorial() {
   const w = useWorld(); const go = useGame((s) => s.go)
-  const [open, setOpen] = useDraft('tutorial.open', true)
+  const [open, setOpen] = useDraft('tutorial.open', false)
   const halls = w.sites.flatMap((s) => s.halls)
   const mine = w.models.filter((m) => m.owner === 'player')
   const steps: Step[] = [

@@ -1,3 +1,4 @@
+import { Select } from "../Select"
 /**
  * Developer / sandbox console. A floating instrument panel (not a modal) so you can watch the world react while you
  * poke it. Only exists when the world was created with devTools; toggled with the backtick key.
@@ -33,19 +34,19 @@ export function DevPanel() {
         <div className="row wrap">{[1, 7, 30, 365].map((d) => <button key={d} className="btn sm" onClick={() => act((x) => D.devSkipDays(x, d), `Skipped ${d} day${d === 1 ? '' : 's'}`)}>+{d}d</button>)}</div></section>
       <section><h5>Trigger an event</h5>
         <div className="row wrap">
-          <select value={ev} onChange={(e) => setEv(e.target.value)}>{Object.entries(EVENTS).map(([id, e]) => <option key={id} value={id}>{e.name}</option>)}</select>
-          {EVENTS[ev]?.site && <select value={site?.id ?? ''} onChange={(e) => setSite(e.target.value)}>{w.sites.length ? w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>) : <option value="">no sites</option>}</select>}
+          <Select value={ev} onChange={(e) => setEv(e.target.value)}>{Object.entries(EVENTS).map(([id, e]) => <option key={id} value={id}>{e.name}</option>)}</Select>
+          {EVENTS[ev]?.site && <Select value={site?.id ?? ''} onChange={(e) => setSite(e.target.value)}>{w.sites.length ? w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>) : <option value="">no sites</option>}</Select>}
           <button className="btn sm pri" onClick={() => act((x) => triggerEvent(x, ev, site?.id), `${EVENTS[ev].name} triggered`)}>Fire</button>
         </div></section>
       <section><h5>Spawn servers (free, on the dock)</h5>
         <div className="row wrap">
-          <select value={gpuId} onChange={(e) => setGpu(e.target.value)}>{gpus.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+          <Select value={gpuId} onChange={(e) => setGpu(e.target.value)}>{gpus.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</Select>
           <input type="number" min={1} value={count} onChange={(e) => setCount(Math.max(1, +e.target.value || 1))} style={{ width: 80 }} />
           <button className="btn sm" disabled={!site} onClick={() => act((x) => D.devSpawnServers(x, site!.id, gpuId, count), `${count} servers on the dock`)}>Spawn</button>
         </div></section>
       <section><h5>Research</h5>
         <div className="row wrap">
-          <select value={tech} onChange={(e) => setTech(e.target.value)}><option value="all">Everything</option>{TECHS.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+          <Select value={tech} onChange={(e) => setTech(e.target.value)}><option value="all">Everything</option>{TECHS.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select>
           <button className="btn sm" onClick={() => act((x) => D.devUnlockTech(x, tech), 'Unlocked')}>Unlock</button>
           <label className="row" style={{ gap: 6, fontSize: 12.5 }}><input type="checkbox" checked={w.rules.mult.researchSpeed >= 4} onChange={(e) => act((x) => D.devFastResearch(x, e.target.checked))} /> 4× speed</label>
         </div></section>

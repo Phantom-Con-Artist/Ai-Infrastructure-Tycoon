@@ -1,3 +1,4 @@
+import { Select } from '../Select'
 import { useDraft } from '../draft'
 import { Server } from 'lucide-react'
 import * as A from '@sim/actions'
@@ -61,7 +62,7 @@ function Buy() {
   }
   return (
     <div className="col" style={{ gap: 18 }}>
-      <Field label="Deliver to"><select value={siteId} onChange={(e) => setSite(e.target.value)} style={{ maxWidth: 360 }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+      <Field label="Deliver to"><Select value={siteId} onChange={(e) => setSite(e.target.value)} style={{ maxWidth: 360 }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
       <h2><Server size={16} /> Accelerators · 8 per server</h2>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>{cat.filter((g) => !g.vcpus).map(card)}</div>
       <Advanced title="Design your own server node"><NodeDesigner /></Advanced>

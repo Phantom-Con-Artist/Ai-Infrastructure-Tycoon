@@ -1,3 +1,4 @@
+import { Select } from '../Select'
 import { useDraft } from '../draft'
 import { useState } from 'react'
 import { FINETUNE_MAX_T, MODALITIES, baseOptions, foundryElo, methodOk, modalityOk, type Method, type Modality, bestRivalElo, modalityRivals } from '@sim/foundry'
@@ -101,7 +102,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
           <div className="methods">
           {([['scratch', 'Nothing', 'Highest', 'Longest', 'A model that is truly yours; frontier ambitions.'], ['continue', 'An open or own model', 'High', 'Long', 'Teaching a strong base your own domain with lots of tokens.'], ['finetune', 'An open or own model', 'Low', 'Short', 'A cheap specialist; capped gain.'], ['distill', 'A stronger teacher', 'Low–medium', 'Short', 'A small fast model that copies a big one.']] as const).map(([k, from, cost, time, use]) => <button key={k} className={'method' + (method === k ? ' on' : '')} aria-pressed={method === k} disabled={!methodOk(w, k)} title={methodOk(w, k) ? undefined : 'Needs research'} onClick={() => setMethod(k)}><b>{METHOD_LABEL[k]}</b><span className="meta">Starts from {from} · {cost} cost · {time}</span><span>{use}</span></button>)}
         </div>
-          {method !== 'scratch' && <select value={base?.id ?? ''} onChange={(e) => setBaseId(e.target.value)} style={{ maxWidth: 360 }}>{(['own', 'open'] as const).map((k) => bases.some((b) => b.kind === k) && <optgroup key={k} label={k === 'own' ? 'Your models' : 'Open weights published by rivals'}>{bases.filter((b) => b.kind === k).map((b) => <option key={b.id} value={b.id}>{b.name} · {params(b.paramsB)} · Elo {Math.round(b.elo)}</option>)}</optgroup>)}</select>}
+          {method !== 'scratch' && <Select value={base?.id ?? ''} onChange={(e) => setBaseId(e.target.value)} style={{ maxWidth: 360 }}>{(['own', 'open'] as const).map((k) => bases.some((b) => b.kind === k) && <optgroup key={k} label={k === 'own' ? 'Your models' : 'Open weights published by rivals'}>{bases.filter((b) => b.kind === k).map((b) => <option key={b.id} value={b.id}>{b.name} · {params(b.paramsB)} · Elo {Math.round(b.elo)}</option>)}</optgroup>)}</Select>}
           <span className="dim" style={{ fontSize: 12.5 }}>{METHOD_BLURB[method]}{method === 'finetune' ? ` Max ${FINETUNE_MAX_T * 1000}B tokens.` : ''}{base && base.modality !== modality ? ' Cross-modal: −60 Elo while it adapts.' : ''}</span>
         </div>
       </div>
@@ -167,8 +168,8 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
       <div className="panel row wrap" style={{ gap: 14, alignItems: 'end' }}>
         <h3 style={{ alignSelf: 'center' }}><Step n={5} />Train</h3>
         <Field label="Model name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Compute"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></select></Field>
-        <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
+        <Field label="Compute"><Select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></Select></Field>
+        <Field label="GPU"><Select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</Select></Field>
         <Field label={`Servers ${n}/${free} · ${num(n * 8)} GPUs`}><input type="range" min={1} max={Math.max(1, free)} value={n} onChange={(e) => setServers(+e.target.value)} /></Field>
         <div className="dim" style={{ fontSize: 12.5 }}><Term k="mfu">MFU</Term> {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}{cloud ? ` · ${money(bill)}/h ≈ ${money(bill * (rate > 0 ? F / rate / 3600 : 0))} total` : ''}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
         <button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Start training ${name}?`, PV.previewTraining(w, cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0), 'Train', (x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n, modality, method, baseId: base?.id }), { okMsg: 'Training started' }).then((r) => { if (r?.ok) onStart() }) }}>Start training</button>
@@ -204,8 +205,8 @@ function ComputePlan(p: PlanProps) {
       <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={2} />Plan the compute</h3>
         <span className="dim" style={{ fontSize: 12.5 }}>The shape comes from <b>{p.base.name}</b> ({params(p.base.paramsB)}, Elo {Math.round(p.base.elo)}). {p.method === 'continue' ? 'You add tokens; the compute decides how long that takes.' : 'A small, cheap pass; the compute decides the time.'}</span></div>
       <div className="row wrap" style={{ gap: 14, alignItems: 'end' }}>
-        <Field label="Where"><select value={p.siteId} onChange={(e) => p.setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></select></Field>
-        <Field label="GPU"><select value={p.gid} onChange={(e) => p.setGpu(e.target.value)}>{p.gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
+        <Field label="Where"><Select value={p.siteId} onChange={(e) => p.setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></Select></Field>
+        <Field label="GPU"><Select value={p.gid} onChange={(e) => p.setGpu(e.target.value)}>{p.gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</Select></Field>
         <Field label={`Servers ${p.n}/${p.free}`}><input type="range" min={1} max={Math.max(1, p.free)} value={p.n} onChange={(e) => p.setServers(+e.target.value)} /></Field>
       </div>
       <table><tbody>{rows.map(([k, v, note]) => <tr key={k}><td style={{ width: 130 }}><b>{k}</b></td><td className="r" style={{ width: 170 }}>{v}</td><td className="dim" style={{ fontSize: 12.5 }}>{note}</td></tr>)}</tbody></table>
@@ -303,7 +304,7 @@ function Runs() {
         return (
           <div key={r.id} className="panel col">
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              <div><h3>{r.name} <span className={'tag ' + (r.status === 'running' ? 'g' : r.status === 'done' ? '' : 'a')}>{r.status}</span> {r.owner !== 'player' && <span className="tag a">contract</span>}</h3>
+              <div><h3>{r.name} <span className={'tag ' + (r.status === 'running' ? 'run' : r.status === 'paused' ? 'pause' : r.status === 'done' ? 'live' : 'off')}>{r.status === 'done' ? 'finished' : r.status}</span> {r.owner !== 'player' && <span className="tag a">contract</span>}</h3>
                 <div className="dim" style={{ fontSize: 12 }}>{num(r.paramsB)}B{r.moe ? ' MoE' : ''} · {r.tokensT}T tokens · {r.servers * 8} × {gpu(w, r.gpuId).name} @ {r.siteId === CLOUD ? '☁ cloud' : site?.name} · started {dateOf(r.startTick)}</div></div>
               <div className="row">
                 {r.status === 'running' && <button className="btn sm" onClick={() => act((x) => A.setRunStatus(x, r.id, 'paused'))}>Pause</button>}
@@ -349,9 +350,9 @@ function ModelCard({ id }: { id: string }) {
   const [price, setPrice] = useDraft(`card.${id}.price`, () => +referencePrice(w.tick / 8766, m.elo).toFixed(2))
   const existing = deps.reduce((a, d) => a + d.servers, 0)
   return (
-    <div className="panel col">
+    <div className={'panel col ' + (m.releasedByPlayer ? 'is-live' : 'is-off')}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <div><h3>{m.name} <span className={'tag ' + (m.releasedByPlayer ? 'g' : 'a')}>{m.releasedByPlayer ? 'live' : 'unreleased'}</span></h3>
+        <div><h3>{m.name} <span className={'tag ' + (m.releasedByPlayer ? 'live' : 'off')}>{m.releasedByPlayer ? 'Live' : 'Not on market'}</span></h3>
           <div className="dim mono" style={{ fontSize: 12 }}>{MODALITIES[m.modality ?? 'text'].name} · {num(m.paramsB)}B · loss {m.loss.toFixed(3)} · Elo {Math.round(m.elo)} · post-train {m.posttrain}/3{m.method && m.method !== 'scratch' ? ` · ${m.method}${m.baseName ? ` of ${m.baseName}` : ''}` : ''}</div></div>
         <div className="row">
           {m.releasedByPlayer && <button className="btn sm" title="Take this model and its products off the market" onClick={() => void confirmAct('Withdraw ' + m.name, PV.previewWithdraw(w, m.name, w.products.filter((p) => p.modelId === id).length), 'Withdraw', (x) => A.withdrawModel(x, id), { okMsg: m.name + ' withdrawn' })}>Withdraw from market</button>}
@@ -367,8 +368,8 @@ function ModelCard({ id }: { id: string }) {
           </div>
           <div className="row wrap">
             <Field label="Price $/Mtok"><Num value={m.priceMtok} step={0.1} min={0.01} onChange={(p) => act((x) => A.setModelPrice(x, id, p))} /></Field>
-            <Field label="Compute"><select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Amazoon cloud{gid ? ` · ${money(cloudRate(w, gpu(w, gid)) * 8)}/server·h` : ''}</option></select></Field>
-            <Field label="GPU"><select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((i) => <option key={i} value={i}>{gpu(w, i).name}</option>)}</select></Field>
+            <Field label="Compute"><Select value={siteId} onChange={(e) => setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Amazoon cloud{gid ? ` · ${money(cloudRate(w, gpu(w, gid)) * 8)}/server·h` : ''}</option></Select></Field>
+            <Field label="GPU"><Select value={gid} onChange={(e) => setGpu(e.target.value)}>{gpuIds.map((i) => <option key={i} value={i}>{gpu(w, i).name}</option>)}</Select></Field>
             <Field label={`Serve on ${servers}/${free + (deps.find((d) => d.siteId === siteId && d.gpuId === gid)?.servers ?? 0)} servers`}><input type="range" min={0} max={Math.max(1, free + (deps.find((d) => d.siteId === siteId && d.gpuId === gid)?.servers ?? 0))} value={servers} onChange={(e) => setServers(+e.target.value)} /></Field>
             <button className="btn pri" style={{ alignSelf: 'end' }} onClick={() => act((x) => A.deployModel(x, id, siteId, gid, servers), 'Deployment updated')}>Deploy</button>
           </div>

@@ -1,3 +1,4 @@
+import { Select } from '../Select'
 import { useState } from 'react'
 import { FlaskRound, UserPlus } from 'lucide-react'
 import { ROLES, TRAITS, daysToNewBoard, createLab, firePerson, giveRaise, hirePerson, labBoost, payrollPerDay, setLabFocus, type Person, type Role } from '@sim/people'
@@ -80,13 +81,13 @@ function Labs() {
       <div className="panel row wrap" style={{ gap: 12, alignItems: 'end' }}>
         <FlaskRound size={22} />
         <Field label="Lab name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Focus"><select value={focus} onChange={(e) => setFocus(e.target.value as Branch)}>{BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}</select></Field>
+        <Field label="Focus"><Select value={focus} onChange={(e) => setFocus(e.target.value as Branch)}>{BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}</Select></Field>
         <button className="btn pri" onClick={() => void useGame.getState().confirmAct('Open a new research lab?', PV.previewSpend(w, 20e6 * (1 + w.labs.length)), 'Open lab', (x) => createLab(x, name, focus), { okMsg: 'Lab opened' })}>Open lab · {money(20e6 * (1 + w.labs.length))}</button>
       </div>
       {w.labs.length === 0 ? <p className="dim">No labs yet. A lab focuses your researchers on one R&D branch and speeds it up.</p> :
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {w.labs.map((l) => <div key={l.id} className="panel col" style={{ gap: 8 }}><h3>{l.name}</h3>
-            <Field label="Focus"><select value={l.focus} onChange={(e) => act((x) => setLabFocus(x, l.id, e.target.value as Branch))}>{BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}</select></Field>
+            <Field label="Focus"><Select value={l.focus} onChange={(e) => act((x) => setLabFocus(x, l.id, e.target.value as Branch))}>{BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}</Select></Field>
             <div style={{ fontSize: 13 }}>{l.focus} research <b className="pos">×{labBoost(w, l.focus).toFixed(2)}</b> speed</div></div>)}
         </div>}
     </div>

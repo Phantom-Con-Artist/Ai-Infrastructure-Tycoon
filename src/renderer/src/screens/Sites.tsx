@@ -1,3 +1,4 @@
+import { Select } from '../Select'
 import { useDraft } from '../draft'
 import { useState } from 'react'
 import { canAfford } from '@sim/rules'
@@ -77,7 +78,7 @@ function SiteView({ siteId, onNew }: { siteId: string; onNew: () => void }) {
             {site.powerFactor < 1 && <span className="tag r">Brownout {(site.powerFactor * 100).toFixed(0)}%</span>}
           </div>}</div>
         <div className="row">
-          {w.sites.length > 1 && <select value={site.id} onChange={(e) => selectSite(e.target.value)} style={{ width: 'auto' }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+          {w.sites.length > 1 && <Select value={site.id} onChange={(e) => selectSite(e.target.value)} style={{ width: 'auto' }}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>}
           <button className="btn ghost" onClick={onNew}><Plus size={14} /> Site</button>
         </div>
       </div>
@@ -117,8 +118,8 @@ function NewHall({ siteId, first, onDone }: { siteId: string; first: boolean; on
         {(Object.keys(HALL_SIZES) as HallSize[]).map((k) => <button key={k} className={'adv' + (size === k ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => setSize(k)}><b>{HALL_SIZES[k].name.split(' (')[0]}</b><span>{HALL_SIZES[k].w}×{HALL_SIZES[k].d} tiles</span><em>{money(A.hallCost({ size: k, cooling, fabric }))}</em></button>)}
       </div>
       <div className="row">
-        <Field label="Cooling"><select value={cooling} onChange={(e) => setCooling(e.target.value as CoolingType)}>{(Object.keys(COOLING) as CoolingType[]).map((c) => <option key={c} value={c} disabled={!coolingUnlocked(w, c)}>{COOLING[c].name} · {COOLING[c].maxRackKw} kW/rack{coolingUnlocked(w, c) ? '' : ' (research)'}</option>)}</select></Field>
-        <Field label="Network fabric"><select value={fabric} onChange={(e) => setFabric(e.target.value as FabricType)}>{(Object.keys(FABRICS) as FabricType[]).map((f) => <option key={f} value={f} disabled={!fabricUnlocked(w, f)}>{FABRICS[f].name}{fabricUnlocked(w, f) ? '' : ' (research)'}</option>)}</select></Field>
+        <Field label="Cooling"><Select value={cooling} onChange={(e) => setCooling(e.target.value as CoolingType)}>{(Object.keys(COOLING) as CoolingType[]).map((c) => <option key={c} value={c} disabled={!coolingUnlocked(w, c)}>{COOLING[c].name} · {COOLING[c].maxRackKw} kW/rack{coolingUnlocked(w, c) ? '' : ' (research)'}</option>)}</Select></Field>
+        <Field label="Network fabric"><Select value={fabric} onChange={(e) => setFabric(e.target.value as FabricType)}>{(Object.keys(FABRICS) as FabricType[]).map((f) => <option key={f} value={f} disabled={!fabricUnlocked(w, f)}>{FABRICS[f].name}{fabricUnlocked(w, f) ? '' : ' (research)'}</option>)}</Select></Field>
       </div>
       <div><button className="btn pri" onClick={() => { void useGame.getState().confirmAct('Break ground on a new hall?', PV.previewSpend(w, cost), 'Build', (x) => A.buildHall(x, siteId, { size, cooling, fabric }), { okMsg: 'Groundbreaking!' }).then((r) => { if (r?.ok) onDone(r.value.id) }) }}>Break ground · {money(cost)}</button></div>
     </div>
@@ -177,7 +178,7 @@ function PowerTab({ siteId }: { siteId: string }) {
         {site.gens.length === 0 && <p className="dim">Nothing yet. Batteries arbitrage price spikes, gas turbines keep you alive through outages, solar and wind cut your bill.</p>}
         <table><tbody>{site.gens.map((g) => <tr key={g.id}><td>{GENERATORS[g.kind].name}</td><td className="r">{g.mw} MW{g.kind === 'battery' ? ` · ${((g.soc / Math.max(1, g.mwh)) * 100).toFixed(0)}% of ${g.mwh} MWh` : ''}</td><td className="r">{w.tick >= g.readyTick ? <span className="tag g">online</span> : <span className="tag a">{dateOf(g.readyTick)}</span>}</td></tr>)}</tbody></table>
         <div className="row">
-          <Field label="Type"><select value={kind} onChange={(e) => setKind(e.target.value as GenKind)}>{(Object.keys(GENERATORS) as GenKind[]).map((k) => { const g = GENERATORS[k]; const locked = (g.needsTech && !hasTech(w, g.needsTech)) || (k === 'geothermal' && !rg.geothermal); return <option key={k} value={k} disabled={!!locked}>{g.name}{locked ? ' (locked)' : ''}</option> })}</select></Field>
+          <Field label="Type"><Select value={kind} onChange={(e) => setKind(e.target.value as GenKind)}>{(Object.keys(GENERATORS) as GenKind[]).map((k) => { const g = GENERATORS[k]; const locked = (g.needsTech && !hasTech(w, g.needsTech)) || (k === 'geothermal' && !rg.geothermal); return <option key={k} value={k} disabled={!!locked}>{g.name}{locked ? ' (locked)' : ''}</option> })}</Select></Field>
           <Field label="MW"><Num value={gmw} min={1} onChange={setGmw} /></Field>
           {kind === 'battery' && <Field label="MWh"><Num value={gmwh} min={1} onChange={setGmwh} /></Field>}
         </div>

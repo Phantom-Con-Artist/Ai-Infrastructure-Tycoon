@@ -1,3 +1,4 @@
+import { Select } from './Select'
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, FolderOpen, Play, Plus, Power, Settings as Cog, Trash2 } from 'lucide-react'
 import { ADVISORS } from '@sim/data/lore'
@@ -163,7 +164,7 @@ function SettingsSheet({ onBack }: { onBack: () => void }) {
       <Back onClick={onBack} title="Settings" />
       <label className="f">Autosave every {settings.autosaveDays} game days<input type="range" min={7} max={120} step={1} value={settings.autosaveDays} onChange={(e) => setSettings({ autosaveDays: +e.target.value })} /></label>
       <label className="f">UI scale {Math.round(settings.uiScale * 100)}%<input type="range" min={0.8} max={1.3} step={0.05} value={settings.uiScale} onChange={(e) => setSettings({ uiScale: +e.target.value })} /></label>
-      <label className="f">Speed when loading a game<select value={settings.startSpeed} onChange={(e) => setSettings({ startSpeed: +e.target.value })}><option value={0}>Paused</option><option value={1}>1× · 6 hours/s</option><option value={2}>2× · 1 day/s</option><option value={3}>3× · 1 week/s</option></select></label>
+      <label className="f">Speed when loading a game<Select value={settings.startSpeed} onChange={(e) => setSettings({ startSpeed: +e.target.value })}><option value={0}>Paused</option><option value={1}>1× · 6 hours/s</option><option value={2}>2× · 1 day/s</option><option value={3}>3× · 1 week/s</option></Select></label>
       <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.skipIntro} onChange={(e) => setSettings({ skipIntro: e.target.checked })} /> Skip the studio intro</label>
       <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.reduceMotion} onChange={(e) => setSettings({ reduceMotion: e.target.checked })} /> Reduce motion</label>
       <label className="row" style={{ fontSize: 13.5 }}><input type="checkbox" checked={settings.confirmQuit} onChange={(e) => setSettings({ confirmQuit: e.target.checked })} /> Save automatically when quitting to the menu</label>

@@ -1,3 +1,4 @@
+import { Select } from '../Select'
 import { ProductOps } from './Systems'
 import { useDraft } from '../draft'
 import { useState } from 'react'
@@ -27,7 +28,7 @@ export function Store() {
         <button className="btn pri" onClick={() => setSel('new')}><Plus size={14} /> New product</button>
         {(Object.keys(S.CATEGORIES) as S.Category[]).map((c) => { const ps = w.products.filter((p) => p.category === c); if (!ps.length) return null; return (
           <div key={c} className="col" style={{ gap: 4 }}><div className="dim" style={{ fontSize: 12, fontWeight: 650 }}>{CAT_ICON[c]} {S.CATEGORIES[c].name}</div>
-            {ps.map((p) => { const h = p.history.at(-1); return <button key={p.id} className={'adv' + (sel === p.id ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => setSel(p.id)}><b>{p.name}</b><span>{num(h?.users ?? 0)} users · {money(h?.mrr ?? 0)} MRR</span></button> })}
+            {ps.map((p) => { const h = p.history.at(-1); return <button key={p.id} className={'adv' + (sel === p.id ? ' on' : '')} style={{ gridTemplateColumns: '1fr' }} onClick={() => setSel(p.id)}><b>{p.name}</b><span><i className="tag live" style={{ padding: '0 6px 0 7px', marginRight: 6 }}>Live</i>{num(h?.users ?? 0)} users · {money(h?.mrr ?? 0)} MRR</span></button> })}
           </div>) })}
       </div>
       {sel === 'new' || !product ? <NewProduct onDone={(id) => setSel(id)} /> : product.category === 'api' ? <ApiConsole id={product.id} /> : <Dashboard id={product.id} />}
@@ -50,7 +51,7 @@ function NewProduct({ onDone }: { onDone: (id: string) => void }) {
       </div>
       <div className="row">
         <Field label="Product name"><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Powered by"><select value={modelId} onChange={(e) => setModel(e.target.value)}>{models.map((m) => <option key={m.id} value={m.id}>{m.name} · Elo {Math.round(m.elo)}</option>)}</select></Field>
+        <Field label="Powered by"><Select value={modelId} onChange={(e) => setModel(e.target.value)}>{models.map((m) => <option key={m.id} value={m.id}>{m.name} · Elo {Math.round(m.elo)}</option>)}</Select></Field>
       </div>
       <div className="dim" style={{ fontSize: 13 }}>Market: {num(S.CATEGORIES[cat].tam0)} people · willingness to pay ≈ ${S.CATEGORIES[cat].wtp}/mo · churn ≈ {(S.CATEGORIES[cat].churnMonthly * 100).toFixed(1)}%/mo. Traffic is served by {models.find((m) => m.id === modelId)?.name}'s deployments, so make sure it has GPUs.</div>
       <div><button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Launch ${name}?`, PV.previewSpend(w, cat === 'enterprise' ? 5e6 : 1e6), 'Launch', (x) => S.createProduct(x, { name, category: cat, modelId }), { okMsg: 'Product launched' }).then((r) => { if (r?.ok) onDone(r.value.id) }) }}><ShoppingBag size={14} /> Launch · {money(cat === 'enterprise' ? 5e6 : 1e6)}</button></div>

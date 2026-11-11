@@ -558,3 +558,71 @@ kbd { font: 600 10.5px var(--sans); padding: 2px 6px; border-radius: 5px; backgr
 .locked > .panel, .locked > div { opacity: .42; filter: saturate(.6); pointer-events: none; transition: opacity .3s var(--ease); }
 .job .rush { flex: none; white-space: nowrap; background: var(--amber-soft); color: oklch(0.45 0.12 65); }
 .job .rush:hover { background: var(--amber); color: white; }
+
+/* ═══ Polish pass: rhythm, symmetry, state, custom dropdown ═══════════════════════════════
+   One spacing scale (4 / 8 / 12 / 16 / 24 / 40) and one gutter shared by HUD, ticker and page.
+   Negative space is used deliberately: tight tracking on display type, and small negative
+   margins to pull optical edges (large glyph side-bearings, pill rows, eyebrows) into line. */
+:root { --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 40px; --gutter: 24px; }
+.hud { padding: 0 var(--gutter) 10px 12px; gap: var(--s3); }
+.ticker { padding: 0 var(--gutter) 0 12px; }
+.main { padding: var(--s4) var(--gutter) 72px 12px; scroll-padding-top: 56px; }
+.main > div > * + * { margin-top: 0; }
+.page-head { margin: var(--s2) 0 var(--s5); }
+h1, .page-head h1 { letter-spacing: -.04em; margin-left: -.045em; text-wrap: balance; }
+h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+.eyebrow { margin-bottom: -2px; letter-spacing: .01em; }
+.eyebrow + h1, .eyebrow + h3 { margin-top: 2px; }
+.panel { padding: var(--s4) var(--s5) var(--s5) var(--s5); }
+.panel > h3 + *, .panel > .row:first-child + * { margin-top: 0; }
+.col { gap: var(--s3); }
+.hud .v, .big, .num { letter-spacing: -.02em; }
+.hud .k { letter-spacing: 0; }
+.grid { gap: var(--s3); }
+.pills { margin-left: -4px; }
+.guide-open { margin: 0 0 var(--s3) -10px; }
+table td, table th { padding-top: 9px; padding-bottom: 9px; }
+table th { font-weight: 600; font-size: 11.5px; color: var(--tx-3); letter-spacing: .02em; }
+table td:first-child, table th:first-child { padding-left: 0; } table td:last-child, table th:last-child { padding-right: 0; }
+
+/* ── Custom dropdown (drawn by the game so Electron looks the same on every OS) ── */
+.sel { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); width: 100%; min-width: 0; text-align: left; cursor: pointer; background: var(--surface-2); border: 1px solid transparent; border-radius: var(--r-s); padding: 9px 10px 9px 12px; font: 500 13.5px var(--sans); color: var(--tx); transition: background .2s var(--ease), box-shadow .2s var(--ease), border-color .2s; }
+.sel:hover:not(:disabled) { background: var(--surface-3); }
+.sel:focus-visible, .sel[aria-expanded="true"] { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px var(--accent-soft); }
+.sel:disabled { opacity: .45; cursor: not-allowed; }
+.sel-v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-c { flex: none; color: var(--tx-3); transition: transform .25s var(--ease); margin-right: -2px; }
+.sel[aria-expanded="true"] .sel-c { transform: rotate(180deg); color: var(--accent); }
+.sel-menu { position: fixed; z-index: 1000; overflow-y: auto; overscroll-behavior: contain; padding: var(--s1); background: var(--surface); border-radius: var(--r-m); box-shadow: var(--sh-3), 0 0 0 1px var(--line-2); animation: sel-in .18s var(--ease); font: 500 13.5px var(--sans); scrollbar-width: thin; }
+.sel-group { padding: 10px 10px 4px; font: 650 10.5px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--tx-3); }
+.sel-o { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: 8px 10px; border-radius: var(--r-s); cursor: pointer; color: var(--tx-2); }
+.sel-o.act { background: var(--surface-2); color: var(--tx); }
+.sel-o[aria-selected="true"] { color: var(--tx); font-weight: 650; } .sel-o[aria-selected="true"] svg { color: var(--accent); flex: none; }
+.sel-o.off { opacity: .4; cursor: not-allowed; }
+@keyframes sel-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+
+/* ── Selected / not selected: one vocabulary for every pick-one control ── */
+.adv, .method, .modality { position: relative; }
+.adv:not(.on), .method:not(.on):not([disabled]) { background: var(--surface-2); box-shadow: inset 0 0 0 1px transparent; }
+.adv:not(.on) > *, .method:not(.on) > * { opacity: .86; }
+.adv.on, .method.on, .modality.on { background: var(--surface); box-shadow: 0 0 0 2px var(--accent), var(--sh-2); }
+.adv.on::after, .method.on::after { content: ''; position: absolute; top: 9px; right: 9px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.4l2.3 2.3 4.7-5' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat; animation: pop .3s var(--spring); }
+.modality:not(.on):not(.locked) { opacity: .92; }
+.seg button:not(.on):not(:disabled):hover { background: var(--surface-3); }
+.seg button.on { font-weight: 700; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+
+/* ── Live / shut down: status chips that read at a glance ── */
+.tag.live, .tag.off, .tag.run, .tag.pause { padding-left: 8px; }
+.tag.live::before, .tag.off::before, .tag.run::before, .tag.pause::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.tag.live { background: var(--accent-soft); color: oklch(0.42 0.13 155); } .tag.live::before { background: var(--accent); box-shadow: 0 0 0 0 oklch(0.6 0.17 155 / .5); animation: live 2s ease-out infinite; }
+.tag.run { background: var(--blue-soft); color: var(--blue); } .tag.run::before { background: var(--blue); animation: live 2s ease-out infinite; }
+.tag.pause { background: var(--amber-soft); color: oklch(0.5 0.13 60); } .tag.pause::before { background: var(--amber); }
+.tag.off { background: transparent; color: var(--tx-3); box-shadow: inset 0 0 0 1.5px var(--line-2); } .tag.off::before { box-shadow: inset 0 0 0 1.5px var(--tx-4); }
+.is-live { box-shadow: 0 0 0 1px oklch(0.6 0.17 155 / .28), var(--sh-1); }
+.is-off { background: var(--surface-2); box-shadow: none; } .is-off h3, .is-off .dim { color: var(--tx-3); } .is-off > .row:first-child { opacity: .8; }
+@keyframes live { 70% { box-shadow: 0 0 0 6px oklch(0.6 0.17 155 / 0); } 100% { box-shadow: 0 0 0 0 oklch(0.6 0.17 155 / 0); } }
+@media (prefers-reduced-motion: reduce) { .tag.live::before, .tag.run::before, .sel-menu, .adv.on::after, .method.on::after { animation: none; } }
+.reduce-motion .tag.live::before, .reduce-motion .tag.run::before, .reduce-motion .sel-menu { animation: none; }
+.panel.row.wrap > .btn.pri:last-child { margin-left: auto; }

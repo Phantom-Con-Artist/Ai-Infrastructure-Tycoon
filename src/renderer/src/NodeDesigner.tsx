@@ -1,4 +1,5 @@
 /** Node studio: configure your own 8-GPU server around any accelerator on sale and see the trade-offs live. */
+import { Select } from './Select'
 import { useState } from 'react'
 import { Cpu, Droplets, Gauge, MemoryStick, ShieldCheck, Wrench } from 'lucide-react'
 import { gpuCatalog, serverPeakKw } from '@sim/data/hardware'
@@ -40,7 +41,7 @@ export function NodeDesigner() {
         <span className="dim" style={{ fontSize: 12 }}>8 × {base.name} · {o.cooling === 'liquid' ? 'needs a liquid-cooled hall' : 'fits any hall'}</span>
       </div>
       <div className="col" style={{ gap: 14 }}>
-        <label className="ns-row"><span><Cpu size={15} /> Accelerator</span><select value={base.id} onChange={(e) => setBase(e.target.value)}>{bases.map((g) => <option key={g.id} value={g.id}>{g.name} · {num(g.tflops)} TF</option>)}</select></label>
+        <label className="ns-row"><span><Cpu size={15} /> Accelerator</span><Select value={base.id} onChange={(e) => setBase(e.target.value)}>{bases.map((g) => <option key={g.id} value={g.id}>{g.name} · {num(g.tflops)} TF</option>)}</Select></label>
         <div className="ns-row"><span><Droplets size={15} /> Cooling</span><Seg value={o.cooling} options={[['air', 'Air'], ['liquid', 'Cold plate']]} onChange={(v) => set({ cooling: v })} /></div>
         <div className="ns-row"><span><Gauge size={15} /> Power profile</span><Seg value={o.power} options={[['eco', 'Eco 75%'], ['balanced', 'Balanced'], ['max', 'Max 110%']]} onChange={(v) => set({ power: v })} /></div>
         <div className="ns-row"><span><MemoryStick size={15} /> Host RAM</span><Seg value={o.ramTB} options={[[1, '1 TB'], [2, '2 TB'], [4, '4 TB']]} onChange={(v) => set({ ramTB: v })} /></div>

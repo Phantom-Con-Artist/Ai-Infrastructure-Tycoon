@@ -1,3 +1,4 @@
+import { Select } from '../Select'
 import { useDraft } from '../draft'
 import { useMemo } from 'react'
 import { ChipScene, DEFAULT_LOOK } from '../three/ChipScene'
@@ -66,7 +67,7 @@ function Designer({ onDone }: { onDone: () => void }) {
         <div className="tabs" style={{ marginBottom: 0 }}>{(['gpu', 'cpu'] as const).map((k) => <button key={k} disabled={k === 'cpu' && !o.cpu} className={s.kind === k ? 'on' : ''} onClick={() => up({ kind: k })}>{k === 'gpu' ? <><Microchip size={13} /> Accelerator</> : <><Cpu size={13} /> CPU{!o.cpu ? ' 🔒' : ''}</>}</button>)}</div>
         <Field label="Name"><input type="text" value={s.name} onChange={(ev) => up({ name: ev.target.value })} /></Field>
         <Field label="Process node"><div className="row wrap" style={{ gap: 6 }}>{o.nodes.map((id) => <button key={id} className={'btn sm ' + (s.nodeId === id ? 'pri' : '')} onClick={() => up({ nodeId: id, dieMm2: Math.min(s.dieMm2, node(id).reticleMm2) })}>{node(id).name.split(' ')[0]}</button>)}</div></Field>
-        <Field label="Packaging"><select value={s.pkg} onChange={(ev) => up({ pkg: ev.target.value as PackageKind, dies: Math.min(s.dies, PACKAGES[ev.target.value as PackageKind].maxDies) })}>{(Object.keys(PACKAGES) as PackageKind[]).map((k) => <option key={k} value={k} disabled={!o.packages.includes(k)}>{PACKAGES[k].name}{o.packages.includes(k) ? '' : ' (locked)'}</option>)}</select></Field>
+        <Field label="Packaging"><Select value={s.pkg} onChange={(ev) => up({ pkg: ev.target.value as PackageKind, dies: Math.min(s.dies, PACKAGES[ev.target.value as PackageKind].maxDies) })}>{(Object.keys(PACKAGES) as PackageKind[]).map((k) => <option key={k} value={k} disabled={!o.packages.includes(k)}>{PACKAGES[k].name}{o.packages.includes(k) ? '' : ' (locked)'}</option>)}</Select></Field>
         {!wafer && <Field label={`Die area ${s.dieMm2} mm² · reticle ${n.reticleMm2}`}><input type="range" min={50} max={n.reticleMm2} step={2} value={s.dieMm2} onChange={(ev) => up({ dieMm2: +ev.target.value })} /></Field>}
         {!wafer && PACKAGES[s.pkg].maxDies > 1 && <Field label={`Compute dies ${s.dies}`}><input type="range" min={1} max={PACKAGES[s.pkg].maxDies} value={s.dies} onChange={(ev) => up({ dies: +ev.target.value })} /></Field>}
         <Field label={`${s.kind === 'gpu' ? 'Tensor cores' : 'Cores'} ${(s.computeFrac * 100).toFixed(0)}% · SRAM ${(s.sramFrac * 100).toFixed(0)}%`}>
@@ -81,7 +82,7 @@ function Designer({ onDone }: { onDone: () => void }) {
             <Field label={`Height ${s.hbmHeight}-hi`}><input type="range" min={4} max={24} step={4} value={s.hbmHeight} onChange={(ev) => up({ hbmHeight: +ev.target.value })} /></Field></div>
         </>}
         <div className="row"><Field label="Tensor generation"><Num value={s.archGen} min={1} max={o.maxArch} onChange={(v) => up({ archGen: Math.max(1, Math.min(o.maxArch, v)) })} /></Field>
-          <Field label="Precision"><select value={s.precision} onChange={(ev) => up({ precision: ev.target.value as ChipSpec['precision'] })}>{(['bf16', 'fp8', 'fp4'] as const).map((p) => <option key={p} value={p} disabled={!o.precisions.includes(p)}>{p.toUpperCase()}</option>)}</select></Field></div>
+          <Field label="Precision"><Select value={s.precision} onChange={(ev) => up({ precision: ev.target.value as ChipSpec['precision'] })}>{(['bf16', 'fp8', 'fp4'] as const).map((p) => <option key={p} value={p} disabled={!o.precisions.includes(p)}>{p.toUpperCase()}</option>)}</Select></Field></div>
         <label className="row" style={{ fontSize: 13 }}><input type="checkbox" checked={s.redundancy} onChange={(ev) => up({ redundancy: ev.target.checked })} /> Redundant units (harvest defective dies)</label>
         <Field label="Finish">
           <div className="col" style={{ gap: 8 }}>
@@ -160,16 +161,16 @@ function Products({ onNew }: { onNew: () => void }) {
           <div key={d.id} className="panel col" style={{ gap: 12 }}>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <div className="row" style={{ gap: 14 }}>{d.spec.kind === 'gpu' && <GpuArt g={{ id: 'x', vendor: 'player', name: '', year: 0, tflops: e.tflops, memGB: e.memGB, memTBs: 0, tdpW: e.tdpW, priceUsd: 0, mtbfH: 1 }} width={90} />}
-                <div><h3>{d.spec.name} <span className={'tag ' + (d.status === 'ready' ? 'g' : 'a')}>{d.status === 'ready' ? 'in production' : `first silicon ${dateOf(d.readyTick)}`}</span></h3>
+                <div><h3>{d.spec.name} <span className={'tag ' + (d.status === 'ready' ? 'live' : 'run')}>{d.status === 'ready' ? 'in production' : `first silicon ${dateOf(d.readyTick)}`}</span></h3>
                   <div className="dim" style={{ fontSize: 13 }}>{node(d.spec.nodeId).name} · {d.spec.kind === 'gpu' ? `${num(e.tflops)} TFLOPS · ${num(e.memGB)} GB · ${e.tdpW} W` : `${d.spec.cpuCores} cores · score ${num(e.cpuScore)}`} · unit cost {money(e.unitCost)}</div></div></div>
               <div style={{ textAlign: 'right' }}><div style={{ fontSize: 22, fontWeight: 650 }}>{num(stock)}</div><div className="dim" style={{ fontSize: 12 }}>in stock · {num(d.sold)} sold · {money(d.revenue)}</div></div>
             </div>
             {d.status === 'designing' && <div className="bar"><i style={{ width: `${prog * 100}%` }} /></div>}
             {d.status === 'ready' && ec && <div className="row wrap" style={{ gap: 18, alignItems: 'end' }}>
-              <Field label="Source"><select value={d.source} onChange={(ev) => act((x) => C.setProduction(x, d.id, d.wafersPerMonth, ev.target.value as 'foundry' | 'fab'))}><option value="foundry">Foundry (Taiwan Semiconductor-ish)</option><option value="fab" disabled={!w.silicon.fab}>Own fab</option></select></Field>
+              <Field label="Source"><Select value={d.source} onChange={(ev) => act((x) => C.setProduction(x, d.id, d.wafersPerMonth, ev.target.value as 'foundry' | 'fab'))}><option value="foundry">Foundry (Taiwan Semiconductor-ish)</option><option value="fab" disabled={!w.silicon.fab}>Own fab</option></Select></Field>
               <Field label={`Wafers / month ${d.wafersPerMonth} (cap ${num(ec.capPerMonth)}) · ${money(ec.waferUsd)}/wafer`}><input type="range" min={0} max={Math.max(1, ec.capPerMonth)} step={10} value={d.wafersPerMonth} onChange={(ev) => act((x) => C.setProduction(x, d.id, +ev.target.value, d.source))} /></Field>
               <Field label={`Sale price · ${num(C.chipDemandPerDay(w, d))}/day · parity ${money(C.parityPrice(w, d))} · ecosystem ${(C.ecosystem(w) * 100).toFixed(0)}%`}><Num value={d.salePrice} step={100} onChange={(p) => act((x) => C.setChipPrice(x, d.id, p))} /></Field>
-              {d.spec.kind === 'gpu' && <><Field label="Build servers at"><select value={siteId} onChange={(ev) => setSite(ev.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+              {d.spec.kind === 'gpu' && <><Field label="Build servers at"><Select value={siteId} onChange={(ev) => setSite(ev.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
                 <button className="btn" disabled={stock < 8 || !siteId} onClick={() => act((x) => C.buildServersFromChips(x, d.id, siteId, Math.floor(stock / 8)), 'Servers assembled — check the loading dock')}>Assemble {Math.floor(stock / 8)} servers</button></>}
             </div>}
           </div>
