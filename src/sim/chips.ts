@@ -1,5 +1,5 @@
 import { HBM, LITHO, PACKAGES, node, type LithoKind } from './data/silicon'
-import { canAfford } from './rules'
+import { canAfford, paceH } from './rules'
 import { gpuCatalog } from './data/hardware'
 import { evaluateChip, exposuresPerWafer, type ChipSpec } from './silicon'
 import { HOURS_PER_YEAR, type ChipDesign, type World } from './types'
@@ -44,7 +44,7 @@ export function startDesign(w: World, s: ChipSpec): Result<ChipDesign> {
   spend(w, upfront, 'opex')
   const months = designMonths(w, e.designMonths)
   const d: ChipDesign = {
-    id: newId(w, 'c'), spec: { ...s }, status: 'designing', startTick: w.tick, readyTick: w.tick + Math.round(months * 730),
+    id: newId(w, 'c'), spec: { ...s }, status: 'designing', startTick: w.tick, readyTick: w.tick + paceH(w, Math.round(months * 730)),
     nrePaid: upfront, nreTotal: e.nreUsd, wafersPerMonth: 0, source: 'foundry', salePrice: Math.round(e.unitCost * 2.2), sold: 0, revenue: 0, made: 0
   }
   w.silicon.designs.push(d)
@@ -118,7 +118,7 @@ export function buildFab(w: World): Result {
   }
   if (!canAfford(w, cost)) return fail('A fab module costs $3.0B')
   spend(w, cost)
-  w.silicon.fab = { modules: 1, readyTick: w.tick + 540 * 24, tools: { duv: 0, euv: 0, highna: 0, hyperna: 0 }, toolsPending: [] }
+  w.silicon.fab = { modules: 1, readyTick: w.tick + paceH(w, 540 * 24), tools: { duv: 0, euv: 0, highna: 0, hyperna: 0 }, toolsPending: [] }
   pushNews(w, 'good', 'Fab construction begins', 'Eighteen months of concrete, ultrapure water and vibration isolation. The neighbours are asking about the cranes.', 'mine', 1)
   return ok(undefined)
 }
@@ -130,7 +130,7 @@ export function buyLitho(w: World, kind: LithoKind): Result {
   if (installed >= fab.modules * 20) return fail('Cleanroom full: 20 scanners per module')
   if (!canAfford(w, L.usd)) return fail(`${L.name} costs $${(L.usd / 1e6).toFixed(0)}M`)
   spend(w, L.usd)
-  fab.toolsPending.push({ kind, readyTick: w.tick + (kind === 'duv' ? 120 : 270) * 24 })
+  fab.toolsPending.push({ kind, readyTick: w.tick + paceH(w, (kind === 'duv' ? 120 : 270) * 24) })
   return ok(undefined)
 }
 

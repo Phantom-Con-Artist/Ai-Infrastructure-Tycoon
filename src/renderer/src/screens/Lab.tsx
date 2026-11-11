@@ -1,3 +1,4 @@
+import { useDraft } from '../draft'
 import { useState } from 'react'
 import { FINETUNE_MAX_T, MODALITIES, baseOptions, foundryElo, methodOk, modalityOk, type Method, type Modality, bestRivalElo, modalityRivals } from '@sim/foundry'
 import { AudioLines, Music, Clapperboard, Code2, Image as ImageIcon, MessageSquare, Sparkles } from 'lucide-react'
@@ -21,7 +22,7 @@ const TABS = ['design', 'data', 'foundry', 'runs', 'models', 'evals'] as const
 
 export function Lab() {
   const w = useWorld()
-  const [tab, setTab] = useState<(typeof TABS)[number]>(w.runs.some((r) => r.status === 'running') ? 'runs' : 'design')
+  const [tab, setTab] = useDraft<(typeof TABS)[number]>('lab.tab', w.runs.some((r) => r.status === 'running') ? 'runs' : 'design')
   return (
     <>
       <div className="page-head"><div><div className="eyebrow">Research lab</div><h1>Design a mind</h1></div><Tabs tabs={TABS} value={tab} onChange={setTab} labels={{ design: 'Design', data: 'Buy data', foundry: 'Make data', runs: 'Training runs', models: 'Your models', evals: 'Benchmarks' }} /></div>
@@ -36,7 +37,7 @@ export function Lab() {
   )
 }
 
-const METHOD_LABEL: Record<Method, string> = { scratch: 'From scratch', finetune: 'Fine-tune', distill: 'Distil', continue: 'Continue pre-training' }
+const METHOD_LABEL: Record<Method, string> = { scratch: 'Train from scratch', finetune: 'Fine-tune a base', distill: 'Distil a teacher', continue: 'Pre-train an open model on your data' }
 const METHOD_BLURB: Record<Method, string> = {
   scratch: 'Random init. Full price, full freedom.', finetune: 'Start from a base. Cheap, fast, small capped gain.',
   distill: 'A smaller student copies a stronger teacher: most of the gap, never past it.', continue: 'Keep pre-training a base on new tokens. Tokens add up.'
@@ -45,25 +46,25 @@ const MOD_ICON: Record<Modality, React.ReactNode> = { text: <MessageSquare size=
 
 function Design({ onStart, onData }: { onStart: () => void; onData: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
-  const [tpl, setTpl] = useState('own-s')
-  const [arch, setArch] = useState<ArchSpec>(() => ({ ...OWN_SIZES.find((t) => t.id === 'own-s')!.arch }))
-  const [sel, setSel] = useState<NetNode | null>('block')
-  const [name, setName] = useState(() => A.randomModelName(w) + '-1')
-  const [modality, setModality] = useState<Modality>('text')
-  const [method, setMethod] = useState<Method>('scratch')
+  const [tpl, setTpl] = useDraft('lab.tpl', 'own-s')
+  const [arch, setArch] = useDraft<ArchSpec>('lab.arch', () => ({ ...OWN_SIZES.find((t) => t.id === 'own-s')!.arch }))
+  const [sel, setSel] = useDraft<NetNode | null>('lab.sel', 'block')
+  const [name, setName] = useDraft('lab.name', () => A.randomModelName(w) + '-1')
+  const [modality, setModality] = useDraft<Modality>('lab.modality', 'text')
+  const [method, setMethod] = useDraft<Method>('lab.method', 'scratch')
   const bases = baseOptions(w)
-  const [baseId, setBaseId] = useState(bases[0]?.id ?? '')
+  const [baseId, setBaseId] = useDraft('lab.baseId', bases[0]?.id ?? '')
   const base = method === 'scratch' ? undefined : bases.find((b) => b.id === baseId) ?? bases[0]
   const owned = Object.keys(w.datasets).filter((id) => (w.datasets[id] ?? 0) > 0).map((id) => datasetById(id, w.data?.own)).filter((d) => !!d)
-  const [mix, setMix] = useState<Record<string, number>>(() => Object.fromEntries(owned.map((d) => [d.id, Math.min(d.tokensT, 2)])))
-  const [siteId, setSite] = useState(w.sites.find((s) => s.halls.some((h) => h.racks.some((r) => r.servers > 0)))?.id ?? CLOUD)
+  const [mix, setMix] = useDraft<Record<string, number>>('lab.mix', () => Object.fromEntries(owned.map((d) => [d.id, Math.min(d.tokensT, 2)])))
+  const [siteId, setSite] = useDraft('lab.siteId', w.sites.find((s) => s.halls.some((h) => h.racks.some((r) => r.servers > 0)))?.id ?? CLOUD)
   const cloud = siteId === CLOUD
   const site = w.sites.find((s) => s.id === siteId)
   const gpuIds = cloud ? cloudGpus(w).map((g) => g.id) : site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
-  const [gpuId, setGpu] = useState('')
+  const [gpuId, setGpu] = useDraft('lab.gpuId', '')
   const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[gpuIds.length - 1] ?? ''
   const free = cloud && gid ? cloudCapacity(w, gid) : site && gid ? site.halls.reduce((acc, h) => acc + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0
-  const [servers, setServers] = useState(16)
+  const [servers, setServers] = useDraft('lab.servers', 16)
   const n = Math.max(1, Math.min(servers, Math.max(1, free)))
   const up = (p: Partial<ArchSpec>): void => { setArch((x) => ({ ...x, ...p })); setTpl('custom') }
   const st = archStats(arch)
@@ -97,12 +98,15 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
           {(() => { const best = Math.max(0, ...w.models.filter((x) => x.releasedByPlayer && (x.modality ?? 'text') === modality).map((x) => x.elo)); return <span className="rival-chip you"><b>Your best</b><em>{best ? Math.round(best) : 'none yet'}</em></span> })()}
         </div>
         <div className="row wrap" style={{ gap: 14, alignItems: 'center' }}>
-          <div className="seg">{(['scratch', 'finetune', 'distill', 'continue'] as Method[]).map((k) => <button key={k} className={method === k ? 'on' : ''} disabled={!methodOk(w, k)} title={methodOk(w, k) ? METHOD_BLURB[k] : 'Needs research'} onClick={() => setMethod(k)}>{METHOD_LABEL[k]}</button>)}</div>
+          <div className="methods">
+          {([['scratch', 'Nothing', 'Highest', 'Longest', 'A model that is truly yours; frontier ambitions.'], ['continue', 'An open or own model', 'High', 'Long', 'Teaching a strong base your own domain with lots of tokens.'], ['finetune', 'An open or own model', 'Low', 'Short', 'A cheap specialist; capped gain.'], ['distill', 'A stronger teacher', 'Low–medium', 'Short', 'A small fast model that copies a big one.']] as const).map(([k, from, cost, time, use]) => <button key={k} className={'method' + (method === k ? ' on' : '')} aria-pressed={method === k} disabled={!methodOk(w, k)} title={methodOk(w, k) ? undefined : 'Needs research'} onClick={() => setMethod(k)}><b>{METHOD_LABEL[k]}</b><span className="meta">Starts from {from} · {cost} cost · {time}</span><span>{use}</span></button>)}
+        </div>
           {method !== 'scratch' && <select value={base?.id ?? ''} onChange={(e) => setBaseId(e.target.value)} style={{ maxWidth: 360 }}>{(['own', 'open'] as const).map((k) => bases.some((b) => b.kind === k) && <optgroup key={k} label={k === 'own' ? 'Your models' : 'Open weights published by rivals'}>{bases.filter((b) => b.kind === k).map((b) => <option key={b.id} value={b.id}>{b.name} · {params(b.paramsB)} · Elo {Math.round(b.elo)}</option>)}</optgroup>)}</select>}
           <span className="dim" style={{ fontSize: 12.5 }}>{METHOD_BLURB[method]}{method === 'finetune' ? ` Max ${FINETUNE_MAX_T * 1000}B tokens.` : ''}{base && base.modality !== modality ? ' Cross-modal: −60 Elo while it adapts.' : ''}</span>
         </div>
-        {usesBase && <div className="dim" style={{ fontSize: 12.5 }}>Architecture comes from <b>{base!.name}</b> ({params(base!.paramsB)}). The editor below is ignored for this run.</div>}
       </div>
+      {usesBase ? <ComputePlan base={base!} method={method} g={g} F={F} n={n} free={free} mfu={mfu} good={g ? goodput(w, n, g) : 0} rate={rate} memNeed={memNeed} memHave={memHave} cloud={cloud} bill={bill} tokensT={m.tokensT}
+        siteId={siteId} setSite={setSite} gid={gid} setGpu={setGpu} gpuIds={gpuIds} setServers={setServers} /> : <>
       <div className="panel col" style={{ gap: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={2} />Shape the model</h3><span className="dim" style={{ fontSize: 12.5 }}>Pick a starting size, then fine-tune it in the diagram below. Bigger is smarter, slower and hungrier for data.</span></div>
         <div className="own-label"><span className="yours-dot" style={{ background: w.logo.color }} />Your own design, from scratch</div>
@@ -149,6 +153,7 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
           </div>
         </div>
       </div>
+      </>}
       <div className="panel col" style={{ gap: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={3} />Feed it data</h3><button className="btn sm ghost" onClick={onData}>Dataset market</button></div>
         {owned.length === 0 ? <p className="dim">You own no data. Grab the free web crawl in the dataset market — or something less legal.</p> :
@@ -168,6 +173,45 @@ function Design({ onStart, onData }: { onStart: () => void; onData: () => void }
         <div className="dim" style={{ fontSize: 12.5 }}><Term k="mfu">MFU</Term> {(mfu * 100).toFixed(0)}% · ETA {dur(rate > 0 ? F / rate / 3600 : Infinity)}{cloud ? ` · ${money(bill)}/h ≈ ${money(bill * (rate > 0 ? F / rate / 3600 : 0))} total` : ''}<br /><span style={{ color: memNeed > memHave ? 'var(--red)' : undefined }}>memory {num(memNeed)} / {num(memHave)} GB</span></div>
         <button className="btn pri" onClick={() => { void useGame.getState().confirmAct(`Start training ${name}?`, PV.previewTraining(w, cloud ? bill * (rate > 0 ? F / rate / 3600 : 0) : 0), 'Train', (x) => A.startArchTraining(x, { name, arch, mix, siteId, gpuId: gid, servers: n, modality, method, baseId: base?.id }), { okMsg: 'Training started' }).then((r) => { if (r?.ok) onStart() }) }}>Start training</button>
       </div>
+    </div>
+  )
+}
+
+interface PlanProps { base: { name: string; paramsB: number; activeParamsB: number; tokensT: number; elo: number }; method: Method; g: ReturnType<typeof gpu> | null; F: number; n: number; free: number; mfu: number; good: number; rate: number; memNeed: number; memHave: number; cloud: boolean; bill: number; tokensT: number
+  siteId: string; setSite: (v: string) => void; gid: string; setGpu: (v: string) => void; gpuIds: string[]; setServers: (v: number) => void }
+/** Replaces the architecture editor when the base model fixes the shape: the compute plan that decides time, cost and risk. */
+function ComputePlan(p: PlanProps) {
+  const w = useWorld()
+  const { g, n, rate, F } = p
+  const hours = rate > 0 ? F / rate / 3600 : Infinity
+  const peakPf = g ? (n * 8 * g.tflops) / 1000 : 0
+  const kw = g ? (n * 8 * g.tdpW * 1.35) / 1000 : 0
+  const memOk = p.memHave >= p.memNeed
+  const tokPerSec = rate > 0 ? rate / (6 * p.base.activeParamsB * 1e9) : 0
+  const failsPerDay = g ? (n * 8 * 24) / g.mtbfH : 0
+  const rows: [string, string, string][] = [
+    ['Work to do', flops(F), `${p.tokensT.toFixed(2)}T new tokens through a ${params(p.base.activeParamsB)} model (6 × params × tokens)`],
+    ['Cluster peak', g ? `${num(peakPf)} PFLOPS` : '—', `${num(n * 8)} × ${g?.name ?? 'GPU'}`],
+    ['Real speed', `${num(rate / 1e15)} PFLOPS`, `${(p.mfu * 100).toFixed(0)}% utilisation (MFU, set by network and research) × ${(p.good * 100).toFixed(0)}% goodput (time lost to failures)`],
+    ['Throughput', `${num(tokPerSec)} tok/s`, 'Tokens trained per second across the cluster'],
+    ['Time', dur(hours), p.cloud ? 'Billed by the hour in the cloud' : 'Your servers are busy and unavailable for anything else meanwhile'],
+    ['Failures', `${failsPerDay.toFixed(1)} / day`, 'Each costs a restart from the last checkpoint. Checkpoint research and engineers shrink the loss'],
+    ['Power', g ? `${kw.toFixed(0)} kW` : '—', g ? `${(kw * hours).toLocaleString('en', { maximumFractionDigits: 0 })} kWh for the whole run, on top of the hall's cooling` : ''],
+    ['Cost', p.cloud ? money(p.bill * (rate > 0 ? hours : 0)) : 'Your own hardware', p.cloud ? `${money(p.bill)}/h for ${n} servers` : 'No bill, but power and the opportunity cost of idle serving']
+  ]
+  return (
+    <div className="panel col" style={{ gap: 12 }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}><h3><Step n={2} />Plan the compute</h3>
+        <span className="dim" style={{ fontSize: 12.5 }}>The shape comes from <b>{p.base.name}</b> ({params(p.base.paramsB)}, Elo {Math.round(p.base.elo)}). {p.method === 'continue' ? 'You add tokens; the compute decides how long that takes.' : 'A small, cheap pass; the compute decides the time.'}</span></div>
+      <div className="row wrap" style={{ gap: 14, alignItems: 'end' }}>
+        <Field label="Where"><select value={p.siteId} onChange={(e) => p.setSite(e.target.value)}>{w.sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value={CLOUD}>☁ Rent from Amazoon cloud</option></select></Field>
+        <Field label="GPU"><select value={p.gid} onChange={(e) => p.setGpu(e.target.value)}>{p.gpuIds.map((id) => <option key={id} value={id}>{gpu(w, id).name}</option>)}</select></Field>
+        <Field label={`Servers ${p.n}/${p.free}`}><input type="range" min={1} max={Math.max(1, p.free)} value={p.n} onChange={(e) => p.setServers(+e.target.value)} /></Field>
+      </div>
+      <table><tbody>{rows.map(([k, v, note]) => <tr key={k}><td style={{ width: 130 }}><b>{k}</b></td><td className="r" style={{ width: 170 }}>{v}</td><td className="dim" style={{ fontSize: 12.5 }}>{note}</td></tr>)}</tbody></table>
+      <div><div className="row" style={{ justifyContent: 'space-between', fontSize: 12.5 }}><span><b>GPU memory</b> needed to hold weights, gradients and optimiser</span><span className={memOk ? '' : 'neg'}>{num(p.memNeed)} GB of {num(p.memHave)} GB</span></div>
+        <Bar v={p.memHave > 0 ? p.memNeed / p.memHave : 2} />
+        {!memOk && <div className="usage-alert" role="alert" style={{ marginTop: 8 }}>Not enough GPU memory: add servers or pick a smaller base, or the run will not start.</div>}</div>
     </div>
   )
 }
@@ -291,18 +335,18 @@ function Models() {
 }
 
 function ModelCard({ id }: { id: string }) {
-  const w = useWorld(); const act = useGame((s) => s.act)
+  const w = useWorld(); const act = useGame((s) => s.act); const confirmAct = useGame((s) => s.confirmAct)
   const m = w.models.find((x) => x.id === id)!
   const deps = w.deployments.filter((d) => d.modelId === id)
-  const [siteId, setSite] = useState(w.sites[0]?.id ?? CLOUD)
+  const [siteId, setSite] = useDraft(`card.${id}.siteId`, w.sites[0]?.id ?? CLOUD)
   const cloud = siteId === CLOUD
   const site = w.sites.find((s) => s.id === siteId)
   const gpuIds = cloud ? cloudGpus(w).map((g) => g.id) : site ? [...new Set(site.halls.flatMap((h) => h.racks.map((r) => r.gpuId).filter(Boolean)))] : []
-  const [gpuId, setGpu] = useState(gpuIds[0] ?? '')
+  const [gpuId, setGpu] = useDraft(`card.${id}.gpuId`, gpuIds[0] ?? '')
   const gid = gpuIds.includes(gpuId) ? gpuId : gpuIds[gpuIds.length - 1] ?? ''
   const free = cloud && gid ? cloudCapacity(w, gid) : site && gid ? site.halls.reduce((a, h) => a + hallServers(h, gid), 0) - committed(w, siteId, gid) : 0
-  const [servers, setServers] = useState(8)
-  const [price, setPrice] = useState(() => +referencePrice(w.tick / 8766, m.elo).toFixed(2))
+  const [servers, setServers] = useDraft(`card.${id}.servers`, 8)
+  const [price, setPrice] = useDraft(`card.${id}.price`, () => +referencePrice(w.tick / 8766, m.elo).toFixed(2))
   const existing = deps.reduce((a, d) => a + d.servers, 0)
   return (
     <div className="panel col">
@@ -310,6 +354,7 @@ function ModelCard({ id }: { id: string }) {
         <div><h3>{m.name} <span className={'tag ' + (m.releasedByPlayer ? 'g' : 'a')}>{m.releasedByPlayer ? 'live' : 'unreleased'}</span></h3>
           <div className="dim mono" style={{ fontSize: 12 }}>{MODALITIES[m.modality ?? 'text'].name} · {num(m.paramsB)}B · loss {m.loss.toFixed(3)} · Elo {Math.round(m.elo)} · post-train {m.posttrain}/3{m.method && m.method !== 'scratch' ? ` · ${m.method}${m.baseName ? ` of ${m.baseName}` : ''}` : ''}</div></div>
         <div className="row">
+          {m.releasedByPlayer && <button className="btn sm" title="Take this model and its products off the market" onClick={() => void confirmAct('Withdraw ' + m.name, PV.previewWithdraw(w, m.name, w.products.filter((p) => p.modelId === id).length), 'Withdraw', (x) => A.withdrawModel(x, id), { okMsg: m.name + ' withdrawn' })}>Withdraw from market</button>}
           <button className="btn sm" onClick={() => act((x) => A.postTrain(x, id), 'Post-training done: +45 Elo')} disabled={m.posttrain >= 3}>Post-train (+45 Elo)</button>
         </div>
       </div>

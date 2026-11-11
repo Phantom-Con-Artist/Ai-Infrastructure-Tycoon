@@ -1,3 +1,4 @@
+import { useDraft } from '../draft'
 import { useState } from 'react'
 import { canAfford } from '@sim/rules'
 import { Plus, MapPin, Thermometer, Zap, Gauge } from 'lucide-react'
@@ -63,8 +64,8 @@ function Meter({ label, v, bad }: { label: string; v: number; bad?: boolean }) {
 function SiteView({ siteId, onNew }: { siteId: string; onNew: () => void }) {
   const w = useWorld(); const { selectSite } = useGame()
   const site = w.sites.find((s) => s.id === siteId)!
-  const [hallId, setHallId] = useState<string | null>(site.halls[0]?.id ?? null)
-  const [tab, setTab] = useState<'floor' | 'power'>('floor')
+  const [hallId, setHallId] = useDraft<string | null>('sites.hallId.66', site.halls[0]?.id ?? null)
+  const [tab, setTab] = useDraft<'floor' | 'power'>('sites.tab.67', 'floor')
   const hall = site.halls.find((h) => h.id === hallId) ?? site.halls[0]
   const r = region(site.regionId)
   return (
@@ -106,9 +107,9 @@ function SiteView({ siteId, onNew }: { siteId: string; onNew: () => void }) {
 
 function NewHall({ siteId, first, onDone }: { siteId: string; first: boolean; onDone: (id: string) => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
-  const [size, setSize] = useState<HallSize>('S')
-  const [cooling, setCooling] = useState<CoolingType>('air')
-  const [fabric, setFabric] = useState<FabricType>('eth100')
+  const [size, setSize] = useDraft<HallSize>('sites.size.109', 'S')
+  const [cooling, setCooling] = useDraft<CoolingType>('sites.cooling.110', 'air')
+  const [fabric, setFabric] = useDraft<FabricType>('sites.fabric.111', 'eth100')
   const cost = A.hallCost({ size, cooling, fabric })
   const body = (
     <div className="col" style={{ gap: 16 }}>
@@ -130,12 +131,12 @@ function NewHall({ siteId, first, onDone }: { siteId: string; first: boolean; on
 function PowerTab({ siteId }: { siteId: string }) {
   const w = useWorld(); const act = useGame((s) => s.act)
   const site = w.sites.find((s) => s.id === siteId)!
-  const [mw, setMw] = useState(10)
-  const [kind, setKind] = useState<GenKind>('solar')
-  const [gmw, setGmw] = useState(10)
-  const [gmwh, setGmwh] = useState(40)
+  const [mw, setMw] = useDraft('sites.mw.133', 10)
+  const [kind, setKind] = useDraft<GenKind>('sites.kind.134', 'solar')
+  const [gmw, setGmw] = useDraft('sites.gmw.135', 10)
+  const [gmwh, setGmwh] = useDraft('sites.gmwh.136', 40)
   const rg = region(site.regionId)
-  const [ppaMw, setPpaMw] = useState(Math.max(1, Math.round(site.utilityMw / 2)))
+  const [ppaMw, setPpaMw] = useDraft('sites.ppaMw.138', Math.max(1, Math.round(site.utilityMw / 2)))
   const prov = A.siteProvisionedKw(site) / 1000, cap = A.siteSupplyCapKw(site) / 1000
   const strat = site.strategy ?? 'cost'
   const h = site.history ?? []

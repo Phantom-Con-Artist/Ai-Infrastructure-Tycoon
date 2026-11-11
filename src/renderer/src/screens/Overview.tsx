@@ -1,3 +1,4 @@
+import { Tutorial } from '../Tutorial'
 /**
  * HQ — the command deck. Art direction: the campus is the hero; beside it, a quiet "Today" rail tells you the one to
  * three things worth doing and what your managers need signed. Below: the vital numbers, your path as a horizontal
@@ -97,6 +98,7 @@ export function Overview() {
   const started = w.ledger.some((d) => d.revenue > 0)
   return (
     <div className="hq">
+      <Tutorial />
       <div className="page-head" style={{ alignItems: 'center' }}>
         <WordMark glyph={w.logo.glyph as LogoGlyph} color={w.logo.color} name={w.company} size={34} />
         <div className="row" style={{ gap: 10 }}><span className="dim" style={{ fontSize: 13, textAlign: 'right' }}>“{adv.bio}”<br /><b style={{ color: 'var(--tx)' }}>{adv.name}</b> · {adv.role}</span><span style={{ borderRadius: 14, overflow: 'hidden' }}><Portrait seed={adv.name} size={48} /></span></div>

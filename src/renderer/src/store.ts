@@ -10,6 +10,7 @@ import { HUBS, hubOf, type Hub, type Screen } from './nav'
 export type { Screen } from './nav'
 export const SPEEDS = [0, 6, 24, 168, 720] // game-hours per real second
 
+import { clearDrafts } from './draft'
 import { saves, loadSettings, storeSettings, type Settings } from './saves'
 import { WORLD_VERSION } from '@sim/world'
 
@@ -58,7 +59,7 @@ export const useGame = create<UI>((set, get) => ({
   setSettings: (p) => { const settings = { ...get().settings, ...p }; storeSettings(settings); set({ settings }) },
   newGame: ({ company, ceo, advisor, seed, logo, rules }) => {
     const w = createWorld(seed, company, ceo, advisor, logo, rules)
-    acc = 0
+    acc = 0; clearDrafts()
     set({ w, rev: 1, speed: 0, screen: 'overview', siteId: null, undo: null, pending: null, overlay: null, lastReadTick: 0 })
   },
   load: async (slot) => {
@@ -67,7 +68,7 @@ export const useGame = create<UI>((set, get) => ({
     const w = JSON.parse(raw) as World
     if (w.version !== WORLD_VERSION) return get().flash('That save is from an older version of the game', 'err')
     backfillRivals(w)
-    acc = 0
+    acc = 0; clearDrafts()
     set({ w, rev: 1, speed: 0, screen: 'overview', siteId: w.sites[0]?.id ?? null, undo: null, pending: null, overlay: null, lastReadTick: w.tick })
   },
   save: async (slot = 'manual') => {
@@ -75,7 +76,7 @@ export const useGame = create<UI>((set, get) => ({
     await saves.write(slot, { company: w.company, tick: w.tick, cash: w.cash, sandbox: w.rules.mode === 'sandbox' }, JSON.stringify(w))
     if (slot !== 'auto') get().flash('Game saved')
   },
-  exit: () => set({ w: null, speed: 0, undo: null, pending: null, overlay: null }),
+  exit: () => { clearDrafts(); set({ w: null, speed: 0, undo: null, pending: null, overlay: null }) },
   setSpeed: (speed) => set({ speed }),
   go: (screen) => {
     const h = hubOf(screen)

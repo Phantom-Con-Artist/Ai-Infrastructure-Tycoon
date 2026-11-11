@@ -1,4 +1,4 @@
-import { canAfford } from './rules'
+import { canAfford, paceH } from './rules'
 import { bestRivalElo } from './foundry'
 /**
  * Consumer & business products built on your models (the "Store").
@@ -81,7 +81,7 @@ export function buildFeature(w: World, productId: string, featureId: string): R 
   if (!canAfford(w, f.costUsd)) return { ok: false, error: 'Not enough cash' }
   spend(w, f.costUsd, 'opex')
   const speed = 1 + Math.min(1, w.staff.engineers * 0.03) // more engineers ship sooner
-  p.building = { id: f.id, startTick: w.tick, readyTick: w.tick + Math.round(f.days / speed) * 24 }
+  p.building = { id: f.id, startTick: w.tick, readyTick: w.tick + paceH(w, Math.round(f.days / speed) * 24) }
   return { ok: true, value: undefined }
 }
 export function setSupport(w: World, productId: string, level: 0 | 1 | 2): R {
@@ -95,7 +95,7 @@ export function startPriceTest(w: World, productId: string, planId: string): R {
   if (p.test) return { ok: false, error: 'One experiment at a time' }
   if (!canAfford(w, PRICE_TEST_USD)) return { ok: false, error: 'Not enough cash' }
   spend(w, PRICE_TEST_USD, 'opex')
-  p.test = { planId, startTick: w.tick, endTick: w.tick + 14 * 24 }
+  p.test = { planId, startTick: w.tick, endTick: w.tick + paceH(w, 14 * 24) }
   return { ok: true, value: undefined }
 }
 export function createProduct(w: World, o: { name: string; category: Category; modelId: string }): R<Product> {
@@ -185,6 +185,7 @@ export function dailyStore(w: World): void {
         key.spend += (used / 1e6) * m.priceMtok
         while (key.tier < api.tiers.length - 1 && key.spend >= api.tiers[key.tier + 1].minSpend) key.tier++
       }
+      if (m.demandTokPerDay > 0 && m.capacityTokPerDay < m.demandTokPerDay * 0.8) w.reputation = Math.max(0, w.reputation - 0.04)
       const tokens = api.devs * c.baseTokPerDay * 0.05
       p.history.push({ day: Math.floor(w.tick / 24), users: api.devs, paid: api.keys.length, mrr: m.revenue, tokens, served: tokens, churned: 0, revenue: 0 })
       if (p.history.length > 180) p.history.shift()

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useDraft } from '../draft'
 import { Server } from 'lucide-react'
 import * as A from '@sim/actions'
 import { gpuCatalog, serverPeakKw, GPUS_PER_SERVER, type GpuSpec } from '@sim/data/hardware'
@@ -22,7 +22,7 @@ import { WordMark, type LogoGlyph } from '../art/Logos'
 
 export function Fleet() {
   const w = useWorld(); const go = useGame((s) => s.go)
-  const [tab, setTab] = useState<'buy' | 'cloud'>('buy')
+  const [tab, setTab] = useDraft<'buy' | 'cloud'>('fleet.tab.25', 'buy')
   if (!w.sites.length) return <EmptyState art={<EmptyFleetArt />} eyebrow="Fleet · no sites" title="Servers need somewhere to live." body="Buy land and build a hall first. Then come back to order accelerators for AI and CPU servers for VM clouds."><button className="btn pri" onClick={() => go('sites')}>Open Sites</button></EmptyState>
   return (
     <>
@@ -37,8 +37,8 @@ export function Fleet() {
 
 function Buy() {
   const w = useWorld(); const act = useGame((s) => s.act)
-  const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
-  const [qty, setQty] = useState<Record<string, number>>({})
+  const [siteId, setSite] = useDraft('fleet.siteId.40', w.sites[0]?.id ?? '')
+  const [qty, setQty] = useDraft<Record<string, number>>('fleet.qty.41', {})
   const cat = [...orderableNodes(w), ...gpuCatalog(yearOf(w.tick)).sort((a, b) => b.year - a.year || b.tflops - a.tflops)]
   const card = (g: GpuSpec) => {
     const price = serverMarketPrice(w, g) * (1 - vendorDiscount(w, g.vendor))

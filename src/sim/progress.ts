@@ -1,3 +1,4 @@
+import { paceH } from './rules'
 /**
  * Everything the player is waiting on, as one flat list. Screens draw these with the same progress bar so a delivery,
  * a hall under construction and a training run all read the same way.
@@ -29,7 +30,7 @@ export function jobs(w: World): Job[] {
   }
   for (const d of w.silicon.designs) if (d.status === 'designing') out.push({ id: d.id, kind: 'chip', label: `Tape-out ${d.spec.name}`, where: 'Silicon', ...span(w, d.startTick, d.readyTick, 365) })
   const fab = w.silicon.fab
-  if (fab && w.tick < fab.readyTick) out.push({ id: 'fab', kind: 'chip', label: 'Fab under construction', where: 'Silicon', ...span(w, fab.readyTick - 540 * 24, fab.readyTick, 540) })
+  if (fab && w.tick < fab.readyTick) out.push({ id: 'fab', kind: 'chip', label: 'Fab under construction', where: 'Silicon', ...span(w, fab.readyTick - paceH(w, 540 * 24), fab.readyTick, 540) })
   for (const p of w.data?.projects ?? []) { const rate = projectRate(w, p); out.push({ id: p.id, kind: 'data', label: `Gathering ${p.name}`, where: 'Data Foundry', frac: Math.min(1, p.doneT / p.targetT), hoursLeft: rate > 0 ? ((p.targetT - p.doneT) / rate) * 24 : Infinity }) }
   for (const p of w.products) {
     if (p.building) out.push({ id: p.id + 'b', kind: 'product', label: `Building ${FEATURES.find((f) => f.id === p.building!.id)?.name ?? 'a feature'}`, where: p.name, ...span(w, p.building.startTick, p.building.readyTick, 30) })
@@ -41,6 +42,13 @@ export function jobs(w: World): Job[] {
     out.push({ id: 'research', kind: 'research', label: `Researching ${cur.name}`, where: 'R&D', frac: cost > 0 ? Math.min(1, w.research.progressUsd / cost) : 0, hoursLeft: w.research.budgetPerDay > 0 ? (left / w.research.budgetPerDay) * 24 : Infinity })
   }
   return out.sort((a, b) => a.hoursLeft - b.hoursLeft)
+}
+
+/** Sandbox-only shortcut price: absurd on purpose, and it grows with how long the job still has to run. */
+export function rushCost(j: Job): number {
+  const h = Number.isFinite(j.hoursLeft) ? j.hoursLeft : 24 * 365
+  const kind = j.kind === 'training' ? 6 : j.kind === 'chip' ? 4 : j.kind === 'research' ? 3 : 1
+  return Math.round(Math.max(5e6, h * 250_000 * kind))
 }
 
 /** Plain-language read on a training plan: which lever is actually holding quality back. */

@@ -147,3 +147,7 @@ export function previewTraining(w: World, costUsd: number): Preview {
     ]
   }
 }
+
+export function previewWithdraw(w: World, what: string, products: number): Preview {
+  return { tier: 'severe', lines: [`Pull ${what} off the market.`, products ? `${products} product${products > 1 ? 's' : ''} and their customers go with it.` : 'No products depend on it.', 'Paying customers will be upset. Reputation drops.'] }
+}

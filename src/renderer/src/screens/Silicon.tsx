@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useDraft } from '../draft'
+import { useMemo } from 'react'
 import { ChipScene, DEFAULT_LOOK } from '../three/ChipScene'
 import { CHIP_MODS } from '@sim/data/silicon'
 import { Cpu, Factory, Microchip, Sparkles } from 'lucide-react'
@@ -19,7 +20,7 @@ const NAMES = ['Dreamchip', 'Hyperion', 'Thunderdie', 'Overclockasaurus', 'Gigab
 
 export function Silicon() {
   const w = useWorld(); const go = useGame((s) => s.go)
-  const [tab, setTab] = useState<'designer' | 'products' | 'fab'>(w.silicon.designs.length ? 'products' : 'designer')
+  const [tab, setTab] = useDraft<'designer' | 'products' | 'fab'>('silicon.tab.22', w.silicon.designs.length ? 'products' : 'designer')
   if (!hasTech(w, 'fabless')) return (
     <EmptyState art={<div style={{ display: 'grid', placeItems: 'center', gap: 12 }}><WaferMap dieMm2={600} yieldFrac={0.7} size={240} seed={3} /></div>}
       eyebrow="Silicon · locked" title="Why buy GPUs when you could make them?"
@@ -45,13 +46,13 @@ const ACCENTS = ['#9a7bff', '#4fd1c5', '#ff8a3d', '#ff4f7b', '#8be04e', '#f2f2f2
 function Designer({ onDone }: { onDone: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
   const o = C.siliconOptions(w)
-  const [s, set] = useState<ChipSpec>(() => ({
+  const [s, set] = useDraft<ChipSpec>('silicon.s.48', () => ({
     kind: 'gpu', name: `${NAMES[w.silicon.designs.length % NAMES.length]} ${w.silicon.designs.length + 1}`, nodeId: o.nodes[o.nodes.length - 1] ?? 'n7',
     dieMm2: 600, dies: 1, pkg: o.packages.includes('cowos-s') ? 'cowos-s' : 'mono', computeFrac: 0.5, sramFrac: 0.2, clockGHz: 1.6, archGen: o.maxArch,
     precision: o.precisions[o.precisions.length - 1], redundancy: true, hbmId: o.hbm[o.hbm.length - 1] ?? 'hbm2e', hbmStacks: o.packages.includes('cowos-s') ? 4 : 2, hbmHeight: 8, cpuCores: 64
   }))
   const up = (p: Partial<ChipSpec>): void => set((x) => ({ ...x, ...p }))
-  const [exploded, setExploded] = useState(true)
+  const [exploded, setExploded] = useDraft('silicon.exploded.54', true)
   const year = yearOf(w.tick)
   const e = useMemo(() => evaluateChip(s, year), [s, year])
   const err = C.validateDesign(w, s)
@@ -146,7 +147,7 @@ function Designer({ onDone }: { onDone: () => void }) {
 
 function Products({ onNew }: { onNew: () => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
-  const [siteId, setSite] = useState(w.sites[0]?.id ?? '')
+  const [siteId, setSite] = useDraft('silicon.siteId.149', w.sites[0]?.id ?? '')
   if (!w.silicon.designs.length) return <EmptyState art={<WaferMap dieMm2={300} yieldFrac={0.9} size={220} />} eyebrow="No chips yet" title="Your first tape-out awaits." body="Start in the designer. A small 7 nm die is cheap to tape out and teaches you the yield curve."><button className="btn pri" onClick={onNew}>Open designer</button></EmptyState>
   return (
     <div className="col" style={{ gap: 14 }}>

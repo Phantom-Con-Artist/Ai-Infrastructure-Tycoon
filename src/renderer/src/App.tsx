@@ -88,7 +88,7 @@ function Bell() {
 
 function Game() {
   const w = useWorld()
-  const { screen, go, goHub, speed, setSpeed, save, exit, settings } = useGame()
+  const { screen, go, goHub, speed, setSpeed, save, exit, settings, act } = useGame()
   const hub = hubOf(screen)
   const mainRef = useRef<HTMLElement>(null), innerRef = useRef<HTMLDivElement>(null)
   useSmoothScroll(mainRef, innerRef, screen)
@@ -112,6 +112,7 @@ function Game() {
         </div>
         {w.rules.mode === 'sandbox' && <div className="sandbox-tag" title="Sandbox game: achievements and leaderboards are off">Sandbox</div>}
         <div className="grow" />
+        <button className={'pace ' + (w.rules.pace === 'realistic' ? '' : 'arcade')} title="How fast builds, deliveries, training and tape-outs run. Arcade is 4× faster than realistic; costs stay the same." onClick={() => act((x) => { x.rules.pace = x.rules.pace === 'realistic' ? 'arcade' : 'realistic'; return { ok: true, value: undefined } }, w.rules.pace === 'realistic' ? 'Arcade pace: builds, deliveries and training run 4× faster' : 'Realistic pace')}>{w.rules.pace === 'realistic' ? 'Realistic' : 'Arcade'} pace</button>
         <div className="speed">{SPEEDS.map((_, i) => <button key={i} className={speed === i ? 'on' : ''} onClick={() => setSpeed(i)} title={i === 0 ? 'Pause (Space)' : `Speed ${i} (${i})`}>{SPEED_ICON[i]}</button>)}</div>
         <Bell />
       </header>

@@ -1,10 +1,12 @@
 import { ProductOps } from './Systems'
+import { useDraft } from '../draft'
 import { useState } from 'react'
 import { KeyRound, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import * as S from '@sim/store'
 import { dateOf, money, num } from '../format'
 import { useGame, useWorld } from '../store'
-import { EmptyState, Field, Num, Summary } from '../ui'
+import { Bar, EmptyState, Field, Num, Summary } from '../ui'
+import * as A from '@sim/actions'
 import { EmptyLabArt } from '../art/Illustrations'
 import * as PV from '@sim/preview'
 import * as Sum from '../summaries'
@@ -13,7 +15,7 @@ const CAT_ICON: Record<S.Category, string> = { chat: '💬', coding: '⌨️', c
 
 export function Store() {
   const w = useWorld(); const go = useGame((s) => s.go)
-  const [sel, setSel] = useState<string | 'new' | null>(w.products[0]?.id ?? null)
+  const [sel, setSel] = useDraft<string | 'new' | null>('store.sel.16', w.products[0]?.id ?? null)
   const launched = w.models.filter((m) => m.releasedByPlayer)
   if (!launched.length) return <EmptyState art={<EmptyLabArt />} eyebrow="Store · nothing to sell" title="Products need a brain." body="Every chat app, coding agent and API platform here runs on one of your launched models, served by your GPUs. Train and launch a model in the Lab, deploy it on some servers, then come back to package it into products with Free, Plus and Pro plans."><button className="btn pri" onClick={() => go('lab')}>Open Lab</button></EmptyState>
   const product = w.products.find((p) => p.id === sel)
@@ -37,9 +39,9 @@ export function Store() {
 function NewProduct({ onDone }: { onDone: (id: string) => void }) {
   const w = useWorld(); const act = useGame((s) => s.act)
   const models = w.models.filter((m) => m.releasedByPlayer)
-  const [cat, setCat] = useState<S.Category>('chat')
-  const [modelId, setModel] = useState(models[0]?.id ?? '')
-  const [name, setName] = useState(`${models[0]?.name ?? 'My'} Chat`)
+  const [cat, setCat] = useDraft<S.Category>('store.cat.40', 'chat')
+  const [modelId, setModel] = useDraft('store.modelId.41', models[0]?.id ?? '')
+  const [name, setName] = useDraft('store.name.42', `${models[0]?.name ?? 'My'} Chat`)
   return (
     <div className="panel col" style={{ gap: 16 }}>
       <div className="eyebrow">New product</div><h2 style={{ fontSize: 26, fontFamily: 'var(--display)', margin: 0 }}>What are you shipping?</h2>
@@ -85,7 +87,7 @@ export function LineChart({ series, height = 170, fmt = num }: { series: { name:
 }
 
 function Dashboard({ id }: { id: string }) {
-  const w = useWorld(); const act = useGame((s) => s.act)
+  const w = useWorld(); const act = useGame((s) => s.act); const retire = useRetire(id)
   const p = w.products.find((x) => x.id === id)!
   const m = w.models.find((x) => x.id === p.modelId)
   const h = p.history.slice(-90)
@@ -98,7 +100,7 @@ function Dashboard({ id }: { id: string }) {
   return (
     <div className="col" style={{ gap: 14 }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <div><div className="eyebrow">{CAT_ICON[p.category]} {C.name} · powered by {m?.name} · since {dateOf(p.launched)}</div><h1 style={{ fontSize: 38 }}>{p.name}</h1></div>
+        <div><div className="eyebrow">{CAT_ICON[p.category]} {C.name} · powered by {m?.name} · since {dateOf(p.launched)}</div><h1 style={{ fontSize: 38 }}>{p.name}</h1><button className="btn sm remove" onClick={retire}><Trash2 size={13} /> Remove from market</button></div>
         <Field label={`Marketing ${money(p.marketingPerDay)}/day`}><input type="range" min={0} max={2_000_000} step={10_000} value={p.marketingPerDay} onChange={(e) => act((x) => S.setMarketing(x, id, +e.target.value), undefined, { system: 'sales' })} style={{ width: 240 }} /></Field>
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
@@ -134,8 +136,45 @@ function Dashboard({ id }: { id: string }) {
   )
 }
 
+function useRetire(id: string): () => void {
+  const w = useWorld(); const confirmAct = useGame((s) => s.confirmAct)
+  const p = w.products.find((x) => x.id === id)
+  return () => { if (p) void confirmAct('Remove ' + p.name, PV.previewWithdraw(w, p.name, 1), 'Remove', (x) => A.retireProduct(x, id), { okMsg: p.name + ' removed' }) }
+}
+
+/** What the API is doing right now: traffic against capacity, errors from running out, and who is using it. */
+function ApiUsage({ id }: { id: string }) {
+  const w = useWorld()
+  const p = w.products.find((x) => x.id === id)!, api = p.api!
+  const m = w.models.find((x) => x.id === p.modelId)
+  const h = p.history.slice(-30)
+  const last = h.at(-1)
+  const dem = m?.demandTokPerDay ?? 0, cap = m?.capacityTokPerDay ?? 0
+  const util = cap > 0 ? dem / cap : dem > 0 ? 2 : 0
+  const dropped = Math.max(0, dem - cap)
+  const perDayRev = dem / 1e6 * (m?.priceMtok ?? 0)
+  const tiers = api.tiers.map((t, i) => { const ks = api.keys.filter((k) => k.tier === i); return { name: t.name, n: ks.length, tok: ks.reduce((a, k) => a + k.tokPerDay, 0), limit: t.tpm * 60 * 24 } })
+  return (
+    <div className="panel col" style={{ gap: 12 }}>
+      <h3>API usage · live</h3>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        <Kpi k="Requests (tokens/day)" v={num(dem)} sub={`${num(last?.tokens ?? 0)} from tracked traffic`} />
+        <Kpi k="Capacity used" v={`${Math.min(999, util * 100).toFixed(0)}%`} sub={`${num(cap)} tok/day available`} bad={util > 0.95} />
+        <Kpi k="Rejected (over capacity)" v={num(dropped)} sub={dropped > 0 ? 'Developers are getting 429s. Deploy more servers.' : 'Nothing dropped'} bad={dropped > 0} />
+        <Kpi k="Revenue / day" v={money(perDayRev)} sub={`at ${money(m?.priceMtok ?? 0)}/Mtok`} />
+      </div>
+      <Bar v={Math.min(1, util)} />
+      {dropped > 0 && <div className="usage-alert" role="alert">Over capacity: about {num(dropped)} tokens a day are being rejected. Developers notice, and so does your reputation.</div>}
+      <div className="panel flat"><h4 style={{ marginBottom: 6 }}>Traffic, last 30 days (tokens)</h4><LineChart series={[{ name: 'Tokens', color: 'var(--blue)', data: h.map((d) => d.tokens) }, { name: 'Served', color: 'var(--phos)', data: h.map((d) => d.served) }]} /></div>
+      <table><thead><tr><th>Tier</th><th className="r">Keys</th><th className="r">Tokens/day</th><th className="r">Share of tier limit</th></tr></thead><tbody>
+        {tiers.map((t) => <tr key={t.name}><td><b>{t.name}</b></td><td className="r">{t.n}</td><td className="r">{num(t.tok)}</td><td className="r">{t.limit > 0 ? ((t.tok / t.limit) * 100).toFixed(2) : 0}%</td></tr>)}
+      </tbody></table>
+    </div>
+  )
+}
+
 function ApiConsole({ id }: { id: string }) {
-  const w = useWorld(); const act = useGame((s) => s.act)
+  const w = useWorld(); const act = useGame((s) => s.act); const retire = useRetire(id)
   const p = w.products.find((x) => x.id === id)!
   const api = p.api!
   const m = w.models.find((x) => x.id === p.modelId)
@@ -143,7 +182,7 @@ function ApiConsole({ id }: { id: string }) {
   const setTier = (i: number, patch: Partial<S.ApiTier>): void => { act(() => { Object.assign(api.tiers[i], patch); return { ok: true, value: undefined } }) }
   return (
     <div className="col" style={{ gap: 14 }}>
-      <div><div className="eyebrow">🔑 Developer platform · {m?.name} at ${m?.priceMtok.toFixed(2)}/Mtok</div><h1 style={{ fontSize: 38 }}>{p.name}</h1></div>
+      <div><div className="eyebrow">🔑 Developer platform · {m?.name} at ${m?.priceMtok.toFixed(2)}/Mtok</div><h1 style={{ fontSize: 38 }}>{p.name}</h1><button className="btn sm remove" onClick={retire}><Trash2 size={13} /> Remove from market</button></div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         <Kpi k="Developers" v={num(api.devs)} /><Kpi k="API revenue (lifetime)" v={money(m?.revenue ?? 0)} /><Kpi k="Market share" v={`${((m?.share ?? 0) * 100).toFixed(2)}%`} /><Kpi k="Tokens/day" v={num(m?.demandTokPerDay ?? 0)} sub={`capacity ${num(m?.capacityTokPerDay ?? 0)}`} bad={(m?.demandTokPerDay ?? 0) > (m?.capacityTokPerDay ?? 0)} />
       </div>
@@ -152,6 +191,7 @@ function ApiConsole({ id }: { id: string }) {
         <div className="panel col" style={{ gap: 10 }}><h3>Signup credit</h3><p className="dim" style={{ fontSize: 13 }}>Free credit for new keys. More credit, more developers, more burn.</p>
           <div className="row" style={{ gap: 6 }}>{[0, 5, 18, 100].map((c) => <button key={c} className={'btn sm ' + (api.signupCredit === c ? 'pri' : '')} onClick={() => act(() => { api.signupCredit = c; return { ok: true, value: undefined } })}>${c}</button>)}</div></div>
       </div>
+      <ApiUsage id={id} />
       <div className="panel"><h3 style={{ marginBottom: 8 }}>Usage tiers & rate limits</h3>
         <table><thead><tr><th>Tier</th><th className="r">Unlocks at spend</th><th className="r">Requests / min</th><th className="r">Tokens / min</th></tr></thead><tbody>
           {api.tiers.map((t, i) => <tr key={t.name}><td><b>{t.name}</b></td>

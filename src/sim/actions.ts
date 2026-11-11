@@ -13,6 +13,7 @@ import { vendorDiscount } from './corporate'
 import { ROLES, makeCandidate, recomputeStaff } from './people'
 import { CLOUD, cloudCapacity, cloudGpus } from './cloud'
 import { pick } from './rng'
+import { paceH } from './rules'
 import { HOURS_PER_YEAR, type Equip, type Hall, type Rack, type RentalKind, type Site, type World } from './types'
 import {
   committed, coolingUnlocked, fabricUnlocked, findSite, gpu, hallServers, hasTech, newId, pushNews, siteHealthy, spend, techSum, yearOf
@@ -67,7 +68,7 @@ export function buildHall(w: World, siteId: string, spec: HallSpec): Result<Hall
   const build = Math.round((60 + z.w * z.d * 0.08) * (1 - (hasTech(w, 'prefab') ? 0.4 : 0)))
   const h: Hall = {
     id: newId(w, 'h'), name: spec.name ?? `Hall ${String.fromCharCode(65 + s.halls.length)}`, w: z.w, d: z.d, racks: [], equipment: [],
-    cooling: spec.cooling, coolKw: 0, powerKw: 0, fabric: spec.fabric, upsKwh: 0, upsSoc: 0, readyTick: w.tick + build * 24, startTick: w.tick,
+    cooling: spec.cooling, coolKw: 0, powerKw: 0, fabric: spec.fabric, upsKwh: 0, upsSoc: 0, readyTick: w.tick + paceH(w, build * 24), startTick: w.tick,
     tempC: 22, throttle: 1, itKw: 0, coolPowerKw: 0, pue: 0, online: false, waterL: 0
   }
   s.halls.push(h)
@@ -186,7 +187,7 @@ export function buyUtility(w: World, siteId: string, mw: number): Result {
   const cost = mw * 1_300_000
   if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost)
-  s.pendingUtility.push({ mw, startTick: w.tick, readyTick: w.tick + Math.round(r.permitDays * (0.5 + mw / 400) * (1 - techSum(w, 'permit'))) * 24 })
+  s.pendingUtility.push({ mw, startTick: w.tick, readyTick: w.tick + paceH(w, Math.round(r.permitDays * (0.5 + mw / 400) * (1 - techSum(w, 'permit'))) * 24) })
   return ok(undefined)
 }
 export function buildGenerator(w: World, siteId: string, kind: GenKind, mw: number, mwh = 0): Result {
@@ -196,7 +197,7 @@ export function buildGenerator(w: World, siteId: string, kind: GenKind, mw: numb
   const cost = mw * g.usdPerMw + mwh * (g.usdPerMwhStored ?? 0)
   if (!canAfford(w, cost)) return fail('Not enough cash')
   spend(w, cost)
-  s.gens.push({ id: newId(w, 'g'), kind, mw, mwh: kind === 'battery' ? (mwh || mw * 2) : 0, soc: 0, readyTick: w.tick + g.leadDays * 24, startTick: w.tick })
+  s.gens.push({ id: newId(w, 'g'), kind, mw, mwh: kind === 'battery' ? (mwh || mw * 2) : 0, soc: 0, readyTick: w.tick + paceH(w, g.leadDays * 24), startTick: w.tick })
   return ok(undefined)
 }
 
@@ -211,7 +212,7 @@ export function orderServers(w: World, siteId: string, gpuId: string, count: num
   const cost = Math.round(price * count * discount)
   if (!canAfford(w, cost)) return fail(`Need $${(cost / 1e6).toFixed(2)}M`)
   spend(w, cost)
-  const arriveTick = w.tick + (leadDays(w) + Math.round(Math.log2(1 + count) * 3)) * 24
+  const arriveTick = w.tick + paceH(w, (leadDays(w) + Math.round(Math.log2(1 + count) * 3)) * 24)
   // Orders for the same server placed on the same day ride on one truck: they stack into a single line.
   const day = Math.floor(w.tick / 24)
   const same = s.orders.find((o) => o.gpuId === gpuId && o.placedTick !== undefined && Math.floor(o.placedTick / 24) === day)
@@ -500,5 +501,25 @@ export function signPpa(w: World, siteId: string, mw: number): Result {
   if (mw <= 0 || mw > s.utilityMw) return fail(`Contract between 1 and ${s.utilityMw} MW`)
   s.ppa = { mw, price: ppaQuote(w, siteId), untilTick: w.tick + 10 * HOURS_PER_YEAR }
   pushNews(w, 'good', `PPA signed for ${s.name}`, `${mw} MW at $${s.ppa.price}/MWh for ten years. Your CFO finally smiles.`, 'mine', 1)
+  return ok(undefined)
+}
+
+/** Pull a product off the market. Paying customers notice: reputation takes a hit scaled by how many you drop. */
+export function retireProduct(w: World, productId: string): Result {
+  const p = w.products.find((x) => x.id === productId); if (!p) return fail('No such product')
+  const paid = p.plans.reduce((a, x) => a + (x.price > 0 ? x.subs : 0), 0) + (p.api?.keys.length ?? 0) * 20
+  w.reputation = Math.max(0, w.reputation - Math.min(6, Math.log10(1 + paid) * 1.2))
+  w.products = w.products.filter((x) => x !== p)
+  pushNews(w, 'info', `${p.name} is shutting down`, paid > 0 ? 'Paying customers were emailed at 4:59 pm on a Friday. Reviews are not kind.' : 'Nobody was paying, so nobody was upset.', 'mine', 1)
+  return ok(undefined)
+}
+/** Take a launched model off the market. Its products go with it; the weights stay yours and can be relaunched. */
+export function withdrawModel(w: World, modelId: string): Result {
+  const m = w.models.find((x) => x.id === modelId); if (!m) return fail('No such model')
+  if (!m.releasedByPlayer) return fail('That model is not on the market')
+  const doomed = w.products.filter((p) => p.modelId === modelId)
+  for (const p of doomed) { const r = retireProduct(w, p.id); if (!r.ok) return r }
+  m.releasedByPlayer = false; m.share = 0
+  pushNews(w, 'info', `${m.name} withdrawn`, `Pulled from the market${doomed.length ? ` along with ${doomed.length} product${doomed.length > 1 ? 's' : ''}` : ''}. Servers stay yours.`, 'mine', 1)
   return ok(undefined)
 }

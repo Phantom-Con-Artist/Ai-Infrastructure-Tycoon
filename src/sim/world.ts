@@ -20,7 +20,7 @@ import { CLOUD, cloudRate } from './cloud'
 import { clamp, findSite, gpu, newId, pushNews, techLevel, techSum, worstFabric, yearOf } from './util'
 import { EVALS, RIVAL_MIX, archLossDelta, evalScore } from './models'
 
-import { makeRules, mult, type Rules } from './rules'
+import { makeRules, mult, paceF, type Rules } from './rules'
 import { buildEdition } from './newspaper'
 import { checkGoals } from './advisor'
 import { facilitiesHourly, runManagers } from './managers'
@@ -146,12 +146,13 @@ function runWorkloads(w: World): Record<string, Record<string, number>> {
     if (!st || (!site && !cloud)) continue
     const g = gpu(w, run.gpuId)
     const eff = cloud ? run.servers : run.servers * frac(k)
-    if (cloud) { const bill = cloudRate(w, g) * run.servers * GPUS_PER_SERVER; w.cash -= bill; w.today.opex += bill; run.spentUsd += bill }
+    if (cloud) { const bill = cloudRate(w, g) * run.servers * GPUS_PER_SERVER * paceF(w); w.cash -= bill; w.today.opex += bill; run.spentUsd += bill }
     run.mfu = trainingMfu(w, run.servers, cloud ? 'ib400' : worstFabric(site!, run.gpuId))
-    const flops = eff * GPUS_PER_SERVER * g.tflops * 1e12 * 3600 * run.mfu * goodput(w, run.servers, g) * st.throttle
+    const pf = paceF(w)
+    const flops = pf * eff * GPUS_PER_SERVER * g.tflops * 1e12 * 3600 * run.mfu * goodput(w, run.servers, g) * st.throttle
     run.flopsDone += flops
     run.etaH = flops > 0 ? (run.flopsTotal - run.flopsDone) / flops : Infinity
-    run.spentUsd += run.servers * (serverMarketPrice(w, g) / (4 * HOURS_PER_YEAR))
+    run.spentUsd += pf * run.servers * (serverMarketPrice(w, g) / (4 * HOURS_PER_YEAR))
     addBusy(k, run.servers, 1)
     if (rnd(w) < 0.00004 * Math.sqrt(run.paramsB) && run.flopsDone > 0) {
       const lost = run.flopsDone * (0.01 + rnd(w) * 0.03)
